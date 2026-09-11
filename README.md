@@ -14,18 +14,11 @@ Not a D3 playground. Not a chart grammar. Bar, line, or scatter — taste is fix
 
 The thing people use is **`apps/share`**. That is the gallery, the paste URL, and the image.
 
-## What you do
+## Anybody
 
-Do not paste the website into Claude. Add Vizzy as an MCP tool.
+The public site is the picture. The anybody-path is a connector inside Claude or ChatGPT — add Vizzy once, like a tool. That hosted connector is not live yet.
 
-1. Clone this repo.
-2. Claude Desktop → Settings → Developer → Edit Config. Or Cursor → Settings → MCP. Not claude.ai.
-3. Add the `vizzy` server (`apps/mcp`, `VIZZY_SHARE_URL=https://vizzy-ruddy.vercel.app`). Restart the chat.
-4. Say: chart this table and publish it with Vizzy.
-
-`publish_chart` is the tool that matters. Do not invent D3. Agent contract: `AGENTS.md`.
-
-Agent contract: `AGENTS.md`.
+Developers can still run the local MCP in this repo (`@vizzy/mcp` → `publish_chart`). That is not how civilians install it. Agent contract: `AGENTS.md`.
 
 ## Local
 
