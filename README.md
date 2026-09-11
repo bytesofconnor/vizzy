@@ -16,9 +16,9 @@ The thing people use is **`apps/share`**. That is the gallery, the paste URL, an
 
 ## Anybody
 
-The public site is the picture. The anybody-path is a connector inside Claude or ChatGPT — add Vizzy once, like a tool. That hosted connector is not live yet.
+Type what you want on the site, or `POST /api/compose` with `{ "prompt": "..." }`. You get a chart URL and a PNG. Bots that can submit a form or POST JSON can use the same door.
 
-Developers can still run the local MCP in this repo (`@vizzy/mcp` → `publish_chart`). That is not how civilians install it. Agent contract: `AGENTS.md`.
+The local MCP (`publish_chart`) is still there for chats that already speak tools. Agent contract: `AGENTS.md`.
 
 ## Local
 

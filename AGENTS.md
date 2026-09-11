@@ -1,6 +1,6 @@
 # Vizzy for agents
 
-You gather rows. You call `publish_chart`. The human gets a paste URL and a PNG.
+You gather rows. You call `publish_chart`, or `POST /api/compose` with a prompt. The human gets a paste URL and a PNG.
 
 You emit a `ChartConfig`. The runtime draws the SVG. Do not invent D3.
 

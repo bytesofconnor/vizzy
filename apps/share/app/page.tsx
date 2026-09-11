@@ -2,8 +2,8 @@ import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { PIECES } from '../lib/pieces';
 import { ChartMount } from './components/ChartMount';
+import { ComposeBox } from './components/ComposeBox';
 import { EmbedActions } from './components/EmbedActions';
-import { HowToUse } from './components/HowToUse';
 import { SourceLine } from './components/SourceLine';
 import { sourceLine } from '../lib/source';
 
@@ -16,7 +16,13 @@ const kicker: CSSProperties = {
   margin: 0,
 };
 
-export default function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <main className="page-main">
       <p style={kicker}>Vizzy</p>
@@ -40,9 +46,9 @@ export default function HomePage() {
           marginTop: 14,
         }}
       >
-        Copy the image. Paste it in Notion, Docs, Slack.
+        Type what you want, or paste a table. Copy the image.
       </p>
-      <HowToUse />
+      <ComposeBox error={error} />
 
       <p style={{ ...kicker, marginTop: 48 }}>Examples</p>
       <div className="piece-list">

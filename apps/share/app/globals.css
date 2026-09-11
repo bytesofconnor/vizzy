@@ -37,6 +37,14 @@ button:hover {
   color: var(--mute);
 }
 
+textarea {
+  font-family: inherit;
+}
+
+textarea:focus {
+  border-bottom-color: var(--ink);
+}
+
 .page-main {
   max-width: 920px;
   margin: 0 auto;
