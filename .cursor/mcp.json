@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "vizzy": {
+      "command": "npx",
+      "args": ["-y", "tsx", "apps/mcp/src/cli.ts"],
+      "env": {
+        "VIZZY_SHARE_URL": "https://vizzy-ruddy.vercel.app"
+      }
+    }
+  }
+}

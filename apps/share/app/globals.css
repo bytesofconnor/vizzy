@@ -55,7 +55,7 @@ button:hover {
 }
 
 #make-one {
-  scroll-margin-top: 32px;
+  scroll-margin-top: 20px;
 }
 
 @media (max-width: 720px) {

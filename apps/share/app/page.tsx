@@ -42,15 +42,9 @@ export default function HomePage() {
       >
         Copy the image. Paste it in Notion, Docs, Slack.
       </p>
-      <p
-        style={{
-          ...kicker,
-          marginTop: 16,
-        }}
-      >
-        <a href="#make-one">How to make one</a>
-      </p>
+      <HowToUse />
 
+      <p style={{ ...kicker, marginTop: 48 }}>Examples</p>
       <div className="piece-list">
         {PIECES.map((piece) => (
           <article key={piece.slug}>
@@ -89,7 +83,6 @@ export default function HomePage() {
           </article>
         ))}
       </div>
-      <HowToUse />
     </main>
   );
 }

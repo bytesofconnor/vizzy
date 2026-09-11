@@ -14,15 +14,16 @@ Not a D3 playground. Not a chart grammar. Bar, line, or scatter — taste is fix
 
 The thing people use is **`apps/share`**. That is the gallery, the paste URL, and the image.
 
-## MCP
+## What you do
 
-Yes — if your chat can call MCP tools. Claude, Cursor, ChatGPT, whatever speaks the protocol. MCP is how an agent publishes. It is not how anyone else "installs" Vizzy, and it is not the product.
+Do not paste the website into Claude. Add Vizzy as an MCP tool.
 
-```bash
-npx vizzy-mcp start
-```
+1. Clone this repo.
+2. Claude Desktop → Settings → Developer → Edit Config. Or Cursor → Settings → MCP. Not claude.ai.
+3. Add the `vizzy` server (`apps/mcp`, `VIZZY_SHARE_URL=https://vizzy-ruddy.vercel.app`). Restart the chat.
+4. Say: chart this table and publish it with Vizzy.
 
-`publish_chart` is the tool that matters. It posts to share (`VIZZY_SHARE_URL`, default `https://vizzy-ruddy.vercel.app`) and returns a URL plus PNG. The other tools (`get_schema`, `validate_config`, `suggest_chart`, `compile_chart`) help the agent emit a valid `ChartConfig` first. Do not invent D3.
+`publish_chart` is the tool that matters. Do not invent D3. Agent contract: `AGENTS.md`.
 
 Agent contract: `AGENTS.md`.
 
