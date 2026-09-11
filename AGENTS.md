@@ -1,0 +1,39 @@
+# Vizzy for agents
+
+You gather rows. You call `publish_chart`. The human gets a paste URL and a PNG.
+
+You emit a `ChartConfig`. The runtime draws the SVG. Do not invent D3.
+
+## Do
+
+- Emit `ChartConfig` v1 (`schemaVersion: 1`).
+- Set `chart.type` to `bar`, `line`, or `scatter`.
+- Set `dataMapping.x` and `dataMapping.y` to **column names that exist** on the data rows.
+- Keep `y` numeric. Use `bar` for categorical x, `line` for time-like x, `scatter` for two numerics.
+- Call `validate_config` or `compile_chart` when unsure.
+- Attach `source` when you gathered the rows: `label`, optional `url`, `retrieved`, `method`, `evidence`. Do not invent a numeric confidence score.
+- Do not pick sm/md/lg at compile time. Size is an export. The host offers S/M/L when someone copies the image.
+- Call `publish_chart` to mint a paste URL and PNG. If you have no source, say so — do not invent one.
+- Host with `<VizzyChart config={config} data={data} />` from `@vizzy/react`.
+
+## Do not
+
+- Invent D3, Recharts, or a custom React component for a Vizzy chart.
+- Use `generate_chart`, voice, collaboration, or API keys — those are gone.
+- Add pie, heatmap, or other types. They are not in v1.
+
+## Schema
+
+Read `packages/core/src/schema/chart-config.v1.json` or the `get_schema` MCP tool.
+
+Minimal valid config:
+
+```json
+{
+  "schemaVersion": 1,
+  "chart": { "type": "bar" },
+  "dataMapping": { "x": "month", "y": "revenue" }
+}
+```
+
+If validation fails, fix the issue `path` (for example `dataMapping.y`) using the `suggestion`. Do not rewrite the renderer.

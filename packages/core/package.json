@@ -1,0 +1,36 @@
+{
+  "name": "@vizzy/core",
+  "version": "0.1.0",
+  "description": "Chart compiler runtime — ChartConfig in, SVG out",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./schema/chart-config.v1.json": "./src/schema/chart-config.v1.json"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "lint": "eslint src/**/*.ts",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "d3": "^7.9.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "jsdom": "^24.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}

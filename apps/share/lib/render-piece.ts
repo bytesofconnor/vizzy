@@ -1,0 +1,72 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { JSDOM } from 'jsdom';
+import { Resvg } from '@resvg/resvg-js';
+import { renderToSVG, validateChartConfig } from '@vizzy/core';
+import { CARDS, composePieceSvg, chartFrame, type CardSize } from './compose';
+import type { Piece } from './pieces';
+import { STUDIO } from './theme';
+
+function fontPath(file: string): string {
+  const candidates = [
+    path.join(process.cwd(), 'fonts', file),
+    path.join(process.cwd(), 'apps/share/fonts', file),
+    path.join(__dirname, '../../fonts', file),
+  ];
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!found) {
+    throw new Error(`${file} not found. Tried: ${candidates.join(', ')}`);
+  }
+  return found;
+}
+
+function withDom<T>(run: () => Promise<T>): Promise<T> {
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+    pretendToBeVisual: true,
+  });
+  const previous = {
+    window: globalThis.window,
+    document: globalThis.document,
+    HTMLElement: globalThis.HTMLElement,
+    SVGElement: globalThis.SVGElement,
+    Node: globalThis.Node,
+  };
+
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    SVGElement: dom.window.SVGElement,
+    Node: dom.window.Node,
+  });
+
+  return run().finally(() => {
+    Object.assign(globalThis, previous);
+    dom.window.close();
+  });
+}
+
+export async function renderPiecePng(piece: Piece, size: CardSize = 'md'): Promise<Buffer> {
+  const frame = chartFrame(size);
+  const config = validateChartConfig({
+    ...piece.config,
+    dimensions: {
+      ...piece.config.dimensions,
+      width: frame.width,
+      height: frame.height,
+      margin: frame.margin,
+    },
+  });
+  const chartSvg = await withDom(() => renderToSVG(config, piece.data));
+  const card = composePieceSvg({ ...piece, config }, chartSvg, size);
+  const resvg = new Resvg(card, {
+    fitTo: { mode: 'width', value: CARDS[size].width },
+    background: STUDIO.paper,
+    font: {
+      fontFiles: [fontPath('Archivo-Regular.ttf'), fontPath('IBMPlexMono-Regular.ttf')],
+      defaultFontFamily: 'Archivo',
+      loadSystemFonts: false,
+    },
+  });
+  return Buffer.from(resvg.render().asPng());
+}

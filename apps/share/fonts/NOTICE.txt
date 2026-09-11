@@ -1,0 +1,8 @@
+Archivo Regular — OFL
+https://github.com/Omnibus-Type/Archivo
+
+IBM Plex Sans Regular
+IBM Plex Mono Regular
+Copyright IBM Corp. All rights reserved.
+SIL Open Font License 1.1
+https://github.com/IBM/plex

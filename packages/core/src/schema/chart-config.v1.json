@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vizzy.dev/schema/chart-config.v1.json",
+  "title": "Vizzy ChartConfig",
+  "description": "Contract agents should emit. Do not invent D3. Pass the result to validate_config or compile_chart, then render with @vizzy/react VizzyChart.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chart", "dataMapping"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "default": 1
+    },
+    "chart": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "bar" },
+            "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
+            "grouping": { "enum": ["single", "grouped", "stacked"], "default": "single" },
+            "barPadding": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.1 },
+            "groupPadding": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.05 },
+            "cornerRadius": { "type": "number", "minimum": 0, "default": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "line" },
+            "curve": { "enum": ["linear", "monotone", "cardinal", "basis", "step"], "default": "monotone" },
+            "strokeWidth": { "type": "number", "minimum": 0.5, "maximum": 10, "default": 2 },
+            "showPoints": { "type": "boolean", "default": true },
+            "pointRadius": { "type": "number", "minimum": 1, "maximum": 10, "default": 4 },
+            "area": { "type": "boolean", "default": false },
+            "areaOpacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.3 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "scatter" },
+            "pointRadius": { "type": "number", "minimum": 1, "maximum": 20, "default": 5 },
+            "pointOpacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.7 },
+            "showTrendLine": { "type": "boolean", "default": false },
+            "trendLineType": { "enum": ["linear", "polynomial", "exponential"], "default": "linear" }
+          }
+        }
+      ]
+    },
+    "dataMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "string", "description": "Column name for the independent axis" },
+        "y": { "type": "string", "description": "Numeric column for the value axis" },
+        "color": { "type": "string" },
+        "size": { "type": "string" },
+        "group": { "type": "string" }
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "properties": {
+        "width": { "oneOf": [{ "type": "number" }, { "const": "responsive" }], "default": "responsive" },
+        "height": { "type": "number", "minimum": 100, "maximum": 2000, "default": 400 },
+        "margin": {
+          "type": "object",
+          "properties": {
+            "top": { "type": "number", "default": 20 },
+            "right": { "type": "number", "default": 20 },
+            "bottom": { "type": "number", "default": 40 },
+            "left": { "type": "number", "default": 40 }
+          }
+        }
+      }
+    },
+    "colors": { "type": "object" },
+    "animation": { "type": "object" },
+    "interaction": { "type": "object" },
+    "accessibility": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "keyboardNavigation": { "type": "boolean" },
+        "screenReaderSupport": { "type": "boolean" },
+        "highContrast": { "type": "boolean" }
+      }
+    },
+    "performance": { "type": "object" },
+    "axes": { "type": "object" },
+    "legend": { "type": "object" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "description": "Where the rows came from. Agents should attach this whenever they gather data. Do not invent a numeric confidence score.",
+      "properties": {
+        "label": { "type": "string", "description": "Human name of the series or file" },
+        "url": { "type": "string", "format": "uri", "description": "Link a reader can open" },
+        "retrieved": { "type": "string", "description": "ISO date the rows were taken" },
+        "method": {
+          "enum": ["official", "export", "scraped", "estimate", "manual", "example", "unknown"],
+          "default": "unknown"
+        },
+        "evidence": {
+          "type": "string",
+          "description": "Short fact a reader can use to judge the series (row count, gaps, interpolation)"
+        }
+      }
+    }
+  }
+}

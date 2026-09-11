@@ -1,0 +1,80 @@
+:root {
+  --paper: #ebe9e3;
+  --ink: #121211;
+  --mute: #6b6962;
+  --rule: #c5c2b9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1px;
+}
+
+button:hover {
+  color: var(--mute);
+}
+
+.page-main {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 48px 20px 120px;
+}
+
+.piece-list {
+  margin-top: 28px;
+  display: grid;
+  gap: 72px;
+}
+
+.chart-mount {
+  width: 100%;
+  aspect-ratio: 2.2 / 1;
+}
+
+#make-one {
+  scroll-margin-top: 32px;
+}
+
+@media (max-width: 720px) {
+  .page-main {
+    padding: 28px 16px 88px;
+  }
+
+  .piece-list {
+    margin-top: 20px;
+    gap: 48px;
+  }
+
+  .chart-mount {
+    aspect-ratio: 1.35 / 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .chart-mount {
+    aspect-ratio: 1.15 / 1;
+  }
+}

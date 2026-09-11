@@ -1,5 +1,0 @@
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/apps/web/$1" }],
-  "buildCommand": "npm run build --workspace=apps/web",
-  "outputDirectory": "apps/web/.next"
-}
