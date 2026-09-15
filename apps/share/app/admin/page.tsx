@@ -1,5 +1,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import {
+  estimateLoggedSpend,
+  fetchGatewayStatus,
+  formatPerMillion,
+  formatUsd,
+} from '../../lib/ai-gateway';
+import { STACK_MODELS } from '../../lib/ai-models';
 import { readWalletToken, signedInNav } from '../../lib/billing';
 import { getAdminInsights } from '../../lib/telemetry';
 import { KickerNav } from '../components/KickerNav';
@@ -29,10 +36,16 @@ const body = {
 
 export default async function AdminPage() {
   const token = await readWalletToken();
-  const insights = token ? await getAdminInsights(token) : null;
+  const [insights, gateway] = await Promise.all([
+    token ? getAdminInsights(token) : Promise.resolve(null),
+    fetchGatewayStatus(),
+  ]);
   if (!insights) {
     notFound();
   }
+  const loggedSpend = estimateLoggedSpend(insights.aiByModel, gateway.catalog);
+  const catalogById = new Map(gateway.catalog.map((row) => [row.id, row]));
+
   let nav: { email?: string; known?: boolean } = {};
   try {
     nav = await signedInNav();
@@ -76,16 +89,75 @@ export default async function AdminPage() {
         <Stat label="AI calls" value={insights.aiCalls} />
       </section>
       <section style={{ marginTop: 36, maxWidth: 540 }}>
-        <p style={kicker}>AI spend (rough)</p>
-        <p style={{ ...body, marginTop: 10 }}>
-          {formatTokens(insights.aiInputTokens)} in · {formatTokens(insights.aiOutputTokens)} out · about $
-          {insights.aiEstimateUsd.toFixed(2)} at Gemini Flash–class rates
-        </p>
+        <p style={kicker}>AI · logged (30 days)</p>
         {insights.aiCalls === 0 ? (
-          <p style={{ ...body, marginTop: 8, color: 'var(--mute)' }}>
+          <p style={{ ...body, marginTop: 10, color: 'var(--mute)' }}>
             No AI calls logged yet. Make a chart from the home page to record one.
           </p>
+        ) : (
+          <p style={{ ...body, marginTop: 10 }}>
+            {formatTokens(insights.aiInputTokens)} in · {formatTokens(insights.aiOutputTokens)} out ·{' '}
+            {insights.aiCalls} call{insights.aiCalls === 1 ? '' : 's'} · ~{formatUsd(loggedSpend.usd)} at gateway
+            catalog rates
+          </p>
+        )}
+        {loggedSpend.unknownModels.length > 0 ? (
+          <p style={{ ...body, marginTop: 8, color: 'var(--mute)' }}>
+            No catalog price for: {loggedSpend.unknownModels.join(', ')}
+          </p>
         ) : null}
+      </section>
+      <section style={{ marginTop: 36, maxWidth: 540 }}>
+        <p style={kicker}>AI · gateway credits</p>
+        {!gateway.configured ? (
+          <p style={{ ...body, marginTop: 10, color: 'var(--mute)' }}>
+            Set <span style={{ fontFamily: 'var(--font-mono), ui-monospace, monospace' }}>AI_GATEWAY_API_KEY</span>{' '}
+            on Vercel to read team balance and limits from the gateway.
+          </p>
+        ) : gateway.creditsError ? (
+          <p style={{ ...body, marginTop: 10, color: 'var(--mute)' }}>{gateway.creditsError}</p>
+        ) : gateway.credits ? (
+          <p style={{ ...body, marginTop: 10 }}>
+            {formatUsd(gateway.credits.balanceUsd)} left · {formatUsd(gateway.credits.totalUsedUsd)} used lifetime
+          </p>
+        ) : null}
+        {gateway.configured && gateway.credits ? (
+          <p style={{ ...body, marginTop: 8, color: 'var(--mute)' }}>
+            Budget and rate limits live in the{' '}
+            <a href="https://vercel.com/dashboard/ai-gateway" target="_blank" rel="noopener noreferrer">
+              Vercel AI Gateway
+            </a>{' '}
+            dashboard — not stored here.
+          </p>
+        ) : null}
+      </section>
+      <section style={{ marginTop: 36, maxWidth: 540 }}>
+        <p style={kicker}>AI · model catalog</p>
+        {gateway.catalogError ? (
+          <p style={{ ...body, marginTop: 10, color: 'var(--mute)' }}>{gateway.catalogError}</p>
+        ) : (
+          <ul style={{ listStyle: 'none', padding: 0, marginTop: 10 }}>
+            {STACK_MODELS.map((id) => {
+              const row = catalogById.get(id);
+              const used = insights.aiByModel.find((entry) => entry.model === id);
+              return (
+                <li key={id} style={{ ...body, marginBottom: 12 }}>
+                  <p style={{ fontWeight: 500, margin: 0 }}>{row?.name ?? id}</p>
+                  <p style={{ margin: '2px 0 0', color: 'var(--mute)' }}>
+                    {row
+                      ? `${formatPerMillion(row.inputPerToken)} in · ${formatPerMillion(row.outputPerToken)} out${
+                          row.contextWindow ? ` · ${formatTokens(row.contextWindow)} ctx` : ''
+                        }${row.maxOutputTokens ? ` · ${formatTokens(row.maxOutputTokens)} max out` : ''}`
+                      : 'Not in gateway catalog'}
+                    {used
+                      ? ` · ${used.calls} logged call${used.calls === 1 ? '' : 's'} (${formatTokens(used.inputTokens)} in)`
+                      : ''}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
       {insights.recentAi.length > 0 ? (
         <DetailList

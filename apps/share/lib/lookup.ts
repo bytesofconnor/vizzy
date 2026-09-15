@@ -1,5 +1,6 @@
 import { generateText, isStepCount, tool } from 'ai';
 import { z } from 'zod';
+import { LOOKUP_MODEL, LOOKUP_SONAR_MODEL } from './ai-models';
 import { logAiFromResult } from './ai-usage';
 import { firstPromptUrl } from './source';
 
@@ -34,7 +35,7 @@ export async function gatherFacts(asked: string): Promise<Gathered> {
 
   const found: string[] = seed ? [seed] : [];
   try {
-  const lookupModel = 'google/gemini-2.5-flash-lite';
+  const lookupModel = LOOKUP_MODEL;
   const lookupResult = await generateText({
     model: lookupModel,
     stopWhen: isStepCount(3),
@@ -93,7 +94,7 @@ export function countedSeriesRows(notes: string): number {
 
 async function gatherWithSonar(asked: string): Promise<Gathered | null> {
   try {
-    const sonarModel = 'perplexity/sonar';
+    const sonarModel = LOOKUP_SONAR_MODEL;
     const result = await generateText({
       model: sonarModel,
       prompt: `Find the latest public numbers for this chart request. Aim for about 15 real rows on a ranking. A season or monthly series can be the full published set. Return a markdown table with the NAME in the first column (skill, team, city) and one metric. Never use Rank 1 as the name. Never the same name under Rank and under usage %. Include the exact source URL. Do not summarize a ranking as its top 3 unless the user asked for a top N. If the page only publishes a few numbers, return those and say the list is short. Do not invent rows.\n\n${asked}`,

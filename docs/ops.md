@@ -60,6 +60,7 @@ Same names, different places. After a value changes, update every column that ha
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | yes | | yes | | Web client in project `vizzy-508717`. Authorized JavaScript origins: `http://localhost`, `http://localhost:3456`, `https://vizzy.run`. Authorized redirect URIs: `http://localhost:3456/api/save/google`, `https://vizzy.run/api/save/google`. Open `http://localhost:3456`, not `127.0.0.1`. |
 | `RESEND_API_KEY` | when email works | | yes | | Restore link. Not required for checkout. |
 | `RESEND_FROM` | when email works | | yes | | |
+| `AI_GATEWAY_API_KEY` | optional | | yes | | Admin `/admin` reads gateway credit balance and model catalog rates. Vercel → AI Gateway → API keys. |
 
 GitHub Actions **probe** (home + axe, no secrets) runs on pull requests. Full e2e including Stripe/Convex runs on **push to `main`**.
 

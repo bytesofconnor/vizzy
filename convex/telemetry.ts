@@ -121,7 +121,14 @@ export const getInsights = query({
     aiCalls: v.number(),
     aiInputTokens: v.number(),
     aiOutputTokens: v.number(),
-    aiEstimateUsd: v.number(),
+    aiByModel: v.array(
+      v.object({
+        model: v.string(),
+        calls: v.number(),
+        inputTokens: v.number(),
+        outputTokens: v.number(),
+      })
+    ),
     recentAi: v.array(aiCallRow),
     recentSaved: v.array(savedChartRow),
   })),
@@ -165,11 +172,28 @@ export const getInsights = query({
     const aiInWindow = aiRows.filter((row) => row.createdAt >= windowStart);
     let aiInputTokens = 0;
     let aiOutputTokens = 0;
+    const byModel = new Map<
+      string,
+      { model: string; calls: number; inputTokens: number; outputTokens: number }
+    >();
     for (const row of aiInWindow) {
       aiInputTokens += row.inputTokens;
       aiOutputTokens += row.outputTokens;
+      const existing = byModel.get(row.model);
+      if (existing) {
+        existing.calls += 1;
+        existing.inputTokens += row.inputTokens;
+        existing.outputTokens += row.outputTokens;
+      } else {
+        byModel.set(row.model, {
+          model: row.model,
+          calls: 1,
+          inputTokens: row.inputTokens,
+          outputTokens: row.outputTokens,
+        });
+      }
     }
-    const aiEstimateUsd = estimateAiUsd(aiInputTokens, aiOutputTokens);
+    const aiByModel = [...byModel.values()].sort((a, b) => b.inputTokens - a.inputTokens);
     const recentAi = [...aiInWindow]
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 15)
@@ -199,15 +223,9 @@ export const getInsights = query({
       aiCalls: aiInWindow.length,
       aiInputTokens,
       aiOutputTokens,
-      aiEstimateUsd,
+      aiByModel,
       recentAi,
       recentSaved,
     };
   },
 });
-
-function estimateAiUsd(inputTokens: number, outputTokens: number): number {
-  const input = (inputTokens / 1_000_000) * 0.15;
-  const output = (outputTokens / 1_000_000) * 0.6;
-  return Math.round((input + output) * 100) / 100;
-}

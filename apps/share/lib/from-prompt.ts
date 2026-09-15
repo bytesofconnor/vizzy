@@ -4,6 +4,7 @@ import { forecastStartIndex } from '@vizzy/core';
 import { countedSeriesRows, gatherFacts } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { followUpNeedsLookup, seedBriefing, type ChartSeed } from './seed';
+import { COMPOSE_MODELS } from './ai-models';
 import { logAiFromResult } from './ai-usage';
 import {
   estimateBasisEvidence,
@@ -53,11 +54,7 @@ One comparison per chart. Each x value is one thing, once. Never "Claude Code (R
 If CURRENT CHART is in the prompt, this is a second pass on that chart. Keep those rows unless the follow-up asks to drop, add, sort, or change numbers. Honor the follow-up. Do not switch subjects. Keep the existing source unless new numbers were looked up.`;
 
 /** Free-tier Gateway models. Full gpt-5.4 is paid-only and fails with a 403. */
-const MODELS = [
-  'google/gemini-2.5-flash',
-  'google/gemini-2.5-flash-lite',
-  'openai/gpt-4.1-mini',
-] as const;
+const MODELS = COMPOSE_MODELS;
 
 export function publicComposeError(error: unknown): string {
   const message = error instanceof Error ? error.message : '';

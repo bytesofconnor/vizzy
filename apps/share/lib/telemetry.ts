@@ -100,7 +100,12 @@ export type AdminInsights = {
   aiCalls: number;
   aiInputTokens: number;
   aiOutputTokens: number;
-  aiEstimateUsd: number;
+  aiByModel: Array<{
+    model: string;
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+  }>;
   recentAi: Array<{
     route: string;
     model: string;
