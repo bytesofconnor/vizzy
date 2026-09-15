@@ -8,8 +8,8 @@ Next reads **`apps/share/.env.local`**, not the repo-root `.env.local`. Root `.e
 
 | What | URL |
 | --- | --- |
-| Site (Vercel) | https://vizzy-ruddy.vercel.app |
-| Domain | https://vizzy.run (DNS may still be pending) |
+| Site (Vercel) | https://vizzy.run |
+| Domain | https://vizzy.run (ns1/ns2.vercel-dns.com) |
 | GitHub | https://github.com/bytesofconnor/vizzy |
 | Actions | https://github.com/bytesofconnor/vizzy/actions |
 | Action secrets | https://github.com/bytesofconnor/vizzy/settings/secrets/actions |
@@ -17,12 +17,15 @@ Next reads **`apps/share/.env.local`**, not the repo-root `.env.local`. Root `.e
 | Vercel env | https://vercel.com/connors-projects-408eaae2/vizzy/settings/environment-variables |
 | Vercel domains | https://vercel.com/connors-projects-408eaae2/vizzy/settings/domains |
 | Convex **dev** | https://dashboard.convex.dev/d/beloved-fennec-81 |
-| Convex **prod** | https://dashboard.convex.dev/d/cautious-sheep-629 |
+| Convex **prod** | https://dashboard.convex.dev/d/impartial-ostrich-883 |
 | Convex env | Dashboard → the deployment → Settings → Environment Variables. Or `npx convex env list` / `npx convex env set NAME` from the repo root. |
 | Stripe **sandbox** (Vizzy) | https://dashboard.stripe.com/acct_1UFzEgPc4hlkd27T/test/dashboard |
 | Stripe **live** (Vizzy) | https://dashboard.stripe.com/acct_1UFzEaB54ZEn5Ro5 |
 | Stripe products (sandbox) | https://dashboard.stripe.com/acct_1UFzEgPc4hlkd27T/test/products |
+| Stripe products (live) | https://dashboard.stripe.com/acct_1UFzEaB54ZEn5Ro5/products |
 | Stripe webhooks (sandbox) | https://dashboard.stripe.com/acct_1UFzEgPc4hlkd27T/test/webhooks |
+| Stripe webhooks (live) | https://dashboard.stripe.com/acct_1UFzEaB54ZEn5Ro5/webhooks |
+| Stripe API keys (live) | https://dashboard.stripe.com/acct_1UFzEaB54ZEn5Ro5/apikeys |
 | Google Auth (Vizzy project) | https://console.cloud.google.com/auth/clients?project=vizzy-508717 |
 | Google Auth (new client) | https://console.cloud.google.com/auth/clients/create?project=vizzy-508717 |
 | Resend | https://resend.com/api-keys |
@@ -44,7 +47,7 @@ Same names, different places. After a value changes, update every column that ha
 | Variable | `apps/share/.env.local` | Convex env | Vercel | GitHub Actions | Notes |
 | --- | --- | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | yes | | prod: `https://vizzy.run` or the Vercel URL | CI sets `http://127.0.0.1:3456` | |
-| `NEXT_PUBLIC_CONVEX_URL` | yes | | yes | secret | Dev: `https://beloved-fennec-81.convex.cloud`. Prod deployment is `cautious-sheep-629`. |
+| `NEXT_PUBLIC_CONVEX_URL` | yes | | yes | secret | Dev: `https://beloved-fennec-81.convex.cloud`. Prod: `https://impartial-ostrich-883.convex.cloud`. |
 | `CONVEX_URL` | yes | | optional | secret | Same as Convex URL. Root `.env.local` also has this for the CLI. |
 | `CONVEX_DEPLOYMENT` | | | | | Root `.env.local` only. `dev:beloved-fennec-81`. |
 | `COMPOSE_SERVER_SECRET` | yes | **yes** | yes | secret | Must match on Next and Convex. |

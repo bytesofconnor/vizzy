@@ -293,8 +293,8 @@ export function namesFromNotes(notes: string): string[] {
   const listed: string[] = [];
   for (const line of lines) {
     const match =
-      line.match(/^\d{1,2}[.)]\s+[*_]*([A-Za-z][^|(\[]{1,60}?)[*_]*\s*(?:[—–|:(-]|score|$)/i) ??
-      line.match(/^[-*]\s+[*_\[]*([A-Za-z][^|\]]{1,60}?)[\]]*\s*(?:[—–|:(-]|$)/);
+      line.match(/^\d{1,2}[.)]\s+[*_]*([A-Za-z][^|([]{1,60}?)[*_]*\s*(?:[—–|:(-]|score|$)/i) ??
+      line.match(/^[-*]\s+[*_[]*([A-Za-z][^|\]]{1,60}?)[\]]*\s*(?:[—–|:(-]|$)/);
     const name = cleanName(match?.[1] ?? '');
     if (name && !isRankIndexX(name)) {
       listed.push(name);
