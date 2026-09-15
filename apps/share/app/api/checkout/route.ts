@@ -36,6 +36,8 @@ export async function POST(request: Request) {
       walletToken: token,
       credits: String(PACK_CREDITS),
     },
+    allow_promotion_codes: true,
+    payment_method_collection: 'if_required',
     custom_text: {
       submit: {
         message: wallet?.email

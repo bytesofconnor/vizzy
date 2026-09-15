@@ -55,7 +55,7 @@ Same names, different places. After a value changes, update every column that ha
 | `OWNER_EMAILS` | local e2e | **yes** | if you want prod owner | secret | Comma-separated. Convex is the source of truth for the meter. |
 | `E2E_OWNER_EMAIL` | yes | | | secret | Playwright owner test. |
 | `STRIPE_SECRET_KEY` | yes (`sk_test_…`) | | live: `sk_live_…` | secret (`sk_test_…` for CI) | CI must stay test mode. |
-| `STRIPE_PRICE_ID` | yes | | live price when you copy the $8 product | secret | Sandbox: `price_1UFzkNPc4hlkd27T24QfgKel`. |
+| `STRIPE_PRICE_ID` | yes | | live price when you copy the $8 product | secret | Sandbox: `price_1UFzkNPc4hlkd27T24QfgKel`. Live: `price_1UG17xB54ZEn5Ro5r9v3oysJ`. |
 | `STRIPE_WEBHOOK_SECRET` | yes (`stripe listen`) | | from the Vizzy live webhook | | Forward to `/api/stripe/webhook`. |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | yes | | yes | | Web client in project `vizzy-508717`. Origins: `http://localhost:3456`, `https://vizzy.run`. |
 | `RESEND_API_KEY` | when email works | | yes | | Restore link. Not required for checkout. |
