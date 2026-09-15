@@ -5,8 +5,20 @@ const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   serverExternalPackages: ['jsdom', '@resvg/resvg-js', 'stripe'],
   transpilePackages: ['@vizzy/core', '@vizzy/react'],
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
+      { source: '/favicon.ico', destination: '/icon/32' },
       { source: '/c/x/:token.:size.png', destination: '/c/x/:token/png?size=:size' },
       { source: '/c/x/:token.png', destination: '/c/x/:token/png' },
       { source: '/c/:slug.:size.png', destination: '/c/:slug/png?size=:size' },
