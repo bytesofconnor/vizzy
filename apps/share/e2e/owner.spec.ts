@@ -56,6 +56,8 @@ test('owner charts are unlimited', async ({ context, page }) => {
 
   await page.goto('/me');
   await expect(page.getByRole('heading', { name: /charts left|draw whenever|no paid charts/i })).toBeVisible();
+  await expect(page.getByText(/signed in as/i)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /buy \d+ more/i })).toBeVisible();
   await expect(page.getByText('Last 14 days', { exact: true })).toBeVisible();
 
   const published = await page.request.post('/api/publish', {

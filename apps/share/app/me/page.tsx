@@ -85,10 +85,7 @@ export default async function MePage({
             : ' to bring charts from another browser.'}
         </p>
       ) : null}
-      {account?.email ? (
-        <p className="account-mail">Signed in as {account.email}.</p>
-      ) : null}
-      {account && !account.unlimited ? <AccountBuy /> : null}
+      <AccountBuy more={Boolean(account)} />
       {account ? <Usage account={account} /> : null}
       {account ? <Purchases orders={account.orders} /> : null}
       <p style={{ ...kicker, marginTop: 36 }}>

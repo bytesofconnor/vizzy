@@ -197,18 +197,6 @@ input:focus-visible {
   white-space: nowrap;
 }
 
-.account-mail {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 12px;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--mute);
-  margin: 14px 0 0;
-  max-width: 540px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
 .kicker-here {
   position: relative;
   display: inline-block;

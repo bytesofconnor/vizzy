@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 
-export function AccountBuy() {
+export function AccountBuy({ more = true }: { more?: boolean }) {
   const [buying, setBuying] = useState(false);
   const [fail, setFail] = useState('');
 
@@ -39,7 +39,11 @@ export function AccountBuy() {
       }}
     >
       <button type="button" onClick={() => void buy()} disabled={buying}>
-        {buying ? 'Opening…' : `Buy ${PACK_CREDITS} more for ${PACK_PRICE_LABEL}`}
+        {buying
+          ? 'Opening…'
+          : more
+            ? `Buy ${PACK_CREDITS} more for ${PACK_PRICE_LABEL}`
+            : `Buy ${PACK_CREDITS} for ${PACK_PRICE_LABEL}`}
       </button>
       {fail ? (
         <span role="alert">
