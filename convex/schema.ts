@@ -42,4 +42,26 @@ export default defineSchema({
     token: v.string(),
     createdAt: v.number(),
   }).index('by_slug', ['slug']),
+
+  charts: defineTable({
+    walletId: v.id('wallets'),
+    slug: v.string(),
+    title: v.string(),
+    route: v.union(v.literal('compose'), v.literal('publish')),
+    createdAt: v.number(),
+  }).index('by_wallet', ['walletId', 'createdAt']),
+
+  eventDaily: defineTable({
+    name: v.string(),
+    day: v.string(),
+    count: v.number(),
+  }).index('by_name_day', ['name', 'day']),
+
+  aiCalls: defineTable({
+    route: v.string(),
+    model: v.string(),
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    createdAt: v.number(),
+  }).index('by_created', ['createdAt']),
 });

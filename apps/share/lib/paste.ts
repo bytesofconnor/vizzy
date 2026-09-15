@@ -73,12 +73,16 @@ export async function loadPaste(slug: string): Promise<Piece | null> {
   }
 }
 
-export async function pasteHref(origin: string, token: string): Promise<{ url: string; png: string; token: string }> {
+export async function pasteHref(
+  origin: string,
+  token: string
+): Promise<{ url: string; png: string; token: string; slug?: string }> {
   const slug = await savePaste(token);
   const path = slug ? `/c/${slug}` : `/c/x/${token}`;
   return {
     url: `${origin}${path}`,
     png: `${origin}${path}.png`,
     token,
+    slug,
   };
 }

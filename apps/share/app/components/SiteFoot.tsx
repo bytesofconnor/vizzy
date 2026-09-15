@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { EventLink } from './EventLink';
 
 const kicker = {
   fontFamily: 'var(--font-mono), ui-monospace, monospace',
@@ -13,11 +14,17 @@ export function SiteFoot() {
   return (
     <footer className="site-foot" style={{ marginTop: 64 }}>
       <p style={kicker}>
-        <Link href="/terms">Terms</Link>
+        <EventLink href="/terms" name="tap_terms">
+          Terms
+        </EventLink>
         {' · '}
-        <Link href="/agents">Agents</Link>
+        <EventLink href="/agents" name="tap_agents">
+          Agents
+        </EventLink>
         {' · '}
-        <Link href="/llms.txt">llms.txt</Link>
+        <EventLink href="/llms.txt" name="tap_llms">
+          llms.txt
+        </EventLink>
       </p>
       <p
         style={{

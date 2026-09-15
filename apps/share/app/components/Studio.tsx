@@ -33,16 +33,18 @@ export function Studio({
   askPay,
   email,
   known,
+  owner = false,
 }: {
   piece?: Piece;
   error?: string;
   askPay?: boolean;
   email?: string;
   known?: boolean;
+  owner?: boolean;
 }) {
   return (
     <main id="content" className="page-main">
-      <KickerNav here="home" email={email} known={known} />
+      <KickerNav here="home" email={email} known={known} owner={owner} />
       {piece ? null : (
         <>
           <h1

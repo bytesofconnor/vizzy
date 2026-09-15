@@ -1,6 +1,7 @@
 import { creditPurchase } from './billing';
 import { normalizeEmail } from './claim';
 import { PACK_CREDITS } from './pack';
+import { bumpEvent } from './telemetry';
 
 export async function fulfillCheckoutSession(session: {
   id: string;
@@ -34,5 +35,8 @@ export async function fulfillCheckoutSession(session: {
     stripeCustomerId: customer,
     email,
   });
+  if (result.ok && !result.duplicate) {
+    await bumpEvent('purchase');
+  }
   return { ok: result.ok, credits: result.credits, walletToken: result.walletToken };
 }

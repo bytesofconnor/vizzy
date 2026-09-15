@@ -10,6 +10,7 @@ import {
 } from '../../../lib/billing';
 import { PACK_CREDITS } from '../../../lib/pack';
 import { packLineItem, stripeClient } from '../../../lib/stripe';
+import { bumpEvent } from '../../../lib/telemetry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'Could not start checkout' }, { status: 500 });
   }
 
+  await bumpEvent('checkout');
   const response = NextResponse.json({ ok: true, url: session.url });
   if (!existing) {
     const cookie = walletCookieOptions();

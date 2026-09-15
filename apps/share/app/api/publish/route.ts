@@ -3,6 +3,7 @@ import { mintPiece } from '../../../lib/mint';
 import { pasteHref } from '../../../lib/paste';
 import { payBody, payMessage } from '../../../lib/pay';
 import { siteUrl } from '../../../lib/site';
+import { recordAfterChart } from '../../../lib/telemetry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,6 +51,12 @@ export async function POST(request: Request) {
 
   const origin = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
   const paste = await pasteHref(origin.replace(/\/$/, ''), minted.token);
+  await recordAfterChart({
+    request,
+    slug: paste.slug,
+    title: minted.piece.title,
+    route: 'publish',
+  });
 
   return Response.json({
     ok: true,

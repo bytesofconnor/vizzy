@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ChartConfig, DataPoint } from '@vizzy/core';
-import { getAccount } from '../../lib/billing';
+import { getAccount, readWalletToken } from '../../lib/billing';
+import { listRecentCharts, ownerSession } from '../../lib/telemetry';
 import { googleClientId } from '../../lib/google';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import { studioChart } from '../../lib/theme';
@@ -36,8 +37,15 @@ const body = {
 
 export default async function MePage() {
   let account: Awaited<ReturnType<typeof getAccount>> = null;
+  let recent: Awaited<ReturnType<typeof listRecentCharts>> = [];
+  let owner = false;
   try {
     account = await getAccount();
+    const token = await readWalletToken();
+    if (token && account) {
+      recent = await listRecentCharts(token);
+    }
+    owner = await ownerSession();
   } catch (error) {
     console.error('account load failed', error);
   }
@@ -47,7 +55,7 @@ export default async function MePage() {
 
   return (
     <main id="content" className="page-main">
-      <KickerNav here="account" email={account?.email} known={Boolean(account)} />
+      <KickerNav here="account" email={account?.email} known={Boolean(account)} owner={owner} />
       <h1
         style={{
           fontWeight: 500,
@@ -78,6 +86,7 @@ export default async function MePage() {
         </p>
       ) : null}
       <AccountBuy more={Boolean(account)} />
+      {account && recent.length > 0 ? <Recent charts={recent} /> : null}
       {account ? <Usage account={account} /> : null}
       {account ? <Purchases orders={account.orders} /> : null}
       <p style={{ ...kicker, marginTop: 36 }}>
@@ -133,6 +142,35 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
     return 'You still get three free charts a day. Buy a stack when you want paid ones on hand.';
   }
   return `The next ${PACK_CREDITS} are ${PACK_PRICE_LABEL}.`;
+}
+
+function Recent({
+  charts,
+}: {
+  charts: Array<{ slug: string; title: string; route: 'compose' | 'publish'; createdAt: number }>;
+}) {
+  return (
+    <section style={{ marginTop: 36 }}>
+      <p style={kicker}>Recent</p>
+      <ul style={{ ...body, listStyle: 'none', padding: 0, marginTop: 14 }}>
+        {charts.map((chart) => (
+          <li key={`${chart.slug}-${chart.createdAt}`} style={{ margin: '0 0 10px' }}>
+            <Link href={`/c/${chart.slug}`}>{chart.title}</Link>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono), ui-monospace, monospace',
+                fontSize: 11,
+                color: 'var(--mute)',
+                marginLeft: 8,
+              }}
+            >
+              {chart.route} · {formatRecentAt(chart.createdAt)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function Usage({
@@ -204,6 +242,14 @@ function shortDay(day: string): string {
     return day;
   }
   return `${month}/${date}`;
+}
+
+function formatRecentAt(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
 }
 
 function formatPaidAt(ms: number): string {

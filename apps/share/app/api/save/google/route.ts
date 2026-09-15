@@ -9,6 +9,7 @@ import {
   sealGooglePending,
   verifyGoogleCredential,
 } from '../../../../lib/google';
+import { bumpEvent } from '../../../../lib/telemetry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,6 +38,7 @@ async function attachWallet(
     }
     return NextResponse.redirect(me(request), 303);
   }
+  await bumpEvent('sign_in');
   const dest = asJson
     ? NextResponse.json({
         ok: true,

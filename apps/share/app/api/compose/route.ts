@@ -4,6 +4,7 @@ import { pasteHref } from '../../../lib/paste';
 import { payBody, payMessage } from '../../../lib/pay';
 import { parseChartSeed, type ChartSeed } from '../../../lib/seed';
 import { siteUrl } from '../../../lib/site';
+import { recordAfterChart } from '../../../lib/telemetry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -90,6 +91,12 @@ export async function POST(request: Request) {
     }
 
     const paste = await pasteHref(origin.replace(/\/$/, ''), minted.token);
+    await recordAfterChart({
+      request,
+      slug: paste.slug,
+      title: minted.piece.title,
+      route: 'compose',
+    });
     if (wantsHtml(request)) {
       return Response.redirect(paste.url, 303);
     }

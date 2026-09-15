@@ -4,6 +4,7 @@ import { forecastStartIndex } from '@vizzy/core';
 import { countedSeriesRows, gatherFacts } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { followUpNeedsLookup, seedBriefing, type ChartSeed } from './seed';
+import { logAiFromResult } from './ai-usage';
 import { firstPromptUrl, sourceLabelFor, sourceMethodFor } from './source';
 
 const DraftSchema = z.object({
@@ -139,13 +140,14 @@ export async function pieceFromPrompt(prompt: string, from?: ChartSeed): Promise
 }
 
 async function draftChart(model: (typeof MODELS)[number], prompt: string) {
-  const { output } = await generateText({
+  const result = await generateText({
     model,
     output: Output.object({ schema: DraftSchema }),
     system: SYSTEM,
     prompt,
   });
-  return output;
+  await logAiFromResult('compose', model, result.usage);
+  return result.output;
 }
 
 function mintDraft(
