@@ -201,7 +201,7 @@ export async function signedInNav(): Promise<{ email?: string; known?: boolean }
     });
     return {
       known: true,
-      email: status.saved && status.email ? status.email : undefined,
+      email: status.email,
     };
   } catch {
     return { known: true };

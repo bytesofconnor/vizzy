@@ -18,6 +18,12 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+function newWalletToken(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 async function walletByEmail(ctx: QueryCtx | MutationCtx, email: string) {
   return await ctx.db
     .query('wallets')
@@ -571,7 +577,18 @@ export const bindGoogle = mutation({
       return packFromWallet(next);
     }
 
-    return null;
+    const walletId = await ctx.db.insert('wallets', {
+      token: newWalletToken(),
+      googleSub: args.googleSub,
+      googleEmail,
+      credits: 0,
+      createdAt: Date.now(),
+    });
+    const created = await ctx.db.get(walletId);
+    if (!created) {
+      throw new Error('Wallet missing');
+    }
+    return packFromWallet(created);
   },
 });
 

@@ -33,9 +33,9 @@ async function attachWallet(
   const bound = await bindGoogleAccount({ googleSub: identity.sub, googleEmail: identity.email });
   if (!bound) {
     if (asJson) {
-      return Response.json({ ok: false, error: 'No charts on that Google account yet.' }, { status: 404 });
+      return Response.json({ ok: false, error: 'Could not sign in' }, { status: 500 });
     }
-    return NextResponse.redirect(me(request, 'signin=missing'), 303);
+    return NextResponse.redirect(me(request), 303);
   }
   const dest = asJson
     ? NextResponse.json({
@@ -43,7 +43,7 @@ async function attachWallet(
         credits: bound.credits,
         unlimited: bound.unlimited,
       })
-    : NextResponse.redirect(me(request), 303);
+    : NextResponse.redirect(new URL('/', request.url), 303);
   const { name, ...opts } = walletCookieOptions();
   dest.cookies.set(name, bound.walletToken, opts);
   const paid = clearJustPaidCookieOptions();

@@ -118,7 +118,7 @@ export function SaveGoogle({ compact = false }: { compact?: boolean }) {
       });
       const body: unknown = await response.json();
       if (typeof body === 'object' && body !== null && 'ok' in body && body.ok === true) {
-        window.location.assign('/me');
+        window.location.assign('/');
         return;
       }
       const message =

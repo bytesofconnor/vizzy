@@ -34,12 +34,7 @@ const body = {
   marginTop: 14,
 } as const;
 
-export default async function MePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ signin?: string }>;
-}) {
-  const { signin } = await searchParams;
+export default async function MePage() {
   let account: Awaited<ReturnType<typeof getAccount>> = null;
   try {
     account = await getAccount();
@@ -49,7 +44,6 @@ export default async function MePage({
 
   const google = Boolean(googleClientId());
   const offerGoogle = Boolean(google && (!account || !account.saved || !account.email));
-  const missing = signin === 'missing';
 
   return (
     <main id="content" className="page-main">
@@ -65,9 +59,7 @@ export default async function MePage({
       >
         {headline(account)}
       </h1>
-      <p style={body} role={missing ? 'alert' : undefined}>
-        {missing ? 'No charts on that Google account yet.' : statusLine(account, google)}
-      </p>
+      <p style={body}>{statusLine(account, google)}</p>
       {offerGoogle ? (
         <p
           style={{
@@ -112,6 +104,9 @@ function headline(account: Awaited<ReturnType<typeof getAccount>>): string {
   if (account.credits > 0) {
     return `${account.credits} chart${account.credits === 1 ? '' : 's'} left.`;
   }
+  if (account.saved) {
+    return 'Signed in.';
+  }
   return 'No paid charts left.';
 }
 
@@ -133,6 +128,9 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
     return account.saved
       ? 'Each chart you make spends one. Buy more any time.'
       : 'Each chart you make spends one.';
+  }
+  if (account.saved) {
+    return 'You still get three free charts a day. Buy a stack when you want paid ones on hand.';
   }
   return `The next ${PACK_CREDITS} are ${PACK_PRICE_LABEL}.`;
 }
