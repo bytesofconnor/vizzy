@@ -92,15 +92,27 @@ export async function listRecentCharts(
 
 export type AdminInsights = {
   people: number;
-  chartsDrawn: number;
-  composeCharts: number;
-  publishCharts: number;
+  meterDraws: number;
+  savedFromPrompt: number;
+  savedFromPublish: number;
   purchases: number;
   taps: Array<{ label: string; count: number }>;
   aiCalls: number;
   aiInputTokens: number;
   aiOutputTokens: number;
   aiEstimateUsd: number;
+  recentAi: Array<{
+    route: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    createdAt: number;
+  }>;
+  recentSaved: Array<{
+    title: string;
+    route: 'compose' | 'publish';
+    createdAt: number;
+  }>;
 };
 
 export async function getAdminInsights(walletToken: string): Promise<AdminInsights | null> {

@@ -66,7 +66,7 @@ export async function gatherFacts(asked: string): Promise<Gathered> {
       }),
     },
   });
-  await logAiFromResult('lookup', lookupModel, lookupResult.usage);
+  await logAiFromResult('lookup', lookupModel, lookupResult.usage, lookupResult.totalUsage);
   const text = lookupResult.text;
 
   return {
@@ -98,7 +98,7 @@ async function gatherWithSonar(asked: string): Promise<Gathered | null> {
       model: sonarModel,
       prompt: `Find the latest public numbers for this chart request. Aim for about 15 real rows on a ranking. A season or monthly series can be the full published set. Return a markdown table with the NAME in the first column (skill, team, city) and one metric. Never use Rank 1 as the name. Never the same name under Rank and under usage %. Include the exact source URL. Do not summarize a ranking as its top 3 unless the user asked for a top N. If the page only publishes a few numbers, return those and say the list is short. Do not invent rows.\n\n${asked}`,
     });
-    await logAiFromResult('lookup_sonar', sonarModel, result.usage);
+    await logAiFromResult('lookup_sonar', sonarModel, result.usage, result.totalUsage);
     const urls = urlsFromUnknown(result.sources).concat(urlsInText(result.text));
     return { notes: result.text.trim(), urls };
   } catch {

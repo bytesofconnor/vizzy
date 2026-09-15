@@ -35,6 +35,21 @@ const body = {
   marginTop: 14,
 } as const;
 
+const rowTitle = {
+  fontSize: 15,
+  lineHeight: 1.45,
+  fontWeight: 500,
+  textDecoration: 'underline',
+  textUnderlineOffset: '0.18em',
+} as const;
+
+const rowMeta = {
+  fontSize: 15,
+  lineHeight: 1.45,
+  color: 'var(--mute)',
+  marginTop: 2,
+} as const;
+
 export default async function MePage() {
   let account: Awaited<ReturnType<typeof getAccount>> = null;
   let recent: Awaited<ReturnType<typeof listRecentCharts>> = [];
@@ -86,11 +101,13 @@ export default async function MePage() {
         </p>
       ) : null}
       <AccountBuy more={Boolean(account)} />
-      {account && recent.length > 0 ? <Recent charts={recent} /> : null}
-      {account ? <Usage account={account} /> : null}
+      {account ? <YourCharts charts={recent} /> : null}
+      {account && account.used > 0 && !account.unlimited ? <Activity account={account} /> : null}
       {account ? <Purchases orders={account.orders} /> : null}
-      <p style={{ ...kicker, marginTop: 36 }}>
-        <Link href="/">Make a chart</Link>
+      <p style={{ ...body, marginTop: 36 }}>
+        <Link href="/" style={rowTitle}>
+          Make a chart
+        </Link>
       </p>
       <SiteFoot />
     </main>
@@ -144,41 +161,53 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
   return `The next ${PACK_CREDITS} are ${PACK_PRICE_LABEL}.`;
 }
 
-function Recent({
+function YourCharts({
   charts,
 }: {
-  charts: Array<{ slug: string; title: string; route: 'compose' | 'publish'; createdAt: number }>;
+  charts: Array<{ slug: string; title: string; createdAt: number }>;
 }) {
   return (
     <section style={{ marginTop: 36 }}>
-      <p style={kicker}>Recent</p>
-      <ul style={{ ...body, listStyle: 'none', padding: 0, marginTop: 14 }}>
-        {charts.map((chart) => (
-          <li key={`${chart.slug}-${chart.createdAt}`} style={{ margin: '0 0 10px' }}>
-            <Link href={`/c/${chart.slug}`}>{chart.title}</Link>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                fontSize: 11,
-                color: 'var(--mute)',
-                marginLeft: 8,
-              }}
-            >
-              {chart.route} · {formatRecentAt(chart.createdAt)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <p style={kicker}>Your charts</p>
+      {charts.length === 0 ? (
+        <p style={body}>Charts you make on this browser show up here as links you can reopen.</p>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0, marginTop: 14, maxWidth: 540 }}>
+          {charts.map((chart) => (
+            <li key={`${chart.slug}-${chart.createdAt}`} style={{ margin: '0 0 14px' }}>
+              <Link href={`/c/${chart.slug}`} style={rowTitle}>
+                {chart.title}
+              </Link>
+              <p style={rowMeta}>{formatRecentAt(chart.createdAt)}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
 
-function Usage({
+function Activity({
   account,
 }: {
   account: NonNullable<Awaited<ReturnType<typeof getAccount>>>;
 }) {
-  const data: DataPoint[] = account.days.map((row) => ({
+  const activeDays = account.days.filter((row) => row.charts > 0);
+  const summary = activitySummary(account.used, activeDays);
+
+  return (
+    <section style={{ marginTop: 36, maxWidth: 720 }}>
+      <p style={kicker}>Activity</p>
+      <p style={{ ...body, marginTop: 10 }}>{summary}</p>
+      {activeDays.length >= 2 ? (
+        <ActivityChart days={activeDays} />
+      ) : null}
+    </section>
+  );
+}
+
+function ActivityChart({ days }: { days: Array<{ day: string; charts: number }> }) {
+  const data: DataPoint[] = days.map((row) => ({
     day: shortDay(row.day),
     charts: row.charts,
   }));
@@ -191,28 +220,36 @@ function Usage({
         y: { label: 'Charts' },
       },
       accessibility: {
-        title: 'Charts drawn, last 14 days',
-        description: 'How many charts this account drew each day for the last two weeks.',
+        title: 'Charts per day, last two weeks',
+        description: 'Days when you drew at least one chart.',
       },
     }
   );
 
   return (
-    <section style={{ marginTop: 36, maxWidth: 720 }}>
-      <p style={kicker}>Last 14 days</p>
-      <h2
-        style={{
-          fontWeight: 500,
-          fontSize: 'clamp(1.25rem, 5vw, 1.5rem)',
-          letterSpacing: '-0.025em',
-          margin: '4px 0 12px',
-        }}
-      >
-        {account.used === 0 ? 'No charts yet this stretch.' : `${account.used} chart${account.used === 1 ? '' : 's'} drawn.`}
-      </h2>
-      <ChartMount config={config} data={data} label="Charts drawn, last 14 days" />
-    </section>
+    <div style={{ marginTop: 16 }}>
+      <ChartMount config={config} data={data} label="Charts per day, last two weeks" />
+    </div>
   );
+}
+
+function activitySummary(
+  used: number,
+  activeDays: Array<{ day: string; charts: number }>
+): string {
+  const noun = `${used} chart${used === 1 ? '' : 's'}`;
+  if (activeDays.length === 0) {
+    return `${noun} in the last two weeks.`;
+  }
+  if (activeDays.length === 1) {
+    const only = activeDays[0]!;
+    return `${noun} in the last two weeks — all on ${formatDayLabel(only.day)}.`;
+  }
+  const busiest = [...activeDays].sort((a, b) => b.charts - a.charts)[0];
+  if (busiest && busiest.charts === used) {
+    return `${noun} in the last two weeks — busiest on ${formatDayLabel(busiest.day)} (${busiest.charts}).`;
+  }
+  return `${noun} across ${activeDays.length} days in the last two weeks.`;
 }
 
 function Purchases({ orders }: { orders: Array<{ createdAt: number; credits: number }> }) {
@@ -222,9 +259,9 @@ function Purchases({ orders }: { orders: Array<{ createdAt: number; credits: num
       {orders.length === 0 ? (
         <p style={body}>No Stripe charges on this account.</p>
       ) : (
-        <ul style={{ ...body, listStyle: 'none', padding: 0, marginTop: 14 }}>
+        <ul style={{ listStyle: 'none', padding: 0, marginTop: 14, maxWidth: 540 }}>
           {orders.map((order, index) => (
-            <li key={`${order.createdAt}-${index}`} style={{ margin: '0 0 8px' }}>
+            <li key={`${order.createdAt}-${index}`} style={{ ...body, margin: '0 0 8px' }}>
               {formatPaidAt(order.createdAt)} · {order.credits} charts · {PACK_PRICE_LABEL}
             </li>
           ))}
@@ -245,7 +282,15 @@ function shortDay(day: string): string {
 }
 
 function formatRecentAt(ms: number): string {
-  return new Date(ms).toLocaleDateString('en-GB', {
+  return formatDayLabel(new Date(ms).toISOString().slice(0, 10));
+}
+
+function formatDayLabel(day: string): string {
+  const [year, month, date] = day.split('-').map(Number);
+  if (!year || !month || !date) {
+    return day;
+  }
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
     timeZone: 'UTC',

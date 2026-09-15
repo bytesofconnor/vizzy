@@ -146,7 +146,7 @@ async function draftChart(model: (typeof MODELS)[number], prompt: string) {
     system: SYSTEM,
     prompt,
   });
-  await logAiFromResult('compose', model, result.usage);
+  await logAiFromResult('compose', model, result.usage, result.totalUsage);
   return result.output;
 }
 

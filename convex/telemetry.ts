@@ -92,6 +92,18 @@ export const logAiCall = mutation({
 });
 
 const insightRow = v.object({ label: v.string(), count: v.number() });
+const aiCallRow = v.object({
+  route: v.string(),
+  model: v.string(),
+  inputTokens: v.number(),
+  outputTokens: v.number(),
+  createdAt: v.number(),
+});
+const savedChartRow = v.object({
+  title: v.string(),
+  route: v.union(v.literal('compose'), v.literal('publish')),
+  createdAt: v.number(),
+});
 
 export const getInsights = query({
   args: {
@@ -101,15 +113,17 @@ export const getInsights = query({
   },
   returns: v.union(v.null(), v.object({
     people: v.number(),
-    chartsDrawn: v.number(),
-    composeCharts: v.number(),
-    publishCharts: v.number(),
+    meterDraws: v.number(),
+    savedFromPrompt: v.number(),
+    savedFromPublish: v.number(),
     purchases: v.number(),
     taps: v.array(insightRow),
     aiCalls: v.number(),
     aiInputTokens: v.number(),
     aiOutputTokens: v.number(),
     aiEstimateUsd: v.number(),
+    recentAi: v.array(aiCallRow),
+    recentSaved: v.array(savedChartRow),
   })),
   handler: async (ctx, args) => {
     assertServer(args.secret);
@@ -125,12 +139,12 @@ export const getInsights = query({
     const people = wallets.filter((row) => Boolean(row.googleSub || row.email)).length;
 
     const uses = await ctx.db.query('uses').collect();
-    const chartsDrawn = uses.filter((row) => row.createdAt >= windowStart).length;
+    const meterDraws = uses.filter((row) => row.createdAt >= windowStart).length;
 
     const charts = await ctx.db.query('charts').collect();
     const recentCharts = charts.filter((row) => row.createdAt >= windowStart);
-    const composeCharts = recentCharts.filter((row) => row.route === 'compose').length;
-    const publishCharts = recentCharts.filter((row) => row.route === 'publish').length;
+    const savedFromPrompt = recentCharts.filter((row) => row.route === 'compose').length;
+    const savedFromPublish = recentCharts.filter((row) => row.route === 'publish').length;
 
     const orders = await ctx.db.query('orders').collect();
     const purchases = orders.filter((row) => row.createdAt >= windowStart).length;
@@ -156,18 +170,38 @@ export const getInsights = query({
       aiOutputTokens += row.outputTokens;
     }
     const aiEstimateUsd = estimateAiUsd(aiInputTokens, aiOutputTokens);
+    const recentAi = [...aiInWindow]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 15)
+      .map((row) => ({
+        route: row.route,
+        model: row.model,
+        inputTokens: row.inputTokens,
+        outputTokens: row.outputTokens,
+        createdAt: row.createdAt,
+      }));
+    const recentSaved = [...recentCharts]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 15)
+      .map((row) => ({
+        title: row.title,
+        route: row.route,
+        createdAt: row.createdAt,
+      }));
 
     return {
       people,
-      chartsDrawn,
-      composeCharts,
-      publishCharts,
+      meterDraws,
+      savedFromPrompt,
+      savedFromPublish,
       purchases,
       taps,
       aiCalls: aiInWindow.length,
       aiInputTokens,
       aiOutputTokens,
       aiEstimateUsd,
+      recentAi,
+      recentSaved,
     };
   },
 });
