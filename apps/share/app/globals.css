@@ -190,11 +190,29 @@ input:focus-visible {
   overflow: visible;
 }
 
-.kicker-mail-text {
+.kicker-mail-short {
+  display: none;
+}
+
+.kicker-mail-full.kicker-mail-text {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .kicker-nav .kicker-mail {
+    max-width: none;
+  }
+
+  .kicker-mail-full {
+    display: none !important;
+  }
+
+  .kicker-mail-short {
+    display: inline;
+  }
 }
 
 .kicker-here {

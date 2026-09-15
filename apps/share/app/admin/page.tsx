@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { readWalletToken } from '../../lib/billing';
+import { readWalletToken, signedInNav } from '../../lib/billing';
 import { getAdminInsights } from '../../lib/telemetry';
 import { KickerNav } from '../components/KickerNav';
 import { SiteFoot } from '../components/SiteFoot';
@@ -33,10 +33,16 @@ export default async function AdminPage() {
   if (!insights) {
     notFound();
   }
+  let nav: { email?: string; known?: boolean } = {};
+  try {
+    nav = await signedInNav();
+  } catch {
+    nav = { known: Boolean(token) };
+  }
 
   return (
     <main id="content" className="page-main">
-      <KickerNav here="admin" owner />
+      <KickerNav here="admin" owner email={nav.email} known={nav.known ?? Boolean(token)} />
       <h1
         style={{
           fontWeight: 500,

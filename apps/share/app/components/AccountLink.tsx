@@ -18,14 +18,14 @@ export function AccountLink({
   if (email) {
     if (current) {
       return (
-        <HereMark href="/me" mail>
+        <HereMark href="/me" mail email={email}>
           {email}
         </HereMark>
       );
     }
     return (
-      <Link href="/me" className="kicker-mail" title={email}>
-        {email}
+      <Link href="/me" className="kicker-mail" title={email} aria-label={`Account, ${email}`}>
+        <MailNavLabel email={email} />
       </Link>
     );
   }
@@ -46,4 +46,13 @@ export function AccountLink({
   }
 
   return <Link href="/me">Account</Link>;
+}
+
+function MailNavLabel({ email }: { email: string }) {
+  return (
+    <>
+      <span className="kicker-mail-short">Account</span>
+      <span className="kicker-mail-full">{email}</span>
+    </>
+  );
 }
