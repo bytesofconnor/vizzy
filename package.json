@@ -12,10 +12,15 @@
     "lint": "turbo run lint",
     "type-check": "npm run type-check --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace=@vizzy/share",
     "test:watch": "turbo run test:watch",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "convex:dev": "convex dev"
   },
   "packageManager": "npm@10.9.2",
+  "dependencies": {
+    "convex": "^1.27.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@types/node": "^20.0.0",

@@ -20,6 +20,8 @@ Type what you want on the site, or `POST /api/compose` with `{ "prompt": "..." }
 
 The local MCP (`publish_chart`) is still there for chats that already speak tools. Agent contract: `AGENTS.md`.
 
+Dashboards, env vars, and which file Next actually reads: **[docs/ops.md](docs/ops.md)**.
+
 ## Local
 
 ```bash
@@ -45,5 +47,8 @@ Supported types: **bar**, **line**, **scatter**. Line charts may set `area: true
 
 ```bash
 npm test
+npm run test:e2e
 npm run type-check
 ```
+
+E2E is Playwright in `apps/share`. It runs in GitHub Actions on push to `main`. Secrets and service links: [docs/ops.md](docs/ops.md).

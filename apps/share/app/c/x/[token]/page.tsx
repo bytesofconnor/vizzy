@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { CARD } from '../../../../lib/compose';
 import { hydrateToken } from '../../../../lib/mint';
-import { PieceView } from '../../../components/PieceView';
+import { Studio } from '../../../components/Studio';
 
 type PageProps = {
   params: Promise<{ token: string }>;
@@ -41,5 +41,5 @@ export default async function MintedPage({ params }: PageProps) {
     notFound();
   }
 
-  return <PieceView piece={piece} />;
+  return <Studio piece={piece} />;
 }

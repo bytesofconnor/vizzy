@@ -7,6 +7,7 @@ import {
 } from '@vizzy/core';
 import { decodePortableDraft, encodePortableDraft, type PortableDraft } from './portable';
 import type { Piece } from './pieces';
+import { cleanSourceLabel } from './source';
 import { DUST, studioChart } from './theme';
 
 const MAX_ROWS = 80;
@@ -88,7 +89,12 @@ export function mintPiece(input: MintInput): MintResult {
     data: rows,
   };
 
-  if (studio.axes.y.domain || studio.axes.y.tickCount !== 3) {
+  if (
+    studio.axes.x.label ||
+    studio.axes.y.label ||
+    studio.axes.y.domain ||
+    studio.axes.y.tickCount !== 3
+  ) {
     draft.axes = studio.axes;
   }
 
@@ -149,7 +155,7 @@ function resolveSource(value: unknown): Source | undefined {
   const methods = ['official', 'export', 'scraped', 'estimate', 'manual', 'example', 'unknown'] as const;
   const method = methods.find((item) => item === raw.method) ?? 'unknown';
   const source: Source = {
-    label: raw.label.trim().slice(0, 120),
+    label: cleanSourceLabel(raw.label).slice(0, 120),
     method,
   };
   if (typeof raw.url === 'string' && /^https?:\/\//.test(raw.url)) {

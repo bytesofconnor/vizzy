@@ -8,6 +8,7 @@ import {
   validateChartConfig,
   validateDataset,
 } from '../types';
+import { xAxisRoom } from '../layout';
 import { PerformanceMonitor } from './PerformanceMonitor';
 import { EventEmitter } from './EventEmitter';
 
@@ -269,11 +270,22 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
     
     // Create render context
     const { width, height } = this._getContainerDimensions();
+    const { margin } = this.config.dimensions;
+    if (this.config.chart.type === 'bar') {
+      const names = this._data.map((row) => String(row[this.config.dataMapping.x] ?? ''));
+      const room = xAxisRoom(names, {
+        hasTitle: Boolean(this.config.axes.x.label),
+        innerWidth: width - margin.left - margin.right,
+      });
+      if (room.bottom > margin.bottom) {
+        margin.bottom = room.bottom;
+      }
+    }
     const dimensions = {
       width,
       height,
-      innerWidth: width - this.config.dimensions.margin.left - this.config.dimensions.margin.right,
-      innerHeight: height - this.config.dimensions.margin.top - this.config.dimensions.margin.bottom,
+      innerWidth: width - margin.left - margin.right,
+      innerHeight: height - margin.top - margin.bottom,
     };
     
     const renderContext = {

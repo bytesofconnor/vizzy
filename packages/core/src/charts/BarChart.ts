@@ -109,7 +109,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .transition()
       .duration(animation.enabled ? animation.duration : 0)
       .attr('height', 0)
-      .attr('y', this._scaleManager.getYValue(0))
+      .attr('y', this._plotFloor())
       .remove();
 
     // Add new bars
@@ -121,7 +121,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
         const bandwidth = (this._scaleManager.getScales()?.x as any).bandwidth?.() || 0;
         return xValue - bandwidth / 2;
       })
-      .attr('y', this._scaleManager.getYValue(0))
+      .attr('y', this._plotFloor())
       .attr('width', () => {
         const scales = this._scaleManager.getScales();
         return (scales?.x as any).bandwidth?.() || 20;
@@ -152,11 +152,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
           return xValue - bandwidth / 2;
         })
         .attr('y', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
-        .attr('height', (d: TData) => {
-          const yValue = this._scaleManager.getYValue(d[dataMapping.y]);
-          const zeroValue = this._scaleManager.getYValue(0);
-          return Math.abs(zeroValue - yValue);
-        });
+        .attr('height', (d: TData) => this._barHeight(d[dataMapping.y]));
     } else {
       barsUpdate
         .attr('x', (d: TData) => {
@@ -165,11 +161,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
           return xValue - bandwidth / 2;
         })
         .attr('y', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
-        .attr('height', (d: TData) => {
-          const yValue = this._scaleManager.getYValue(d[dataMapping.y]);
-          const zeroValue = this._scaleManager.getYValue(0);
-          return Math.abs(zeroValue - yValue);
-        });
+        .attr('height', (d: TData) => this._barHeight(d[dataMapping.y]));
     }
 
     // Add interactions
@@ -186,7 +178,6 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     }
 
     this._drawBaseline(group);
-    this._labelLeadBar(group, data);
   }
 
   private async _renderGroupedBars(
@@ -218,7 +209,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     }
 
     const [x0, x1] = scales.x.range() as [number, number];
-    const y0 = this._scaleManager.getYValue(0);
+    const y0 = this._plotFloor();
 
     group.selectAll('.bar-baseline').data([0]).join('line')
       .attr('class', 'bar-baseline')
@@ -231,33 +222,17 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .attr('stroke-width', 1);
   }
 
-  private _labelLeadBar(
-    group: d3.Selection<SVGGElement, unknown, null, undefined>,
-    data: TData[]
-  ): void {
-    const { dataMapping, colors } = this._config;
-    if (data.length === 0) {
-      return;
-    }
-
-    const lead = data.reduce((best, row) =>
-      Number(row[dataMapping.y]) > Number(best[dataMapping.y]) ? row : best
-    );
-
+  private _plotFloor(): number {
     const scales = this._scaleManager.getScales();
-    const bandwidth = scales && 'bandwidth' in scales.x ? scales.x.bandwidth() : 0;
-    const x = this._scaleManager.getXValue(lead[dataMapping.x]);
-    const y = this._scaleManager.getYValue(lead[dataMapping.y]);
+    if (!scales || !('range' in scales.y)) {
+      return 0;
+    }
+    const range = scales.y.range() as [number, number];
+    return Math.max(range[0], range[1]);
+  }
 
-    group.selectAll('.bar-label').data([lead]).join('text')
-      .attr('class', 'bar-label')
-      .attr('x', x + bandwidth / 2 + 8)
-      .attr('y', y + 4)
-      .attr('text-anchor', 'start')
-      .attr('fill', colors.text)
-      .style('font-size', '12px')
-      .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
-      .text(String(lead[dataMapping.y]));
+  private _barHeight(value: unknown): number {
+    return Math.abs(this._scaleManager.getYValue(value) - this._plotFloor());
   }
 
   private _addHoverInteractions(

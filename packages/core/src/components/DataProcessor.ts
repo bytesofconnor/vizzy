@@ -306,12 +306,10 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
     let xDomain: [number, number] | string[];
     if (axes.x.domain) {
       xDomain = axes.x.domain as [number, number];
-    } else if (stats.xStats) {
-      // Numeric domain with padding
+    } else if (stats.xStats && this._numericX(data)) {
       const padding = (stats.xStats.max - stats.xStats.min) * 0.05;
       xDomain = [stats.xStats.min - padding, stats.xStats.max + padding];
     } else {
-      // Categorical domain
       xDomain = [...new Set(data.map(d => String(d[dataMapping.x])))];
     }
     
@@ -320,11 +318,13 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
     if (axes.y.domain) {
       yDomain = axes.y.domain as [number, number];
     } else if (stats.yStats) {
-      const padding = (stats.yStats.max - stats.yStats.min) * 0.05;
+      const padding = Math.max((stats.yStats.max - stats.yStats.min) * 0.08, 1);
       const barFromZero =
         this._config.chart.type === 'bar' &&
         stats.yStats.min >= 0 &&
-        !axes.y.domain;
+        !axes.y.domain &&
+        !looksLikeCalendarYear(stats.yStats.min, stats.yStats.max) &&
+        !yValuesClustered(stats.yStats.min, stats.yStats.max);
       yDomain = [
         barFromZero ? 0 : stats.yStats.min - padding,
         stats.yStats.max + padding,
@@ -361,4 +361,26 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
     
     return domains;
   }
+
+  private _numericX(data: TData[]): boolean {
+    if (this._config.chart.type === 'bar') {
+      return false;
+    }
+    if (this._config.chart.type === 'scatter') {
+      return true;
+    }
+    const field = this._config.dataMapping.x;
+    return data.some((row) => typeof row[field] === 'number' && !Number.isInteger(row[field] as number));
+  }
+}
+
+function looksLikeCalendarYear(min: number, max: number): boolean {
+  return min >= 1000 && max <= 2100 && max - min < 800;
+}
+
+function yValuesClustered(min: number, max: number): boolean {
+  if (min <= 0 || max <= min) {
+    return false;
+  }
+  return (max - min) / max <= 0.25;
 }

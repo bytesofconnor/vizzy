@@ -74,6 +74,14 @@ jspm_packages/
 .pnp.cjs
 .pnp.loader.mjs
 
+# Playwright
+/playwright-report/
+/blob-report/
+/test-results/
+apps/share/playwright-report/
+apps/share/test-results/
+apps/share/blob-report/
+
 # Turbo cache
 .turbo
 

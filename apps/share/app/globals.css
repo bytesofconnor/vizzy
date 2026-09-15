@@ -21,6 +21,57 @@ a {
   color: inherit;
 }
 
+.source-block {
+  margin: 14px 0 0;
+  max-width: 560px;
+}
+
+.source-block p {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.source-kicker {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.source-name {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.source-grade {
+  color: var(--mute);
+}
+
+.source-link-row,
+.source-caveat,
+.source-evidence {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.source-caveat,
+.source-evidence {
+  color: var(--mute);
+}
+
+a.source-ref {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1px;
+}
+
+a.source-ref:hover {
+  color: var(--mute);
+}
+
 button {
   font: inherit;
   color: var(--ink);
@@ -48,22 +99,92 @@ textarea:focus {
 .page-main {
   max-width: 920px;
   margin: 0 auto;
-  padding: 48px 20px 120px;
+  padding: 28px 20px 96px;
+}
+
+.hero-dust {
+  display: flex;
+  gap: 3px;
+  height: 3px;
+  max-width: 11.5rem;
+  margin: 10px 0 0;
+}
+
+.hero-dust i {
+  flex: 1;
+  display: block;
+  height: 100%;
 }
 
 .piece-list {
-  margin-top: 28px;
+  margin-top: 22px;
   display: grid;
   gap: 72px;
 }
 
 .chart-mount {
   width: 100%;
-  aspect-ratio: 2.2 / 1;
+  aspect-ratio: 2.55 / 1;
+  overflow: visible;
 }
 
-#make-one {
+#make-one,
+#again {
   scroll-margin-top: 20px;
+}
+
+form#again[aria-busy='true'] + section {
+  display: none;
+}
+
+.compose-draw {
+  margin: 22px 0 0;
+}
+
+.compose-draw-plot {
+  display: flex;
+  align-items: flex-end;
+  gap: 3.2%;
+  width: 100%;
+  aspect-ratio: 2.55 / 1;
+  padding: 28px 20px 1px 64px;
+  border-bottom: 1px solid var(--rule);
+  box-sizing: border-box;
+}
+
+.compose-draw-plot span {
+  flex: 1;
+  transform-origin: bottom;
+  animation: compose-ink 1.6s ease-in-out infinite;
+}
+
+.compose-draw p {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin: 0 0 6px;
+}
+
+@keyframes compose-ink {
+  0%,
+  100% {
+    transform: scaleY(0.16);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compose-draw-plot span {
+    animation: none;
+    opacity: 0.7;
+    transform: none;
+  }
 }
 
 @media (max-width: 720px) {
@@ -76,13 +197,19 @@ textarea:focus {
     gap: 48px;
   }
 
-  .chart-mount {
+  .chart-mount,
+  .compose-draw-plot {
     aspect-ratio: 1.35 / 1;
+  }
+
+  .compose-draw-plot {
+    padding-left: 48px;
   }
 }
 
 @media (max-width: 420px) {
-  .chart-mount {
+  .chart-mount,
+  .compose-draw-plot {
     aspect-ratio: 1.15 / 1;
   }
 }

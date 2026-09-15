@@ -1,39 +1,58 @@
-import { pieceFromPrompt } from '../../../lib/from-prompt';
+import { consumeSlot, refundSlot } from '../../../lib/billing';
+import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
+import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../../lib/pack';
+import { parseChartSeed, type ChartSeed } from '../../../lib/seed';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-async function readPrompt(request: Request): Promise<string> {
+async function readCompose(request: Request): Promise<{ prompt: string; seed?: ChartSeed }> {
   const type = request.headers.get('content-type') ?? '';
   if (type.includes('application/json')) {
     const body: unknown = await request.json();
-    if (typeof body === 'object' && body !== null && 'prompt' in body && typeof body.prompt === 'string') {
-      return body.prompt;
+    if (typeof body !== 'object' || body === null || !('prompt' in body) || typeof body.prompt !== 'string') {
+      return { prompt: '' };
     }
-    return '';
+    return {
+      prompt: body.prompt,
+      seed: 'seed' in body ? parseChartSeed(body.seed) : undefined,
+    };
   }
   const form = await request.formData();
   const value = form.get('prompt');
-  return typeof value === 'string' ? value : '';
+  return { prompt: typeof value === 'string' ? value : '' };
 }
 
 function wantsHtml(request: Request): boolean {
   return (request.headers.get('accept') ?? '').includes('text/html');
 }
 
+function payPayload(error: string) {
+  return {
+    ok: false as const,
+    error,
+    pay: true,
+    packCredits: PACK_CREDITS,
+    packPriceLabel: PACK_PRICE_LABEL,
+  };
+}
+
 export async function GET() {
   return Response.json({
     ok: true,
-    use: 'POST prompt as JSON { prompt } or form field prompt. Humans get a chart page. Machines get { url, png }.',
+    use: 'POST prompt as JSON { prompt, seed? } or form field prompt. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page.',
   });
 }
 
 export async function POST(request: Request) {
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
+  const origin = new URL(request.url).origin;
   let prompt = '';
+  let seed: ChartSeed | undefined;
   try {
-    prompt = await readPrompt(request);
+    const body = await readCompose(request);
+    prompt = body.prompt;
+    seed = body.seed;
   } catch {
     if (wantsHtml(request)) {
       return Response.redirect(`${origin}/?error=Say+what+to+chart`, 303);
@@ -41,9 +60,31 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'prompt required' }, { status: 400 });
   }
 
+  let slot: Awaited<ReturnType<typeof consumeSlot>>;
   try {
-    const minted = await pieceFromPrompt(prompt);
+    slot = await consumeSlot(request);
+  } catch (error) {
+    console.error('compose quota failed', error);
+    if (wantsHtml(request)) {
+      return Response.redirect(`${origin}/?error=${encodeURIComponent('Could not draw that. Try again in a moment.')}`, 303);
+    }
+    return Response.json({ ok: false, error: 'Could not draw that. Try again in a moment.' }, { status: 500 });
+  }
+
+  if (!slot.ok) {
+    const message = `That's the free charts for today. ${PACK_PRICE_LABEL} for ${PACK_CREDITS} more.`;
+    if (wantsHtml(request)) {
+      return Response.redirect(`${origin}/?error=${encodeURIComponent(message)}&pay=1`, 303);
+    }
+    return Response.json(payPayload(message), { status: 402 });
+  }
+
+  try {
+    const minted = await pieceFromPrompt(prompt, seed);
     if (!minted.ok) {
+      if (slot.via === 'credit' || slot.via === 'free') {
+        await refundSlot(request, slot.via);
+      }
       if (wantsHtml(request)) {
         return Response.redirect(`${origin}/?error=${encodeURIComponent(minted.error)}`, 303);
       }
@@ -62,7 +103,15 @@ export async function POST(request: Request) {
       token: minted.token,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Chart failed';
+    if (slot.via === 'credit' || slot.via === 'free') {
+      try {
+        await refundSlot(request, slot.via);
+      } catch (refundError) {
+        console.error('compose refund failed', refundError);
+      }
+    }
+    console.error('compose failed', error);
+    const message = publicComposeError(error);
     if (wantsHtml(request)) {
       return Response.redirect(`${origin}/?error=${encodeURIComponent(message)}`, 303);
     }

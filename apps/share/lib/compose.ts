@@ -1,6 +1,6 @@
 import { STUDIO } from './theme';
 import type { Piece } from './pieces';
-import { sourceLine } from './source';
+import { sourceCardLine } from './source';
 
 export type CardSize = 'sm' | 'md' | 'lg';
 
@@ -52,7 +52,7 @@ export const CARDS: Record<CardSize, CardSpec> = {
       y: 64,
       width: 688,
       height: 320,
-      margin: { top: 22, right: 12, bottom: 32, left: 26 },
+      margin: { top: 22, right: 16, bottom: 80, left: 48 },
     },
   },
   md: {
@@ -72,7 +72,7 @@ export const CARDS: Record<CardSize, CardSpec> = {
       y: 80,
       width: 1160,
       height: 422,
-      margin: { top: 40, right: 40, bottom: 52, left: 48 },
+      margin: { top: 40, right: 40, bottom: 96, left: 68 },
     },
   },
   lg: {
@@ -92,7 +92,7 @@ export const CARDS: Record<CardSize, CardSpec> = {
       y: 96,
       width: 1496,
       height: 520,
-      margin: { top: 44, right: 40, bottom: 56, left: 52 },
+      margin: { top: 44, right: 40, bottom: 104, left: 72 },
     },
   },
 };
@@ -118,6 +118,7 @@ function escapeXml(value: string): string {
 
 function innerSvg(chartSvg: string): string {
   return chartSvg
+    .replace(/&nbsp;/g, '&#160;')
     .replace(/^<svg[^>]*>/, '')
     .replace(/<\/svg>\s*$/, '');
 }
@@ -140,6 +141,6 @@ export function composePieceSvg(
     ${chart}
   </svg>
   <text x="${spec.pad}" y="${spec.noteY}" fill="${STUDIO.mute}" font-size="${spec.noteSize}" font-family="IBM Plex Mono, monospace">${escapeXml(piece.note)}</text>
-  ${piece.config.source ? `<text x="${spec.pad}" y="${spec.sourceY}" fill="${STUDIO.mute}" font-size="${spec.sourceSize}" font-family="IBM Plex Mono, monospace">${escapeXml(`SOURCE  ${sourceLine(piece.config.source)}`)}</text>` : ''}
+  ${piece.config.source ? `<text x="${spec.pad}" y="${spec.sourceY}" fill="${STUDIO.mute}" font-size="${spec.sourceSize}" font-family="IBM Plex Mono, monospace">${escapeXml(`SOURCE  ${sourceCardLine(piece.config.source)}`)}</text>` : ''}
 </svg>`;
 }

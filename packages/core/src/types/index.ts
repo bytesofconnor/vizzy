@@ -89,6 +89,7 @@ export const LineChartConfigSchema = z.object({
   pointRadius: z.number().min(1).max(10).default(4),
   area: z.boolean().default(false),
   areaOpacity: z.number().min(0).max(1).default(0.3),
+  forecastFrom: z.union([z.string(), z.number()]).optional(),
 });
 export type LineChartConfig = z.infer<typeof LineChartConfigSchema>;
 

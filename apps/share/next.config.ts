@@ -3,7 +3,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
-  serverExternalPackages: ['jsdom', '@resvg/resvg-js'],
+  serverExternalPackages: ['jsdom', '@resvg/resvg-js', 'stripe'],
   transpilePackages: ['@vizzy/core', '@vizzy/react'],
   async rewrites() {
     return [

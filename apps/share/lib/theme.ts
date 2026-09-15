@@ -39,14 +39,32 @@ export function studioChart(
   mapping: ChartConfig['dataMapping'],
   extra: Record<string, unknown> = {}
 ): ChartConfig {
+  const extraAxes = extra.axes as { x?: Record<string, unknown>; y?: Record<string, unknown> } | undefined;
+  const extraDimensions = extra.dimensions as Record<string, unknown> | undefined;
+  const rest = { ...extra };
+  delete rest.axes;
+  delete rest.dimensions;
+  const xLabel = typeof extraAxes?.x?.label === 'string' ? extraAxes.x.label : undefined;
+  const yLabel = typeof extraAxes?.y?.label === 'string' ? extraAxes.y.label : undefined;
+  const resolvedChart =
+    chart.type === 'bar' && typeof (chart as { barPadding?: number }).barPadding !== 'number'
+      ? { ...chart, barPadding: 0.32 }
+      : chart;
+
   return validateChartConfig({
     schemaVersion: 1,
-    chart,
+    chart: resolvedChart,
     dataMapping: mapping,
     dimensions: {
       width: 1100,
       height: 400,
-      margin: { top: 40, right: 40, bottom: 52, left: 48 },
+      margin: {
+        top: 40,
+        right: 40,
+        bottom: xLabel ? 96 : 64,
+        left: yLabel ? 70 : 48,
+      },
+      ...extraDimensions,
     },
     colors: {
       primary: STUDIO.ink,
@@ -61,10 +79,10 @@ export function studioChart(
     interaction: { hover: false, tooltip: false },
     legend: { show: false },
     axes: {
-      x: { show: true, grid: false },
-      y: { show: true, grid: true, gridOpacity: 0.65, tickCount: 3 },
+      x: { show: true, grid: false, ...extraAxes?.x },
+      y: { show: true, grid: true, gridOpacity: 0.65, tickCount: 3, ...extraAxes?.y },
     },
     accessibility: { enabled: true },
-    ...extra,
+    ...rest,
   });
 }

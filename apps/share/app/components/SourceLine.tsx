@@ -1,29 +1,27 @@
 import type { ChartSource } from '../../lib/source';
-import { sourceLine } from '../../lib/source';
+import { isInventedSource, sourceGrade, sourceHost } from '../../lib/source';
 
 export function SourceLine({ source }: { source: ChartSource }) {
-  const text = sourceLine(source);
+  const host = sourceHost(source.url);
+  const grade = sourceGrade(source);
 
   return (
-    <p
-      style={{
-        fontFamily: 'var(--font-mono), ui-monospace, monospace',
-        color: 'var(--mute)',
-        margin: '8px 0 0',
-        fontSize: 11,
-        letterSpacing: '0.02em',
-        lineHeight: 1.45,
-      }}
-    >
-      <span style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Source</span>
-      {'  '}
-      {source.url ? (
-        <a href={source.url} target="_blank" rel="noreferrer">
-          {text}
-        </a>
-      ) : (
-        text
-      )}
-    </p>
+    <div className="source-block">
+      <p className="source-kicker">Source</p>
+      <p className="source-name">
+        {source.label}
+        <span className="source-grade">  ·  {grade}</span>
+      </p>
+      {host && source.url ? (
+        <p className="source-link-row">
+          <a className="source-ref" href={source.url} target="_blank" rel="noopener noreferrer">
+            {host}
+          </a>
+        </p>
+      ) : isInventedSource(source) ? (
+        <p className="source-caveat">Not a live source</p>
+      ) : null}
+      {source.evidence ? <p className="source-evidence">{source.evidence}</p> : null}
+    </div>
   );
 }

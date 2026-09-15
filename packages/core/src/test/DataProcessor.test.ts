@@ -141,7 +141,30 @@ describe('DataProcessor', () => {
       const result = processor.process(sampleData);
 
       expect(result.domains.x).toEqual(['A', 'B', 'C', 'D']);
-      expect(result.domains.y).toEqual([0, 25.75]);
+      expect(result.domains.y).toEqual([0, 26.2]);
+    });
+
+    it('does not flatten clustered scores against zero', () => {
+      const scores = processor.process([
+        { category: 'pdf', value: 9.8 },
+        { category: 'frontend-design', value: 9.5 },
+        { category: 'docx', value: 9.1 },
+      ]);
+
+      expect(scores.domains.y[0]).toBeGreaterThan(8);
+      expect(scores.domains.y[1]).toBeGreaterThan(9.8);
+    });
+
+    it('does not start year bars at zero', () => {
+      const years = processor.process([
+        { category: 'Wabasha', value: 1830 },
+        { category: 'Stillwater', value: 1854 },
+        { category: 'Minneapolis', value: 1867 },
+      ]);
+
+      expect(years.domains.y[0]).toBeGreaterThan(1700);
+      expect(years.domains.y[0]).toBeLessThan(1830);
+      expect(years.domains.y[1]).toBeGreaterThan(1867);
     });
   });
 

@@ -78,7 +78,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'publish_chart',
     description:
-      'Publish rows to Vizzy share and get a paste URL plus PNG. This is the product action. Attach source when you gathered the data. Do not invent a confidence score. Uses VIZZY_SHARE_URL (default https://vizzy-ruddy.vercel.app).',
+      'Publish rows to Vizzy share and get a paste URL plus PNG. This is the product action. Attach source when you gathered the data. Include a real url if you have one — do not invent a link or a confidence score. Set axes.x.label and axes.y.label. Uses VIZZY_SHARE_URL (default https://vizzy-ruddy.vercel.app).',
     inputSchema: {
       type: 'object',
       properties: {

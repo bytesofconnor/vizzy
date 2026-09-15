@@ -3,6 +3,7 @@ import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
 import { DataProcessor, ProcessedData } from '../components/DataProcessor';
+import { forecastStartIndex } from '../forecast';
 
 export class LineChart<TData extends DataPoint = DataPoint> {
   private _config: ChartConfig;
@@ -86,7 +87,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   private async _renderLines(context: RenderContext): Promise<void> {
     if (!context.svg || !this._processedData) return;
 
-    const { svg, dimensions: _dimensions, config } = context;
+    const { svg, dimensions, config } = context;
     const { margin } = config.dimensions;
     const chartConfig = config.chart as any; // Line chart specific config
     
@@ -96,6 +97,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       : svg.select('.lines-group');
 
     linesGroup.attr('transform', `translate(${margin.left}, ${margin.top})`);
+    this._clipPlot(linesGroup as any, dimensions.innerWidth, dimensions.innerHeight);
 
     // Group data by color field if present
     const colorField = config.dataMapping.color;
@@ -142,7 +144,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     // Create area generator if area is enabled
     const area = chartConfig.area ? d3.area<TData>()
       .x((d: TData) => this._scaleManager.getXValue(d[dataMapping.x]))
-      .y0(this._scaleManager.getYValue(0))
+      .y0(this._plotFloor())
       .y1((d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
       .curve(this._getCurveFunction(chartConfig.curve))
       : null;
@@ -150,6 +152,14 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     const lineColor = dataMapping.color 
       ? this._scaleManager.getColorValue(lineData.key)
       : colors.primary;
+
+    const cut = forecastStartIndex(
+      lineData.values,
+      dataMapping.x,
+      chartConfig.forecastFrom as string | number | undefined
+    );
+    const published = cut < 0 ? lineData.values : lineData.values.slice(0, Math.max(cut, 1));
+    const forecast = cut > 0 ? lineData.values.slice(cut - 1) : cut === 0 ? lineData.values : [];
 
     // Render area if enabled
     if (area && chartConfig.area) {
@@ -160,82 +170,103 @@ export class LineChart<TData extends DataPoint = DataPoint> {
           .attr('class', `area area-${lineData.key}`)
           .attr('fill', this._areaFill(group, lineData.key))
           .attr('opacity', 1)
-          .attr('d', area(lineData.values));
+          .attr('d', area(published));
       } else {
         areaPath.attr('fill', this._areaFill(group, lineData.key)).attr('opacity', 1);
         if (animation.enabled) {
           areaPath
             .transition()
             .duration(animation.duration)
-            .attr('d', area(lineData.values));
+            .attr('d', area(published));
         } else {
-          areaPath.attr('d', area(lineData.values));
+          areaPath.attr('d', area(published));
         }
       }
     }
 
-    // Render line
-    let linePath = group.select(`.line-${lineData.key}`);
-    
-    if (linePath.empty()) {
-      linePath = group.append('path')
-        .attr('class', `line line-${lineData.key}`)
-        .attr('fill', 'none')
-        .attr('stroke', lineColor)
-        .attr('stroke-width', chartConfig.strokeWidth || 1.5)
-        .attr('stroke-linejoin', 'miter')
-        .attr('stroke-linecap', 'butt');
-
-      if (animation.enabled) {
-        const totalLength = (linePath.node() as SVGPathElement)?.getTotalLength() || 0;
-        linePath
-          .attr('stroke-dasharray', `${totalLength} ${totalLength}`)
-          .attr('stroke-dashoffset', totalLength)
-          .attr('d', line(lineData.values))
-          .transition()
-          .duration(animation.duration)
-          .ease(d3.easeLinear)
-          .attr('stroke-dashoffset', 0);
-      } else {
-        linePath.attr('d', line(lineData.values));
-      }
-    } else {
-      if (animation.enabled) {
-        linePath
-          .transition()
-          .duration(animation.duration)
-          .attr('d', line(lineData.values));
-      } else {
-        linePath.attr('d', line(lineData.values));
-      }
-    }
+    this._drawLinePath(group, `.line-${lineData.key}`, `line line-${lineData.key}`, line, published, lineColor, chartConfig, false);
+    this._drawLinePath(group, `.line-forecast-${lineData.key}`, `line line-forecast line-forecast-${lineData.key}`, line, forecast, lineColor, chartConfig, true);
+    this._labelForecast(group, forecast, lineData.key);
 
     if (chartConfig.showPoints) {
-      await this._renderPoints(group, lineData, lineColor, chartConfig);
+      await this._renderPoints(group, lineData, lineColor, chartConfig, cut);
     }
 
-    const inflection = this._findInflection(lineData.values);
+    const inflection = cut < 0 ? this._findInflection(published) : null;
     if (inflection) {
       this._renderInflection(group, inflection, lineColor);
     }
-    this._renderEndCap(group, lineData, lineColor, chartConfig, !inflection);
+    this._renderEndCap(group, { ...lineData, values: published }, lineColor, chartConfig, !inflection && cut < 0);
 
-    // Add interactions
-    if (this._config.interaction.hover) {
+    const linePath = group.select(`.line-${lineData.key}`);
+    if (this._config.interaction.hover && !linePath.empty()) {
       this._addLineInteractions(linePath as any, lineData);
     }
-
-    // Add accessibility
-    if (this._config.accessibility.enabled) {
+    if (this._config.accessibility.enabled && !linePath.empty()) {
       this._addLineAccessibility(linePath as any, lineData);
     }
+  }
+
+  private _drawLinePath(
+    group: d3.Selection<SVGGElement, unknown, null, undefined>,
+    selector: string,
+    className: string,
+    line: d3.Line<TData>,
+    values: TData[],
+    color: string,
+    chartConfig: { strokeWidth?: number },
+    dashed: boolean
+  ): void {
+    let path = group.select(selector);
+    if (values.length < 2) {
+      path.remove();
+      return;
+    }
+    if (path.empty()) {
+      path = group.append('path').attr('class', className);
+    }
+    path
+      .attr('fill', 'none')
+      .attr('stroke', color)
+      .attr('stroke-width', chartConfig.strokeWidth || 1.5)
+      .attr('stroke-linejoin', 'miter')
+      .attr('stroke-linecap', dashed ? 'round' : 'butt')
+      .attr('stroke-dasharray', dashed ? '1.5 5' : null)
+      .attr('d', line(values));
+  }
+
+  private _labelForecast(
+    group: d3.Selection<SVGGElement, unknown, null, undefined>,
+    forecast: TData[],
+    key: string
+  ): void {
+    const mark = forecast[Math.max(forecast.length - 1, 0)];
+    const labels = group.selectAll(`.forecast-label-${key}`).data(mark && forecast.length >= 2 ? [mark] : []);
+    labels.exit().remove();
+    if (!mark || forecast.length < 2) {
+      return;
+    }
+    const { dataMapping, colors } = this._config;
+    labels.join('text')
+      .attr('class', `forecast-label forecast-label-${key}`)
+      .attr('x', this._scaleManager.getXValue(mark[dataMapping.x]))
+      .attr('y', this._scaleManager.getYValue(mark[dataMapping.y]) - 14)
+      .attr('text-anchor', 'end')
+      .attr('fill', colors.text)
+      .style('opacity', 0.5)
+      .style('font-size', '11px')
+      .style('letter-spacing', '0.08em')
+      .style('text-transform', 'uppercase')
+      .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
+      .text('Forecast');
   }
 
   private async _renderPoints(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
     lineData: { key: string; values: TData[] },
     color: string,
-    chartConfig: any
+    chartConfig: { pointRadius?: number },
+    cut: number
   ): Promise<void> {
     const { dataMapping, animation } = this._config;
     const pointRadius = chartConfig.pointRadius || 4;
@@ -258,8 +289,9 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       .attr('cx', (d: TData) => this._scaleManager.getXValue(d[dataMapping.x]))
       .attr('cy', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
       .attr('r', 0)
-      .attr('fill', color)
-      .attr('stroke', 'none');
+      .attr('fill', (_d, i) => (cut >= 0 && i >= cut ? this._config.colors.background : color))
+      .attr('stroke', (_d, i) => (cut >= 0 && i >= cut ? color : 'none'))
+      .attr('stroke-width', (_d, i) => (cut >= 0 && i >= cut ? 1.25 : 0));
 
     // Update all points
     const pointsUpdate = pointsEnter.merge(points as any);
@@ -271,12 +303,17 @@ export class LineChart<TData extends DataPoint = DataPoint> {
         .delay((d, i) => i * (animation.stagger / 2))
         .attr('cx', (d: TData) => this._scaleManager.getXValue(d[dataMapping.x]))
         .attr('cy', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
-        .attr('r', pointRadius);
+        .attr('r', pointRadius)
+        .attr('fill', (_d, i) => (cut >= 0 && i >= cut ? this._config.colors.background : color))
+        .attr('stroke', (_d, i) => (cut >= 0 && i >= cut ? color : 'none'));
     } else {
       pointsUpdate
         .attr('cx', (d: TData) => this._scaleManager.getXValue(d[dataMapping.x]))
         .attr('cy', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
-        .attr('r', pointRadius);
+        .attr('r', pointRadius)
+        .attr('fill', (_d, i) => (cut >= 0 && i >= cut ? this._config.colors.background : color))
+        .attr('stroke', (_d, i) => (cut >= 0 && i >= cut ? color : 'none'))
+        .attr('stroke-width', (_d, i) => (cut >= 0 && i >= cut ? 1.25 : 0));
     }
 
     // Add point interactions
@@ -288,6 +325,43 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     if (this._config.accessibility.enabled) {
       this._addPointAccessibility(pointsUpdate);
     }
+  }
+
+  private _plotFloor(): number {
+    const scales = this._scaleManager.getScales();
+    if (!scales || !('range' in scales.y)) {
+      return 0;
+    }
+    const range = scales.y.range() as [number, number];
+    return Math.max(range[0], range[1]);
+  }
+
+  private _clipPlot(
+    group: d3.Selection<SVGGElement, unknown, null, undefined>,
+    width: number,
+    height: number
+  ): void {
+    const svgEl = group.node()?.ownerSVGElement;
+    if (!svgEl) {
+      return;
+    }
+    const uid = (svgEl.getAttribute('id') || 'chart').replace(/[^a-zA-Z0-9_-]/g, '');
+    const clipId = `vizzy-plot-${uid}`;
+    const root = d3.select(svgEl);
+    const defs = root.select('defs').empty()
+      ? root.insert('defs', ':first-child')
+      : root.select('defs');
+    let clip = defs.select(`#${clipId}`);
+    if (clip.empty()) {
+      clip = defs.append('clipPath').attr('id', clipId);
+      clip.append('rect');
+    }
+    clip.select('rect')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', width)
+      .attr('height', height);
+    group.attr('clip-path', `url(#${clipId})`);
   }
 
   private _areaFill(
@@ -382,7 +456,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     const { dataMapping, colors } = this._config;
     const x = this._scaleManager.getXValue(beat[dataMapping.x]);
     const y = this._scaleManager.getYValue(beat[dataMapping.y]);
-    const y0 = this._scaleManager.getYValue(0);
+    const y0 = this._plotFloor();
     const yTop = Math.min(...(scales.y.range() as number[]));
 
     group.selectAll('.inflection-rule').data([beat]).join('line')

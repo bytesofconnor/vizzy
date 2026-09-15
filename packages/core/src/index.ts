@@ -17,6 +17,8 @@ export type { ChartSuggestion, SuggestHints } from './suggest';
 export { compileChart } from './compile';
 export type { CompileInput, CompileResult, CompileSnippet } from './compile';
 export { renderToSVG } from './render-svg';
+export { forecastStartIndex } from './forecast';
+export { xAxisRoom, xTickRotate, looksSequentialX, shortCategoryNames } from './layout';
 
 export type {
   ChartConfig,

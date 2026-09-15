@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { pieceBySlug } from '../../../lib/pieces';
 import { CARD } from '../../../lib/compose';
-import { PieceView } from '../../components/PieceView';
+import { Studio } from '../../components/Studio';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -43,5 +43,5 @@ export default async function PiecePage({ params }: PageProps) {
     notFound();
   }
 
-  return <PieceView piece={piece} />;
+  return <Studio piece={piece} />;
 }

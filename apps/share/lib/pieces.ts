@@ -20,6 +20,10 @@ export const PIECES: Piece[] = [
       { type: 'bar', barPadding: 0.4, cornerRadius: 0 },
       { x: 'month', y: 'cash', color: 'tone' },
       {
+        axes: {
+          x: { label: 'Month' },
+          y: { label: 'Cash, $k' },
+        },
         source: {
           label: 'Internal payouts CSV',
           method: 'example',
@@ -56,8 +60,8 @@ export const PIECES: Piece[] = [
       { x: 'week', y: 'churn' },
       {
         axes: {
-          x: { show: true, grid: false },
-          y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 4, domain: [0, 4] },
+          x: { show: true, grid: false, label: 'Week' },
+          y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 4, domain: [0, 4], label: 'Cancel rate, %' },
         },
         source: {
           label: 'Amplitude weekly churn',
@@ -87,6 +91,10 @@ export const PIECES: Piece[] = [
       { type: 'bar', barPadding: 0.36, cornerRadius: 0 },
       { x: 'shop', y: 'tickets', color: 'tone' },
       {
+        axes: {
+          x: { label: 'Shop' },
+          y: { label: 'Tickets' },
+        },
         source: {
           label: 'Square tickets, one Saturday',
           method: 'example',
@@ -112,6 +120,10 @@ export const PIECES: Piece[] = [
       { type: 'scatter', pointRadius: 3.5, pointOpacity: 0.72, showTrendLine: false },
       { x: 'minutes', y: 'tip', color: 'tone' },
       {
+        axes: {
+          x: { label: 'Minutes seated' },
+          y: { label: 'Tip, %' },
+        },
         source: {
           label: 'POS checks, Friday dinner',
           method: 'example',
@@ -152,8 +164,8 @@ export const PIECES: Piece[] = [
       { x: 'cohort', y: 'kept' },
       {
         axes: {
-          x: { show: true, grid: false },
-          y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 4, domain: [0, 50] },
+          x: { show: true, grid: false, label: 'Cohort' },
+          y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 4, domain: [0, 50], label: 'Kept, %' },
         },
         source: {
           label: 'Segment week-one retention',

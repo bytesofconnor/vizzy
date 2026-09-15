@@ -35,7 +35,11 @@
             "showPoints": { "type": "boolean", "default": true },
             "pointRadius": { "type": "number", "minimum": 1, "maximum": 10, "default": 4 },
             "area": { "type": "boolean", "default": false },
-            "areaOpacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.3 }
+            "areaOpacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.3 },
+            "forecastFrom": {
+              "type": ["string", "number"],
+              "description": "First x value that is a forecast. The line is dotted from the last published point through the end."
+            }
           }
         },
         {
