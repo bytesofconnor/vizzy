@@ -388,6 +388,14 @@ input {
   margin: 8px 0 0;
 }
 
+.speak-hint {
+  flex: 1 1 100%;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--mute);
+}
+
 .site-foot a {
   display: inline-flex;
   align-items: center;
