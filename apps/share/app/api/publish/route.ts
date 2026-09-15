@@ -1,5 +1,6 @@
 import { consumeSlot } from '../../../lib/billing';
 import { mintPiece } from '../../../lib/mint';
+import { pasteHref } from '../../../lib/paste';
 import { payBody, payMessage } from '../../../lib/pay';
 import { siteUrl } from '../../../lib/site';
 
@@ -48,12 +49,12 @@ export async function POST(request: Request) {
   }
 
   const origin = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
-  const path = `/c/x/${minted.token}`;
+  const paste = await pasteHref(origin.replace(/\/$/, ''), minted.token);
 
   return Response.json({
     ok: true,
-    url: `${origin}${path}`,
-    png: `${origin}${path}.png`,
+    url: paste.url,
+    png: paste.png,
     token: minted.token,
   });
 }

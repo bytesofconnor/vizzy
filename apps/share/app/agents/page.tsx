@@ -3,7 +3,7 @@ import { JsonLd } from '../components/JsonLd';
 import { KickerNav } from '../components/KickerNav';
 import { SiteFoot } from '../components/SiteFoot';
 import { agentsMarkdown, renderAgentsMarkdown } from '../../lib/agents-md';
-import { signedInNavEmail } from '../../lib/billing';
+import { signedInNav } from '../../lib/billing';
 import { siteUrl } from '../../lib/site';
 
 export const metadata: Metadata = {
@@ -15,11 +15,11 @@ export const metadata: Metadata = {
 export default async function AgentsPage() {
   const markdown = agentsMarkdown();
   const origin = siteUrl();
-  let email: string | undefined;
+  let nav: { email?: string; known?: boolean } = {};
   try {
-    email = await signedInNavEmail();
+    nav = await signedInNav();
   } catch {
-    email = undefined;
+    nav = {};
   }
   return (
     <main id="content" className="page-main">
@@ -32,7 +32,7 @@ export default async function AgentsPage() {
           description: 'Gather rows. Emit ChartConfig v1. Get a paste URL and a PNG.',
         }}
       />
-      <KickerNav here="agents" email={email} />
+      <KickerNav here="agents" email={nav.email} known={nav.known} />
       <article className="agents-doc">{renderAgentsMarkdown(markdown)}</article>
       <SiteFoot />
     </main>

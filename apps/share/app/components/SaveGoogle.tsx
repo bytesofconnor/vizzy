@@ -37,10 +37,12 @@ declare global {
   }
 }
 
-export function SaveGoogle({ auto: _auto = false }: { auto?: boolean }) {
+let gisInit = false;
+
+export function SaveGoogle({ compact = false }: { compact?: boolean }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const hostRef = useRef<HTMLSpanElement | null>(null);
-  const armed = useRef(false);
+  const painted = useRef(false);
   const [google, setGoogle] = useState<GoogleAccounts | null>(null);
   const [loopback, setLoopback] = useState(false);
   const [fail, setFail] = useState('');
@@ -78,29 +80,32 @@ export function SaveGoogle({ auto: _auto = false }: { auto?: boolean }) {
   }, [clientId]);
 
   useEffect(() => {
-    if (!clientId || !google || !hostRef.current || armed.current) {
+    if (!clientId || !google || !hostRef.current || painted.current) {
       return;
     }
-    google.accounts.id.initialize({
-      client_id: clientId,
-      callback: (response) => {
-        void keep(response.credential);
-      },
-      auto_select: false,
-      ux_mode: 'redirect',
-      login_uri: `${window.location.origin}/api/save/google`,
-      use_fedcm_for_prompt: false,
-      itp_support: true,
-    });
+    if (!gisInit) {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response) => {
+          void keep(response.credential);
+        },
+        auto_select: false,
+        ux_mode: 'redirect',
+        login_uri: `${window.location.origin}/api/save/google`,
+        use_fedcm_for_prompt: false,
+        itp_support: true,
+      });
+      gisInit = true;
+    }
     google.accounts.id.renderButton(hostRef.current, {
       type: 'standard',
       theme: 'outline',
-      size: 'medium',
-      text: 'signin_with',
+      size: compact ? 'small' : 'medium',
+      text: 'signin',
       ux_mode: 'redirect',
     });
-    armed.current = true;
-  }, [clientId, google]);
+    painted.current = true;
+  }, [clientId, compact, google]);
 
   async function keep(credential: string) {
     setBusy(true);
@@ -131,21 +136,32 @@ export function SaveGoogle({ auto: _auto = false }: { auto?: boolean }) {
     return null;
   }
 
+  const face = busy ? 'Signing in…' : 'Sign in';
+
+  if (loopback) {
+    if (compact) {
+      return (
+        <span className="gis-wrap" title="Use http://localhost:3456 to sign in with Google.">
+          <span className="gis-face">{face}</span>
+        </span>
+      );
+    }
+    return (
+      <span role="alert" className="gis-fail">
+        Use http://localhost:3456 to sign in with Google.
+      </span>
+    );
+  }
+
   return (
     <>
-      {loopback ? (
-        <span role="alert" className="gis-fail">
-          Use http://localhost:3456 to sign in with Google.
+      <span className={compact ? 'gis-wrap gis-wrap-kicker' : 'gis-wrap'}>
+        <span className="gis-face" aria-hidden="true">
+          {face}
         </span>
-      ) : (
-        <span className="gis-wrap">
-          <span className="gis-face" aria-hidden="true">
-            {busy ? 'Signing in…' : 'Sign in with Google'}
-          </span>
-          <span ref={hostRef} className="gis-hit" />
-        </span>
-      )}
-      {fail ? (
+        <span ref={hostRef} className="gis-hit" />
+      </span>
+      {fail && !compact ? (
         <span role="alert" className="gis-fail">
           {fail}
         </span>

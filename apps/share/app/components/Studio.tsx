@@ -32,15 +32,17 @@ export function Studio({
   error,
   askPay,
   email,
+  known,
 }: {
   piece?: Piece;
   error?: string;
   askPay?: boolean;
   email?: string;
+  known?: boolean;
 }) {
   return (
     <main id="content" className="page-main">
-      <KickerNav here="home" email={email} />
+      <KickerNav here="home" email={email} known={known} />
       {piece ? null : (
         <>
           <h1
@@ -64,7 +66,7 @@ export function Studio({
               marginTop: 10,
             }}
           >
-            Type what to chart, or ask your AI to. Bar, line, or scatter. You get a link and a PNG.
+            Type or speak what to chart, or ask your AI to. Bar, line, or scatter. You get a link and a PNG.
           </p>
         </>
       )}
@@ -80,7 +82,7 @@ function DustRule() {
   return (
     <div className="hero-dust" aria-hidden="true">
       {DUST.map((tone, index) => (
-        <i key={tone} style={{ background: index === 6 ? STUDIO.ink : tone }} />
+        <i key={tone} style={{ background: index === 6 ? STUDIO.ink : tone, ['--dust-i']: String(index) }} />
       ))}
     </div>
   );

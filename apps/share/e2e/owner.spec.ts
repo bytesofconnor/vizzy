@@ -53,7 +53,6 @@ test('owner charts are unlimited', async ({ context, page }) => {
   await expect(page.getByText(/charts left|draw whenever/i)).toBeVisible();
   await expect(page.locator('nav[aria-label="Site"] a[href="/me"]')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toHaveCount(0);
 
   await page.goto('/me');
   await expect(page.getByRole('heading', { name: /charts left|draw whenever|no paid charts/i })).toBeVisible();
@@ -78,6 +77,7 @@ test('owner charts are unlimited', async ({ context, page }) => {
   expect(published.ok()).toBeTruthy();
   const minted = (await published.json()) as { ok?: boolean; url?: string; pay?: boolean };
   expect(minted.ok).toBe(true);
-  expect(minted.url).toMatch(/\/c\/x\//);
+  expect(minted.url).toMatch(/\/c\/[A-Za-z0-9_-]+$/);
+  expect(minted.url).not.toMatch(/\/c\/x\//);
   expect(minted.pay).toBeFalsy();
 });

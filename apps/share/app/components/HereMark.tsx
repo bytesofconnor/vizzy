@@ -29,7 +29,7 @@ export function HereMark({
       {mail ? <span className="kicker-mail-text">{children}</span> : children}
       <span className="kicker-dust" aria-hidden="true">
         {DUST.map((tone, index) => (
-          <i key={tone} style={{ background: index === 6 ? STUDIO.ink : tone }} />
+          <i key={tone} style={{ background: index === 6 ? STUDIO.ink : tone, ['--dust-i']: String(index) }} />
         ))}
       </span>
     </Link>

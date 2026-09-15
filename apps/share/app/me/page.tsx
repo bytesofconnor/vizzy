@@ -34,7 +34,12 @@ const body = {
   marginTop: 14,
 } as const;
 
-export default async function MePage() {
+export default async function MePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ signin?: string }>;
+}) {
+  const { signin } = await searchParams;
   let account: Awaited<ReturnType<typeof getAccount>> = null;
   try {
     account = await getAccount();
@@ -43,12 +48,12 @@ export default async function MePage() {
   }
 
   const google = Boolean(googleClientId());
-  const offerGoogle = Boolean(account && google && (!account.saved || !account.email));
-  const autoGoogle = Boolean(offerGoogle && account?.justPaid);
+  const offerGoogle = Boolean(google && (!account || !account.saved || !account.email));
+  const missing = signin === 'missing';
 
   return (
     <main id="content" className="page-main">
-      <KickerNav here="account" email={account?.email} />
+      <KickerNav here="account" email={account?.email} known={Boolean(account)} />
       <h1
         style={{
           fontWeight: 500,
@@ -60,7 +65,9 @@ export default async function MePage() {
       >
         {headline(account)}
       </h1>
-      <p style={body}>{statusLine(account)}</p>
+      <p style={body} role={missing ? 'alert' : undefined}>
+        {missing ? 'No charts on that Google account yet.' : statusLine(account, google)}
+      </p>
       {offerGoogle ? (
         <p
           style={{
@@ -72,7 +79,10 @@ export default async function MePage() {
             maxWidth: 540,
           }}
         >
-          <SaveGoogle auto={autoGoogle} /> so they follow you on other devices.
+          <SaveGoogle />
+          {account
+            ? ' so they follow you on other devices.'
+            : ' to bring charts from another browser.'}
         </p>
       ) : null}
       {account?.email ? (
@@ -108,9 +118,11 @@ function headline(account: Awaited<ReturnType<typeof getAccount>>): string {
   return 'No paid charts left.';
 }
 
-function statusLine(account: Awaited<ReturnType<typeof getAccount>>): string {
+function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = false): string {
   if (!account) {
-    return `Buy ${PACK_CREDITS} for ${PACK_PRICE_LABEL}, or make a free chart on the home page.`;
+    return google
+      ? `Sign in to bring charts from another browser. Or buy ${PACK_CREDITS} for ${PACK_PRICE_LABEL}.`
+      : `Buy ${PACK_CREDITS} for ${PACK_PRICE_LABEL}, or make a free chart on the home page.`;
   }
   if (account.justPaid) {
     return 'They stay on this browser until you sign in.';

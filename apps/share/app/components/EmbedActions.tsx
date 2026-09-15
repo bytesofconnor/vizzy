@@ -63,7 +63,7 @@ export function EmbedActions({
       style={{
         display: 'flex',
         flexWrap: 'wrap',
-        alignItems: 'baseline',
+        alignItems: 'center',
         gap: '12px 20px',
         marginTop: 18,
         fontFamily: 'var(--font-mono), ui-monospace, monospace',

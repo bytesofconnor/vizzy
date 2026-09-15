@@ -13,8 +13,12 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function me(request: Request) {
-  return new URL('/me', request.url);
+function me(request: Request, query?: string) {
+  const url = new URL('/me', request.url);
+  if (query) {
+    url.search = query;
+  }
+  return url;
 }
 
 function continueUrl(request: Request) {
@@ -29,9 +33,9 @@ async function attachWallet(
   const bound = await bindGoogleAccount({ googleSub: identity.sub, googleEmail: identity.email });
   if (!bound) {
     if (asJson) {
-      return Response.json({ ok: false, error: 'Pay first, then sign in with Google.' }, { status: 404 });
+      return Response.json({ ok: false, error: 'No charts on that Google account yet.' }, { status: 404 });
     }
-    return NextResponse.redirect(me(request), 303);
+    return NextResponse.redirect(me(request, 'signin=missing'), 303);
   }
   const dest = asJson
     ? NextResponse.json({

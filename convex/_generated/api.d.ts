@@ -9,6 +9,7 @@
  */
 
 import type * as billing from "../billing.js";
+import type * as pastes from "../pastes.js";
 
 import type {
   ApiFromModules,
@@ -18,6 +19,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   billing: typeof billing;
+  pastes: typeof pastes;
 }>;
 
 /**

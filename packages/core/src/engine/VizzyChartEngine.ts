@@ -127,18 +127,19 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
 
   public async resize(): Promise<void> {
     if (this._isDestroyed) return;
-    
+
+    const animation = this.config.animation;
+    const restore = animation.enabled;
     try {
       this.emit('resize:start');
-      
-      // Re-render to accommodate new dimensions
+      animation.enabled = false;
       await this.render();
-      
       this.emit('resize:complete');
-      
     } catch (error) {
       this.emit('resize:error', error);
       throw error;
+    } finally {
+      animation.enabled = restore;
     }
   }
 

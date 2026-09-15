@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { CARD } from '../../../../lib/compose';
-import { signedInNavEmail } from '../../../../lib/billing';
+import { signedInNav } from '../../../../lib/billing';
 import { hydrateToken } from '../../../../lib/mint';
 import { Studio } from '../../../components/Studio';
 
@@ -43,12 +43,12 @@ export default async function MintedPage({ params }: PageProps) {
     notFound();
   }
 
-  let email: string | undefined;
+  let nav: { email?: string; known?: boolean } = {};
   try {
-    email = await signedInNavEmail();
+    nav = await signedInNav();
   } catch {
-    email = undefined;
+    nav = {};
   }
 
-  return <Studio piece={piece} email={email} />;
+  return <Studio piece={piece} email={nav.email} known={nav.known} />;
 }

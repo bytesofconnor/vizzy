@@ -3,9 +3,16 @@ import { expect, test } from '@playwright/test';
 test('install and share images exist', async ({ request }) => {
   const manifest = await request.get('/manifest.webmanifest');
   expect(manifest.ok()).toBeTruthy();
-  const body = (await manifest.json()) as { display?: string; short_name?: string };
+  const body = (await manifest.json()) as {
+    display?: string;
+    short_name?: string;
+    lang?: string;
+    shortcuts?: Array<{ url?: string }>;
+  };
   expect(body.short_name).toBe('Vizzy');
   expect(body.display).toBe('standalone');
+  expect(body.lang).toBe('en');
+  expect(body.shortcuts?.some((item) => item.url === '/#make-one')).toBeTruthy();
   expect((await request.get('/icon/192')).ok()).toBeTruthy();
   expect((await request.get('/opengraph-image')).ok()).toBeTruthy();
 });
@@ -13,13 +20,13 @@ test('install and share images exist', async ({ request }) => {
 test('landing is the chart prompt', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'A chart you can paste.' })).toBeVisible();
-  await expect(page.getByText('Type what to chart, or ask your AI to.')).toBeVisible();
+  await expect(page.getByText('Type or speak what to chart, or ask your AI to.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Make chart' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Site' })).toBeVisible();
+  await expect(page.locator('nav[aria-label="Site"]')).toContainText(/Sign in|Account/);
   await expect(page.getByRole('link', { name: 'Agents' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('Keep this pack');
   await expect(page.locator('body')).not.toContainText('that pack');
 });
@@ -106,6 +113,6 @@ test('terms still restores by checkout email', async ({ page }) => {
   await page.goto('/terms');
   await expect(page.getByRole('heading', { name: 'Terms' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send a restore link' })).toBeVisible();
+  await expect(page.locator('nav[aria-label="Site"]')).toContainText(/Sign in|Account/);
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toHaveCount(0);
 });

@@ -1,4 +1,5 @@
 import { parseCardSize } from '../../../../lib/compose';
+import { loadPaste } from '../../../../lib/paste';
 import { pieceBySlug } from '../../../../lib/pieces';
 import { renderPiecePng } from '../../../../lib/render-piece';
 
@@ -10,7 +11,7 @@ export async function GET(
   context: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await context.params;
-  const piece = pieceBySlug(slug);
+  const piece = pieceBySlug(slug) ?? (await loadPaste(slug));
   if (!piece) {
     return new Response('Not found', { status: 404 });
   }

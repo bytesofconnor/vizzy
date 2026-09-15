@@ -11,7 +11,7 @@ const kicker = {
 
 export function SiteFoot() {
   return (
-    <footer style={{ marginTop: 64 }}>
+    <footer className="site-foot" style={{ marginTop: 64 }}>
       <p style={kicker}>
         <Link href="/terms">Terms</Link>
         {' · '}

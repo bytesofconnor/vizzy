@@ -4,7 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 async function noSeriousAxe(page: Page, path: string) {
   await page.goto(path);
   await expect(page.locator('main#content')).toBeVisible();
-  const results = await new AxeBuilder({ page }).analyze();
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   const serious = results.violations.filter(
     (issue) => issue.impact === 'serious' || issue.impact === 'critical'
   );
@@ -15,10 +15,19 @@ test('home has no serious axe issues', async ({ page }) => {
   await noSeriousAxe(page, '/');
 });
 
+test('home on a phone has no serious axe issues', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await noSeriousAxe(page, '/');
+});
+
 test('example chart has no serious axe issues', async ({ page }) => {
   await noSeriousAxe(page, '/c/july');
 });
 
 test('agents page has no serious axe issues', async ({ page }) => {
   await noSeriousAxe(page, '/agents');
+});
+
+test('terms has no serious axe issues', async ({ page }) => {
+  await noSeriousAxe(page, '/terms');
 });

@@ -1,6 +1,6 @@
 import { Studio } from './components/Studio';
 import { JsonLd } from './components/JsonLd';
-import { signedInNavEmail } from '../lib/billing';
+import { signedInNav } from '../lib/billing';
 import { SITE_DESCRIPTION, siteUrl } from '../lib/site';
 
 export const metadata = {
@@ -14,11 +14,11 @@ export default async function HomePage({
 }) {
   const { error, pay } = await searchParams;
   const origin = siteUrl();
-  let email: string | undefined;
+  let nav: { email?: string; known?: boolean } = {};
   try {
-    email = await signedInNavEmail();
+    nav = await signedInNav();
   } catch {
-    email = undefined;
+    nav = {};
   }
   return (
     <>
@@ -39,7 +39,7 @@ export default async function HomePage({
           featureList: ['Bar charts', 'Line charts', 'Scatter plots', 'Paste URL', 'PNG export'],
         }}
       />
-      <Studio error={error} askPay={pay === '1'} email={email} />
+      <Studio error={error} askPay={pay === '1'} email={nav.email} known={nav.known} />
     </>
   );
 }

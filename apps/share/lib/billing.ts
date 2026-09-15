@@ -179,18 +179,18 @@ export async function peekQuota(request: Request): Promise<Quota> {
     ...status,
     ...pack,
     justPaid,
-    offerGoogle: Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) && justPaid && !status.saved,
+    offerGoogle: Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) && !status.saved,
   };
 }
 
-export async function signedInNavEmail(): Promise<string | undefined> {
+export async function signedInNav(): Promise<{ email?: string; known?: boolean }> {
   if (!billingConfigured()) {
-    return undefined;
+    return {};
   }
   const secret = serverSecret();
   const token = await readWalletToken();
   if (!secret || !token) {
-    return undefined;
+    return {};
   }
   try {
     const status = await convexCall<{ saved?: boolean; email?: string }>('query', 'billing:peek', {
@@ -199,13 +199,13 @@ export async function signedInNavEmail(): Promise<string | undefined> {
       day: utcDay(),
       walletToken: token,
     });
-    if (status.saved && status.email) {
-      return status.email;
-    }
+    return {
+      known: true,
+      email: status.saved && status.email ? status.email : undefined,
+    };
   } catch {
-    return undefined;
+    return { known: true };
   }
-  return undefined;
 }
 
 export async function consumeSlot(request: Request): Promise<ConsumeResult> {

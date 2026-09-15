@@ -86,8 +86,7 @@ export function ClaimBox() {
           font: 'inherit',
           fontSize: 16,
           lineHeight: 1.45,
-          padding: '0 0 10px',
-          outline: 'none',
+          padding: '10px 0',
           opacity: busy ? 0.55 : 1,
         }}
       />

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Archivo, IBM_Plex_Mono } from 'next/font/google';
+import { GutterDust } from './components/GutterDust';
 import { PwaBoot } from './components/PwaBoot';
 import { SITE_DESCRIPTION, siteUrl } from '../lib/site';
 import { STUDIO } from '../lib/theme';
@@ -26,6 +27,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  colorScheme: 'light',
 };
 
 export const metadata: Metadata = {
@@ -40,7 +42,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: 'Vizzy',
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
   },
   formatDetection: {
     telephone: false,
@@ -73,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         <PwaBoot />
+        <GutterDust />
         <a className="skip-link" href="#content">
           Skip to content
         </a>

@@ -1,7 +1,7 @@
 :root {
   --paper: #ebe9e3;
   --ink: #121211;
-  --mute: #6b6962;
+  --mute: #534f48;
   --rule: #c5c2b9;
 }
 
@@ -22,6 +22,10 @@ body {
   overscroll-behavior-y: none;
 }
 
+html.is-pwa .page-main {
+  padding-top: max(36px, env(safe-area-inset-top));
+}
+
 .page-main {
   max-width: 920px;
   margin: 0 auto;
@@ -37,27 +41,37 @@ a {
 
 .skip-link {
   position: absolute;
-  left: 16px;
-  top: 12px;
+  left: max(16px, env(safe-area-inset-left));
+  top: max(12px, env(safe-area-inset-top));
   z-index: 20;
-  padding: 8px 12px;
+  min-height: 44px;
+  padding: 12px 14px;
   background: var(--paper);
   color: var(--ink);
-  transform: translateY(-160%);
+  transform: translateY(calc(-100% - 24px));
   text-decoration: underline;
   text-underline-offset: 0.22em;
 }
 
-.skip-link:focus {
+.skip-link:focus,
+.skip-link:focus-visible {
   transform: none;
 }
 
 a:focus-visible,
 button:focus-visible,
-textarea:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 3px;
+}
+
+textarea:focus,
+textarea:focus-visible,
+input:focus,
+input:focus-visible {
+  outline: none;
+  border-bottom-width: 2px;
+  border-bottom-color: var(--ink);
 }
 
 .agents-doc {
@@ -115,13 +129,19 @@ textarea:focus-visible,
 
 .gis-wrap {
   position: relative;
-  display: inline-block;
-  vertical-align: baseline;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  vertical-align: middle;
 }
 
 .gis-face {
   text-decoration: underline;
   text-underline-offset: 0.22em;
+}
+
+.gis-wrap-kicker .gis-face {
+  text-decoration: none;
 }
 
 .gis-hit {
@@ -145,10 +165,10 @@ textarea:focus-visible,
 .kicker-nav {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 16px;
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--mute);
@@ -157,6 +177,9 @@ textarea:focus-visible,
 }
 
 .kicker-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   text-decoration: none;
 }
 
@@ -253,6 +276,43 @@ textarea:focus-visible,
   }
 }
 
+@keyframes dust-ink {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+html:not(.is-inked) .hero-dust i,
+html:not(.is-inked) .kicker-here .kicker-dust i,
+html:not(.is-inked) .gutter-dust i {
+  transform-origin: center bottom;
+  animation: dust-ink 0.28s ease-out both;
+  animation-delay: calc(var(--dust-i, 0) * 28ms);
+}
+
+html:not(.is-inked) .gutter-dust i {
+  transform-origin: center top;
+}
+
+html:not(.is-inked) .page-main h1,
+html:not(.is-inked) .agents-title {
+  animation: rise 0.22s ease-out both;
+}
+
 .source-block {
   margin: 14px 0 0;
   max-width: 560px;
@@ -309,7 +369,9 @@ button {
   color: var(--ink);
   background: none;
   border: 0;
-  padding: 0;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 0;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 0.22em;
@@ -320,12 +382,28 @@ button:hover {
   color: var(--mute);
 }
 
-textarea {
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+textarea,
+input {
   font-family: inherit;
 }
 
-textarea:focus {
-  border-bottom-color: var(--ink);
+.compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 20px;
+  margin: 8px 0 0;
+}
+
+.site-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 .hero-dust {
@@ -340,6 +418,10 @@ textarea:focus {
   flex: 1;
   display: block;
   height: 100%;
+}
+
+.gutter-dust {
+  display: none;
 }
 
 .piece-list {
@@ -414,6 +496,70 @@ form#again[aria-busy='true'] + section {
 
   .kicker-here.is-tap .kicker-dust i {
     animation: none;
+  }
+
+  html:not(.is-inked) .hero-dust i,
+  html:not(.is-inked) .kicker-here .kicker-dust i,
+  html:not(.is-inked) .gutter-dust i,
+  html:not(.is-inked) .page-main h1,
+  html:not(.is-inked) .agents-title {
+    animation: none;
+  }
+}
+
+@media (min-width: 1100px) {
+  .page-main {
+    max-width: min(1120px, calc(100vw - 140px));
+  }
+}
+
+@media (min-width: 1400px) {
+  .page-main {
+    max-width: min(1280px, calc(100vw - 200px));
+  }
+
+  .gutter-dust {
+    position: fixed;
+    top: 22vh;
+    z-index: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 7px;
+    height: 46vh;
+    pointer-events: none;
+  }
+
+  .gutter-dust i {
+    flex: 1;
+    display: block;
+    min-height: 8px;
+  }
+
+  .gutter-dust-left {
+    left: max(28px, 4.2vw);
+  }
+
+  .gutter-dust-right {
+    right: max(28px, 4.2vw);
+  }
+}
+
+@media (min-width: 1800px) {
+  .page-main {
+    max-width: min(1440px, calc(100vw - 280px));
+  }
+}
+
+@media (min-width: 2100px) {
+  .page-main {
+    max-width: min(1600px, calc(100vw - 360px));
+  }
+}
+
+@media print {
+  .gutter-dust {
+    display: none !important;
   }
 }
 

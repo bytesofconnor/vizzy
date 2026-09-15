@@ -233,6 +233,26 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       .attr('stroke-linecap', dashed ? 'round' : 'butt')
       .attr('stroke-dasharray', dashed ? '1.5 5' : null)
       .attr('d', line(values));
+
+    const { animation } = this._config;
+    if (animation.enabled && !dashed) {
+      const node = path.node();
+      if (node instanceof SVGPathElement) {
+        const length = node.getTotalLength();
+        if (Number.isFinite(length) && length > 0) {
+          path
+            .attr('stroke-dasharray', `${length} ${length}`)
+            .attr('stroke-dashoffset', length)
+            .transition()
+            .duration(animation.duration)
+            .ease(d3.easeQuadOut)
+            .attr('stroke-dashoffset', 0)
+            .on('end', () => {
+              path.attr('stroke-dasharray', null).attr('stroke-dashoffset', null);
+            });
+        }
+      }
+    }
   }
 
   private _labelForecast(
@@ -300,7 +320,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       pointsUpdate
         .transition()
         .duration(animation.duration)
-        .delay((d, i) => i * (animation.stagger / 2))
+        .delay((_d, i) => i * (animation.stagger / 2))
+        .ease(d3.easeQuadOut)
         .attr('cx', (d: TData) => this._scaleManager.getXValue(d[dataMapping.x]))
         .attr('cy', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
         .attr('r', pointRadius)

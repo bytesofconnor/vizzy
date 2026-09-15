@@ -1,71 +1,49 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import { HereMark } from './HereMark';
-
-type Quota = {
-  configured?: boolean;
-  credits?: number;
-  unlimited?: boolean;
-  saved?: boolean;
-  justPaid?: boolean;
-  email?: string;
-};
+import { SaveGoogle } from './SaveGoogle';
 
 export function AccountLink({
   current = false,
   email,
+  known = false,
 }: {
   current?: boolean;
   email?: string;
+  known?: boolean;
 }) {
-  const [show, setShow] = useState(current || Boolean(email));
-  const [label, setLabel] = useState(email || 'Account');
+  const google = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
-  useEffect(() => {
-    if (email) {
-      return;
+  if (email) {
+    if (current) {
+      return (
+        <HereMark href="/me" mail>
+          {email}
+        </HereMark>
+      );
     }
-    let cancel = false;
-    void fetch('/api/quota')
-      .then((response) => response.json())
-      .then((body: unknown) => {
-        if (cancel || typeof body !== 'object' || body === null) {
-          return;
-        }
-        const quota = body as Quota;
-        const named = quota.saved && quota.email ? quota.email : 'Account';
-        setLabel(named);
-        setShow(
-          current ||
-            Boolean(
-              quota.configured && (quota.saved || quota.justPaid || (quota.credits ?? 0) > 0 || quota.unlimited)
-            )
-        );
-      })
-      .catch(() => undefined);
-    return () => {
-      cancel = true;
-    };
-  }, [current, email]);
-
-  if (!show) {
-    return null;
-  }
-
-  const mail = label.includes('@');
-  if (current) {
     return (
-      <HereMark href="/me" mail={mail}>
-        {label}
-      </HereMark>
+      <Link href="/me" className="kicker-mail" title={email}>
+        {email}
+      </Link>
     );
   }
 
-  return (
-    <Link href="/me" className={mail ? 'kicker-mail' : undefined} title={mail ? label : undefined}>
-      {label}
-    </Link>
-  );
+  if (known) {
+    if (current) {
+      return <HereMark href="/me">Account</HereMark>;
+    }
+    return <Link href="/me">Account</Link>;
+  }
+
+  if (google) {
+    return <SaveGoogle compact />;
+  }
+
+  if (current) {
+    return <HereMark href="/me">Account</HereMark>;
+  }
+
+  return <Link href="/me">Account</Link>;
 }

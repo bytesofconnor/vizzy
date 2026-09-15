@@ -118,7 +118,7 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
         .transition()
         .duration(config.animation.duration)
         .delay((d, i) => i * config.animation.stagger)
-        .ease(d3.easeBackOut.overshoot(1.2))
+        .ease(d3.easeQuadOut)
         .attr('cx', (d: TData) => this._scaleManager.getXValue(d[config.dataMapping.x]))
         .attr('cy', (d: TData) => this._scaleManager.getYValue(d[config.dataMapping.y]))
         .attr('r', (d: TData) => this._getPointRadius(d))

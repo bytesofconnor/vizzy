@@ -25,12 +25,12 @@ export type MintResult =
   | { ok: true; token: string; piece: Piece }
   | { ok: false; error: string; issues: ValidationIssue[] };
 
-export function hydrateToken(token: string): Piece | null {
+export function hydrateToken(token: string, slug = `x/${token}`): Piece | null {
   const draft = decodePortableDraft(token);
   if (!draft) {
     return null;
   }
-  return pieceFromDraft(draft, token);
+  return pieceFromDraft(draft, slug);
 }
 
 export function mintPiece(input: MintInput): MintResult {
@@ -105,10 +105,10 @@ export function mintPiece(input: MintInput): MintResult {
   }
 
   const token = encodePortableDraft(draft);
-  return { ok: true, token, piece: pieceFromDraft(draft, token) };
+  return { ok: true, token, piece: pieceFromDraft(draft, `x/${token}`) };
 }
 
-function pieceFromDraft(draft: PortableDraft, token: string): Piece {
+function pieceFromDraft(draft: PortableDraft, slug: string): Piece {
   const extras: Record<string, unknown> = {
     accessibility: {
       title: draft.title,
@@ -123,7 +123,7 @@ function pieceFromDraft(draft: PortableDraft, token: string): Piece {
   }
 
   return {
-    slug: `x/${token}`,
+    slug,
     kicker: draft.kicker,
     title: draft.title,
     note: draft.note,

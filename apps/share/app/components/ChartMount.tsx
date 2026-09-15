@@ -24,6 +24,8 @@ export function ChartMount({
         ? 58
         : 36;
     const title = config.accessibility?.title || label;
+    const motion =
+      typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     return validateChartConfig({
       ...config,
       dimensions: {
@@ -35,6 +37,12 @@ export function ChartMount({
           bottom,
           left: yLabel ? 64 : 28,
         },
+      },
+      animation: {
+        enabled: motion,
+        duration: 280,
+        easing: 'ease-out',
+        stagger: 32,
       },
       accessibility: {
         ...config.accessibility,

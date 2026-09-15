@@ -3,7 +3,7 @@ import { ChartConfig, validateChartConfig } from '@vizzy/core';
 export const STUDIO = {
   paper: '#ebe9e3',
   ink: '#121211',
-  mute: '#6b6962',
+  mute: '#534f48',
   rule: '#c5c2b9',
   mark: '#121211',
   wash: '#8f8c84',

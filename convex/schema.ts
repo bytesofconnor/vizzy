@@ -36,4 +36,10 @@ export default defineSchema({
     via: v.union(v.literal('credit'), v.literal('free'), v.literal('owner')),
     createdAt: v.number(),
   }).index('by_wallet', ['walletId']),
+
+  pastes: defineTable({
+    slug: v.string(),
+    token: v.string(),
+    createdAt: v.number(),
+  }).index('by_slug', ['slug']),
 });

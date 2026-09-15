@@ -1,7 +1,13 @@
-const CACHE = 'vizzy-1';
+const CACHE = 'vizzy-2';
+const SHELL = ['/', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => Promise.all(SHELL.map((path) => cache.add(path).catch(() => undefined))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -22,7 +28,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).catch(() => caches.match('/')));
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            void caches.open(CACHE).then((cache) => cache.put('/', copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/').then((hit) => hit || Response.error()))
+    );
     return;
   }
   if (url.pathname.startsWith('/icon') || url.pathname.startsWith('/apple-icon')) {

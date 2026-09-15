@@ -52,8 +52,8 @@ describe('MCP tools', () => {
       ok: true,
       json: async () => ({
         ok: true,
-        url: 'https://vizzy.run/c/x/abc',
-        png: 'https://vizzy.run/c/x/abc.png',
+        url: 'https://vizzy.run/c/k2x9mQ',
+        png: 'https://vizzy.run/c/k2x9mQ.png',
         token: 'abc',
       }),
     });

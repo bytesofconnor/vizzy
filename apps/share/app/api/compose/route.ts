@@ -1,5 +1,6 @@
 import { consumeSlot, refundSlot } from '../../../lib/billing';
 import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
+import { pasteHref } from '../../../lib/paste';
 import { payBody, payMessage } from '../../../lib/pay';
 import { parseChartSeed, type ChartSeed } from '../../../lib/seed';
 import { siteUrl } from '../../../lib/site';
@@ -88,15 +89,14 @@ export async function POST(request: Request) {
       return Response.json(minted, { status: 400 });
     }
 
-    const path = `/c/x/${minted.token}`;
-    const url = `${origin}${path}`;
+    const paste = await pasteHref(origin.replace(/\/$/, ''), minted.token);
     if (wantsHtml(request)) {
-      return Response.redirect(url, 303);
+      return Response.redirect(paste.url, 303);
     }
     return Response.json({
       ok: true,
-      url,
-      png: `${url}.png`,
+      url: paste.url,
+      png: paste.png,
       token: minted.token,
     });
   } catch (error) {

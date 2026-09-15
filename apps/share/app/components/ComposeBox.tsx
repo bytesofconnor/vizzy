@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import type { ChartSeed } from '../../lib/seed';
 import { DUST, STUDIO } from '../../lib/theme';
-import { SaveGoogle } from './SaveGoogle';
+import { SpeakPrompt } from './SpeakPrompt';
 
 const DRAW_HEIGHTS = [42, 58, 31, 78, 48, 66, 92, 38] as const;
 
@@ -174,7 +174,7 @@ export function ComposeBox({
           style={{
             display: 'block',
             fontFamily: 'var(--font-mono), ui-monospace, monospace',
-            fontSize: 11,
+            fontSize: 12,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             color: 'var(--mute)',
@@ -208,14 +208,14 @@ export function ComposeBox({
             font: 'inherit',
             fontSize: 16,
             lineHeight: 1.45,
-            padding: '0 0 10px',
-            outline: 'none',
+            padding: '10px 0',
             opacity: busy ? 0.55 : 1,
           }}
         />
         {busy ? null : (
-          <p style={{ margin: '12px 0 0' }}>
+          <p className="compose-actions">
             <button type="submit">{seed ? 'Draw' : 'Make chart'}</button>
+            <SpeakPrompt disabled={busy} onText={setPrompt} />
           </p>
         )}
         {!busy ? <QuotaLine quota={quota} pay={pay} buying={buying} revise={Boolean(seed)} onBuy={() => void buy()} /> : null}
@@ -290,7 +290,9 @@ function QuotaLine({
         ? revise
           ? `${quota.freeLeft} free today. Another pass uses one.`
           : `${quota.freeLeft} free today. Then ${pack}.`
-        : `No free charts left today. ${pack}.`;
+        : quota.offerGoogle
+          ? `No free charts left today. Sign in if you already have charts, or ${pack}.`
+          : `No free charts left today. ${pack}.`;
   }
 
   const showBuy = !unlimited && !justPaid && (pay || Boolean(quota?.configured));
@@ -299,19 +301,13 @@ function QuotaLine({
     <p
       style={{
         fontFamily: 'var(--font-mono), ui-monospace, monospace',
-        fontSize: 11,
+        fontSize: 12,
         color: 'var(--mute)',
         margin: '10px 0 0',
         lineHeight: 1.45,
       }}
     >
       {copy}
-      {quota?.offerGoogle ? (
-        <>
-          {' '}
-          <SaveGoogle auto /> so they follow you on other devices.
-        </>
-      ) : null}
       {saved || (quota?.configured && (credits > 0 || unlimited)) ? (
         <>
           {' '}
