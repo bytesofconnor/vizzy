@@ -9,4 +9,4 @@ export function publicOrigin(): string {
 }
 
 export const SITE_DESCRIPTION =
-  'A chart you can paste. Type or speak what to chart, or ask your AI to. Bar, line, or scatter. You get a link and a PNG.';
+  'A chart you can paste. Type what to chart, or ask your AI to. Bar, line, or scatter. You get a link and a PNG.';

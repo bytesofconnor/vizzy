@@ -34,7 +34,7 @@ export async function GET() {
   const origin = siteUrl();
   return Response.json({
     ok: true,
-    use: 'POST prompt as JSON { prompt, seed? } or form field prompt. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page. Shares the publish meter.',
+    use: 'POST a text prompt as JSON { prompt, seed? } or form field prompt. No voice API. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page. Shares the publish meter.',
     schema: `${origin}/schema/chart-config.v1.json`,
     docs: `${origin}/llms.txt`,
     agents: `${origin}/agents`,

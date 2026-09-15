@@ -20,8 +20,9 @@ test('install and share images exist', async ({ request }) => {
 test('landing is the chart prompt', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'A chart you can paste.' })).toBeVisible();
-  await expect(page.getByText('Type or speak what to chart, or ask your AI to.')).toBeVisible();
+  await expect(page.getByText('Type what to chart, or ask your AI to.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Make chart' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Speak' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Site' })).toBeVisible();
   await expect(page.locator('nav[aria-label="Site"]')).toContainText(/Sign in|Account/);

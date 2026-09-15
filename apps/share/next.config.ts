@@ -17,10 +17,6 @@ const nextConfig: NextConfig = {
             key: 'Referrer-Policy',
             value: 'no-referrer-when-downgrade',
           },
-          {
-            key: 'Permissions-Policy',
-            value: 'microphone=(self)',
-          },
         ],
       },
       {

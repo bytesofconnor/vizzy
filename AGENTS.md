@@ -1,6 +1,6 @@
 # Vizzy for agents
 
-You gather rows. You call `publish_chart`, or `POST /api/compose` with a prompt. The human gets a paste URL and a PNG.
+You gather rows. You call `publish_chart`, or `POST /api/compose` with a text prompt. The human gets a paste URL and a PNG. Humans type on the site; there is no voice API.
 
 Public contract: https://vizzy.run/llms.txt · https://vizzy.run/agents · https://vizzy.run/openapi.json
 
@@ -24,7 +24,7 @@ You emit a `ChartConfig`. The runtime draws the SVG. Do not invent D3.
 ## Do not
 
 - Invent D3, Recharts, or a custom React component for a Vizzy chart.
-- Use `generate_chart`, voice, or collaboration — those are gone.
+- Use `generate_chart`, voice input, or collaboration — not in v1.
 - Add pie, heatmap, or other types. They are not in v1.
 
 ## Schema

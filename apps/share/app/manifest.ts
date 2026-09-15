@@ -21,7 +21,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: 'Make a chart',
         short_name: 'Make one',
         url: '/#make-one',
-        description: 'Type or speak what to chart.',
+        description: 'Type what to chart.',
       },
     ],
     icons: [

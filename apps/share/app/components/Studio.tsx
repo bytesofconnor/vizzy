@@ -66,7 +66,7 @@ export function Studio({
               marginTop: 10,
             }}
           >
-            Type or speak what to chart, or ask your AI to. Bar, line, or scatter. You get a link and a PNG.
+            Type what to chart, or ask your AI to. Bar, line, or scatter. You get a link and a PNG.
           </p>
         </>
       )}

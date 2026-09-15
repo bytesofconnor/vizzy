@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import type { ChartSeed } from '../../lib/seed';
 import { DUST, STUDIO } from '../../lib/theme';
-import { SpeakPrompt } from './SpeakPrompt';
-
 const DRAW_HEIGHTS = [42, 58, 31, 78, 48, 66, 92, 38] as const;
 
 const HINTS = [
@@ -215,7 +213,6 @@ export function ComposeBox({
         {busy ? null : (
           <p className="compose-actions">
             <button type="submit">{seed ? 'Draw' : 'Make chart'}</button>
-            <SpeakPrompt disabled={busy} onText={setPrompt} />
           </p>
         )}
         {!busy ? <QuotaLine quota={quota} pay={pay} buying={buying} revise={Boolean(seed)} onBuy={() => void buy()} /> : null}

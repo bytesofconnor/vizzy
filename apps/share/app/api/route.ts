@@ -9,7 +9,8 @@ export async function GET() {
   return Response.json({
     ok: true,
     name: 'Vizzy',
-    description: 'A chart you can paste. Bar, line, or scatter. You gather the rows. You get a paste URL and a PNG.',
+    description:
+      'A chart you can paste. Type a prompt or publish rows. Bar, line, or scatter. You get a paste URL and a PNG. Text in; no voice API.',
     docs: `${origin}/llms.txt`,
     agents: `${origin}/agents`,
     schema: `${origin}/schema/chart-config.v1.json`,

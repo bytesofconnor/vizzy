@@ -9,6 +9,7 @@ export async function GET() {
   const body = [
     'Vizzy is a chart you can paste.',
     'Bar, line, or scatter. You gather the rows. Do not invent D3.',
+    'Humans type a prompt on the site. Agents send text. No voice API.',
     '',
     `POST ${origin}/api/compose`,
     'JSON { "prompt": "ARR by quarter, last two years" }',
