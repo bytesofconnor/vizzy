@@ -216,15 +216,21 @@ input:focus-visible {
 }
 
 .kicker-here {
+  display: inline-flex;
+  align-items: center;
+}
+
+.kicker-here-label {
   position: relative;
   display: inline-block;
+  line-height: 1.2;
 }
 
 .kicker-dust {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -5px;
+  bottom: -2px;
   display: flex;
   gap: 2px;
   height: 2px;

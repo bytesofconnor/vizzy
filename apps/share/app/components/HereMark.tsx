@@ -29,18 +29,20 @@ export function HereMark({
         window.setTimeout(() => setTap(false), 800);
       }}
     >
-      {mail ? (
-        <>
-          <span className="kicker-mail-short">Account</span>
-          <span className="kicker-mail-full kicker-mail-text">{children}</span>
-        </>
-      ) : (
-        children
-      )}
-      <span className="kicker-dust" aria-hidden="true">
-        {DUST.map((tone, index) => (
-          <i key={tone} style={{ background: index === 6 ? STUDIO.ink : tone, ['--dust-i']: String(index) }} />
-        ))}
+      <span className="kicker-here-label">
+        {mail ? (
+          <>
+            <span className="kicker-mail-short">Account</span>
+            <span className="kicker-mail-full kicker-mail-text">{children}</span>
+          </>
+        ) : (
+          children
+        )}
+        <span className="kicker-dust" aria-hidden="true">
+          {DUST.map((tone, index) => (
+            <i key={tone} style={{ background: index === 6 ? STUDIO.ink : tone, ['--dust-i']: String(index) }} />
+          ))}
+        </span>
       </span>
     </Link>
   );

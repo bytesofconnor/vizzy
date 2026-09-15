@@ -86,6 +86,44 @@ export function isInventedSource(source: ChartSource): boolean {
   return source.method === 'example' || source.method === 'estimate';
 }
 
+const VAGUE_SOURCE_LABELS = /^estimate$|^example$|^unspecified$|^unknown$|^source$/i;
+
+export function meaningfulSourceLabel(label: string): boolean {
+  const trimmed = label.trim();
+  return trimmed.length > 0 && !VAGUE_SOURCE_LABELS.test(trimmed);
+}
+
+export function estimateBasisEvidence(
+  evidence: string | undefined,
+  context: { asked: string; lookupNotes: string; lookupUrls: string[] }
+): string {
+  const trimmed = evidence?.trim() ?? '';
+  if (trimmed.length >= 20 && !/^estimate/i.test(trimmed)) {
+    return trimmed;
+  }
+  const tried =
+    context.lookupUrls.length > 0
+      ? `Checked ${context.lookupUrls.slice(0, 3).join(', ')}`
+      : 'Public lookup found no matching page';
+  const topic = context.asked.replace(/\s+/g, ' ').trim().slice(0, 120);
+  return `${tried}. No published figures for “${topic}”. Rows are illustrative, not copied from a source.`;
+}
+
+export function normalizeInventedSource(
+  source: ChartSource,
+  context: { asked: string; lookupNotes: string; lookupUrls: string[] }
+): ChartSource {
+  if (!isInventedSource(source)) {
+    return source;
+  }
+  return {
+    ...source,
+    label: meaningfulSourceLabel(source.label) ? source.label : 'No published source',
+    evidence: estimateBasisEvidence(source.evidence, context),
+    url: undefined,
+  };
+}
+
 export function sourceLine(source: ChartSource): string {
   const parts = [source.label, GRADE[source.method]];
   const host = sourceHost(source.url);
@@ -98,7 +136,7 @@ export function sourceLine(source: ChartSource): string {
     parts.push(source.retrieved);
   }
   if (source.evidence) {
-    parts.push(source.evidence);
+    parts.push(isInventedSource(source) ? `Basis: ${source.evidence}` : source.evidence);
   }
   return parts.join('  ·  ');
 }
@@ -110,7 +148,10 @@ export function sourceCardLine(source: ChartSource): string {
   if (host) {
     parts.push(host);
   } else if (isInventedSource(source)) {
-    parts.push('not a live source');
+    parts.push('no published page');
+  }
+  if (isInventedSource(source) && source.evidence) {
+    parts.push(`Basis: ${source.evidence}`);
   }
   return parts.join('  ·  ');
 }

@@ -5,7 +5,14 @@ import { countedSeriesRows, gatherFacts } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { followUpNeedsLookup, seedBriefing, type ChartSeed } from './seed';
 import { logAiFromResult } from './ai-usage';
-import { firstPromptUrl, sourceLabelFor, sourceMethodFor } from './source';
+import {
+  estimateBasisEvidence,
+  firstPromptUrl,
+  meaningfulSourceLabel,
+  normalizeInventedSource,
+  sourceLabelFor,
+  sourceMethodFor,
+} from './source';
 
 const DraftSchema = z.object({
   title: z.string().describe('Short sentence that is the chart title'),
@@ -33,8 +40,9 @@ const SYSTEM = `You emit a Vizzy chart draft. Types: bar, line, scatter only. No
 Use the user's numbers when they paste a table.
 If LOOKED-UP NOTES contain a real series, chart those numbers. Do not invent a different table.
 Aim for about 15 rows on a ranking or named-category bar chart. A year by month is 12. A season is the published games so far. Do not pad past the natural series. Only take a top N when the user asked for one.
-Only invent rows when the notes say lookup failed and the user pasted no numbers. Then sourceMethod must be estimate or example, and evidence must say so. Invent the natural complete series (12 months, a season), not three stub bars.
-If the asked year is still in progress, later months are a forecast, not published fact. Say so in the note. sourceMethod must be estimate. Never attach Wikipedia or any URL to an estimate.
+If LOOKED-UP NOTES contain real numbers with a page, chart them and set sourceMethod scraped or official. Attach the page in sourceLabel. Put the page URL in SOURCE CANDIDATES on the chart when you have one.
+If lookup failed and the user pasted no numbers, return sourceMethod estimate only when you must illustrate shape — never pretend it is published data. sourceLabel must name what you tried to find (topic or site), never the single word Estimate. evidence must say lookup failed and that rows are illustrative.
+If the asked year is still in progress, chart published months from the notes and mark later months as forecast in the note. sourceMethod estimate only for the unpublished tail. Never attach a URL to purely invented rows.
 Always name xLabel and yLabel in words a reader can trust (Month, Wins, Points). Never leave them as x or y.
 Never invent a source URL. Prefer the looked-up page title in sourceLabel.
 y must be numeric. Keep titles short. Named categories cap around 15. Sequential series may be longer.
@@ -132,11 +140,11 @@ export async function pieceFromPrompt(prompt: string, from?: ChartSeed): Promise
   if (from) {
     return { ok: false, error: publicComposeError(lastError) || 'Could not revise that', issues: [] };
   }
-  const fallback = estimateDraft(asked);
-  if (!fallback) {
-    return { ok: false, error: 'Could not find named figures to chart', issues: [] };
-  }
-  return mintDraft(asked, gathered, fallback);
+  return {
+    ok: false,
+    error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
+    issues: [],
+  };
 }
 
 async function draftChart(model: (typeof MODELS)[number], prompt: string) {
@@ -158,6 +166,20 @@ function mintDraft(
 ): MintResult {
   const estimated = output.sourceMethod === 'estimate' || output.sourceMethod === 'example';
   const lookedUp = !estimated && gathered.urls.length > 0 && /\d/.test(gathered.notes);
+  if (estimated) {
+    const basis = estimateBasisEvidence(output.evidence, {
+      asked,
+      lookupNotes: gathered.notes,
+      lookupUrls: gathered.urls,
+    });
+    if (basis.length < 20) {
+      return {
+        ok: false,
+        error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
+        issues: [],
+      };
+    }
+  }
   const keepSource = Boolean(from) && !lookedUp && !estimated;
   const sourceUrl = keepSource
     ? from?.sourceUrl
@@ -171,6 +193,13 @@ function mintDraft(
         : output.sourceMethod === 'unknown' && sourceUrl
           ? 'scraped'
           : output.sourceMethod;
+  if (!estimated && !sourceUrl && !meaningfulSourceLabel(output.sourceLabel)) {
+    return {
+      ok: false,
+      error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
+      issues: [],
+    };
+  }
   const tidied = tidyComparison(
     output.rows.map((row) => ({
       x: output.chartType === 'scatter' ? row.x : String(row.x),
@@ -189,21 +218,24 @@ function mintDraft(
   const forecastAt = output.chartType === 'line' ? forecastStartIndex(rows, 'x') : -1;
   const forecastFrom = forecastAt >= 0 ? String(rows[forecastAt]?.x ?? '') : '';
 
-  return mintPiece({
-    title: output.title,
-    kicker: estimated ? 'Estimate' : output.kicker,
-    note: output.note,
-    data: rows,
-    source: {
+  const source = normalizeInventedSource(
+    {
       label: keepSource
         ? from!.sourceLabel
-        : estimated
-          ? 'Estimate'
-          : sourceLabelFor(sourceUrl, output.sourceLabel),
+        : sourceLabelFor(sourceUrl, output.sourceLabel),
       method: keepSource ? method : sourceMethodFor(sourceUrl, method),
       evidence: keepSource ? from!.evidence || output.evidence : output.evidence,
       url: sourceUrl,
     },
+    { asked, lookupNotes: gathered.notes, lookupUrls: gathered.urls }
+  );
+
+  return mintPiece({
+    title: output.title,
+    kicker: estimated ? output.kicker || 'Illustrative' : output.kicker,
+    note: output.note,
+    data: rows,
+    source,
     config: {
       chart: {
         type: output.chartType,
@@ -222,33 +254,6 @@ function mintDraft(
 
 function isRateLimited(error: unknown): boolean {
   return /rate limit|429|free tier|credits/i.test(error instanceof Error ? error.message : '');
-}
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function estimateDraft(asked: string): z.infer<typeof DraftSchema> | null {
-  if (!/month/i.test(asked)) {
-    return null;
-  }
-  const year = asked.match(/20\d{2}/)?.[0];
-  return {
-    title: asked.replace(/\s+/g, ' ').trim().slice(0, 80),
-    kicker: 'Estimate',
-    note: year && Number(year) >= new Date().getFullYear()
-      ? `${year} is not over. Months after now are a forecast, not a published series.`
-      : 'No published series in time. These rows are an estimate.',
-    chartType: 'line',
-    area: true,
-    xLabel: 'Month',
-    yLabel: /%|percent|rate/i.test(asked) ? 'Rate %' : /satisfaction|score/i.test(asked) ? 'Score' : 'Value',
-    sourceLabel: 'Estimate',
-    sourceMethod: 'estimate',
-    evidence: 'Lookup failed; estimated series',
-    rows: MONTHS.map((month, index) => ({
-      x: month,
-      y: Math.round(64 + 7 * Math.sin(index / 2.2) + index * 0.35),
-    })),
-  };
 }
 
 const NAMED_METRIC = /^(.+?)\s*\(([^)]+)\)\s*$/;

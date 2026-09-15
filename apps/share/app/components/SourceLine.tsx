@@ -4,6 +4,7 @@ import { isInventedSource, sourceGrade, sourceHost } from '../../lib/source';
 export function SourceLine({ source }: { source: ChartSource }) {
   const host = sourceHost(source.url);
   const grade = sourceGrade(source);
+  const invented = isInventedSource(source);
 
   return (
     <div className="source-block">
@@ -18,10 +19,17 @@ export function SourceLine({ source }: { source: ChartSource }) {
             {host}
           </a>
         </p>
-      ) : isInventedSource(source) ? (
-        <p className="source-caveat">Not a live source</p>
+      ) : invented ? (
+        <p className="source-caveat">No published page backs these numbers.</p>
+      ) : !source.evidence ? (
+        <p className="source-caveat">No source URL on this chart.</p>
       ) : null}
-      {source.evidence ? <p className="source-evidence">{source.evidence}</p> : null}
+      {source.evidence ? (
+        <p className="source-evidence">
+          {invented ? <span className="source-basis-label">Basis · </span> : null}
+          {source.evidence}
+        </p>
+      ) : null}
     </div>
   );
 }
