@@ -38,7 +38,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@vizzy/core": "*",
-    "commander": "^12.0.0"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
