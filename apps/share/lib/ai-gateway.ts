@@ -31,24 +31,36 @@ type AiSpendRow = {
   calls?: number;
 };
 
-function gatewayKey(): string | undefined {
-  return process.env.AI_GATEWAY_API_KEY?.trim() || undefined;
+function gatewayAuthToken(): string | undefined {
+  const key = process.env.AI_GATEWAY_API_KEY?.trim();
+  if (key) {
+    return key;
+  }
+  const oidc = process.env.VERCEL_OIDC_TOKEN?.trim();
+  if (oidc) {
+    return oidc;
+  }
+  return undefined;
+}
+
+function gatewayConfigured(): boolean {
+  return Boolean(gatewayAuthToken());
 }
 
 async function gatewayFetch(path: string, auth: boolean): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  const key = gatewayKey();
+  const token = gatewayAuthToken();
   if (auth) {
-    if (!key) {
+    if (!token) {
       throw new Error('AI_GATEWAY_API_KEY is not set');
     }
-    headers.Authorization = `Bearer ${key}`;
+    headers.Authorization = `Bearer ${token}`;
   }
   return fetch(`${GATEWAY_BASE}${path}`, { headers, next: { revalidate: 60 } });
 }
 
 export async function fetchGatewayCredits(): Promise<GatewayCredits | null> {
-  if (!gatewayKey()) {
+  if (!gatewayConfigured()) {
     return null;
   }
   const response = await gatewayFetch('/credits', true);
@@ -95,7 +107,7 @@ export async function fetchGatewayCatalog(ids?: string[]): Promise<GatewayModelR
 }
 
 export async function fetchGatewayStatus(): Promise<GatewayStatus> {
-  const configured = Boolean(gatewayKey());
+  const configured = gatewayConfigured();
   let credits: GatewayCredits | null = null;
   let creditsError: string | undefined;
   let catalog: GatewayModelRate[] = [];
