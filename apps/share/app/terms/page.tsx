@@ -1,11 +1,18 @@
-import Link from 'next/link';
-import { attachWalletEmail, getWalletState } from '../../lib/billing';
+import type { Metadata } from 'next';
+import { attachWalletEmail, getWalletState, signedInNavEmail } from '../../lib/billing';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import { stripeClient } from '../../lib/stripe';
 import { ClaimBox } from '../components/ClaimBox';
+import { KickerNav } from '../components/KickerNav';
 import { SiteFoot } from '../components/SiteFoot';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Terms',
+  description: 'How Vizzy charts, payments, and restore by checkout email work.',
+  alternates: { canonical: '/terms' },
+};
 
 const kicker = {
   fontFamily: 'var(--font-mono), ui-monospace, monospace',
@@ -44,11 +51,16 @@ export default async function TermsPage() {
     console.error('terms orders failed', error);
   }
 
+  let email: string | undefined;
+  try {
+    email = await signedInNavEmail();
+  } catch {
+    email = undefined;
+  }
+
   return (
-    <main className="page-main">
-      <p style={kicker}>
-        <Link href="/">Vizzy</Link>
-      </p>
+    <main id="content" className="page-main">
+      <KickerNav here="terms" email={email} />
       <h1
         style={{
           fontWeight: 500,
@@ -62,8 +74,9 @@ export default async function TermsPage() {
       <p style={body}>
         Vizzy draws a chart you can paste. Three free prompts a day. Then {PACK_PRICE_LABEL} for {PACK_CREDITS}{' '}
         more. Paid charts stay on the email from your first checkout. Later buys on this browser add to those
-        charts, even if Apple Pay uses another address. This browser keeps a cookie so you don’t have to sign in.
-        A new browser picks them up from this page.
+        charts, even if Apple Pay uses another address. This browser keeps a cookie. After you pay, sign in with
+        Google so the charts follow you on other devices. Account and usage live at /me. A new browser can still
+        restore from this page with the checkout email.
       </p>
       <p style={body}>
         The paste URL is the chart. We do not keep a gallery. Payments go through Stripe. Unused charts can be

@@ -30,6 +30,7 @@ describe('VizzyChart', () => {
     const { container } = render(<VizzyChart config={config} data={data} showPerformanceMetrics={false} />);
     await waitFor(() => {
       expect(container.querySelector('[aria-label="Revenue"], [aria-label="Monthly revenue"]')).toBeTruthy();
+      expect(container.querySelector('svg title')?.textContent).toBe('Revenue');
     });
   });
 });

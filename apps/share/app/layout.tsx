@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Archivo, IBM_Plex_Mono } from 'next/font/google';
 import { PwaBoot } from './components/PwaBoot';
+import { SITE_DESCRIPTION, siteUrl } from '../lib/site';
 import { STUDIO } from '../lib/theme';
 import './globals.css';
 
@@ -17,8 +18,8 @@ const mono = IBM_Plex_Mono({
   display: 'swap',
 });
 
-const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vizzy.run';
-const description = 'A chart you can paste. Literally anything. We pull the data, chart it fast, and you paste it anywhere.';
+const site = siteUrl();
+const description = SITE_DESCRIPTION;
 
 export const viewport: Viewport = {
   themeColor: STUDIO.paper,
@@ -72,6 +73,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         <PwaBoot />
+        <a className="skip-link" href="#content">
+          Skip to content
+        </a>
         {children}
       </body>
     </html>

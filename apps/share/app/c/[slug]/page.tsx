@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { pieceBySlug } from '../../../lib/pieces';
 import { CARD } from '../../../lib/compose';
+import { siteUrl } from '../../../lib/site';
+import { JsonLd } from '../../components/JsonLd';
 import { Studio } from '../../components/Studio';
 
 type PageProps = {
@@ -22,6 +24,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: piece.title,
     description: piece.note,
+    alternates: { canonical: `/c/${slug}` },
     openGraph: {
       title: piece.title,
       description: piece.note,
@@ -43,5 +46,27 @@ export default async function PiecePage({ params }: PageProps) {
     notFound();
   }
 
-  return <Studio piece={piece} />;
+  const origin = siteUrl();
+  return (
+    <>
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'Dataset',
+          name: piece.title,
+          description: piece.note,
+          url: `${origin}/c/${slug}`,
+          creator: { '@type': 'Organization', name: 'Vizzy' },
+          isAccessibleForFree: true,
+          image: {
+            '@type': 'ImageObject',
+            url: `${origin}/c/${slug}.png`,
+            width: CARD.width,
+            height: CARD.height,
+          },
+        }}
+      />
+      <Studio piece={piece} />
+    </>
+  );
 }

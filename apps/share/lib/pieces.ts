@@ -30,6 +30,10 @@ export const PIECES: Piece[] = [
           retrieved: '2025-08',
           evidence: '8 months, complete',
         },
+        accessibility: {
+          title: 'July paid for the year',
+          description: '2025, thousands. July is the only month that cleared payroll twice.',
+        },
       }
     ),
     data: [
@@ -69,6 +73,10 @@ export const PIECES: Piece[] = [
           retrieved: '2025-08',
           evidence: '8 weeks, no fill',
         },
+        accessibility: {
+          title: 'The leak started the week we raised prices',
+          description: 'Cancel rate, percent of active accounts. The line does not come back.',
+        },
       }
     ),
     data: [
@@ -101,6 +109,10 @@ export const PIECES: Piece[] = [
           retrieved: '2025-06',
           evidence: '5 shops, lunch window',
         },
+        accessibility: {
+          title: 'The corner shops still win',
+          description: 'Saturday lunch, one city. Chains look busy. They are not first.',
+        },
       }
     ),
     data: [
@@ -129,6 +141,10 @@ export const PIECES: Piece[] = [
           method: 'example',
           retrieved: '2025-07',
           evidence: '12 tables, one night',
+        },
+        accessibility: {
+          title: 'Slow tables did not tip more',
+          description: 'Friday dinner. Minutes seated against tip as a share of the check.',
         },
       }
     ),
@@ -172,6 +188,10 @@ export const PIECES: Piece[] = [
           method: 'example',
           retrieved: '2025-07',
           evidence: '7 cohorts',
+        },
+        accessibility: {
+          title: 'They stay if they do one thing on day one',
+          description: 'Percent of new accounts that come back within seven days.',
         },
       }
     ),

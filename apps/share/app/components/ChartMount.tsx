@@ -7,9 +7,11 @@ import { validateChartConfig, xAxisRoom, type ChartConfig, type DataPoint } from
 export function ChartMount({
   config,
   data,
+  label,
 }: {
   config: ChartConfig;
   data: DataPoint[];
+  label?: string;
 }) {
   const live = useMemo(() => {
     const xLabel = config.axes?.x?.label;
@@ -21,6 +23,7 @@ export function ChartMount({
       : xLabel
         ? 58
         : 36;
+    const title = config.accessibility?.title || label;
     return validateChartConfig({
       ...config,
       dimensions: {
@@ -33,8 +36,13 @@ export function ChartMount({
           left: yLabel ? 64 : 28,
         },
       },
+      accessibility: {
+        ...config.accessibility,
+        enabled: true,
+        ...(title ? { title } : {}),
+      },
     });
-  }, [config, data]);
+  }, [config, data, label]);
 
   return (
     <VizzyChart

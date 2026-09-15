@@ -41,9 +41,11 @@ export function studioChart(
 ): ChartConfig {
   const extraAxes = extra.axes as { x?: Record<string, unknown>; y?: Record<string, unknown> } | undefined;
   const extraDimensions = extra.dimensions as Record<string, unknown> | undefined;
+  const extraA11y = extra.accessibility as { title?: string; description?: string } | undefined;
   const rest = { ...extra };
   delete rest.axes;
   delete rest.dimensions;
+  delete rest.accessibility;
   const xLabel = typeof extraAxes?.x?.label === 'string' ? extraAxes.x.label : undefined;
   const yLabel = typeof extraAxes?.y?.label === 'string' ? extraAxes.y.label : undefined;
   const resolvedChart =
@@ -82,7 +84,10 @@ export function studioChart(
       x: { show: true, grid: false, ...extraAxes?.x },
       y: { show: true, grid: true, gridOpacity: 0.65, tickCount: 3, ...extraAxes?.y },
     },
-    accessibility: { enabled: true },
+    accessibility: {
+      enabled: true,
+      ...extraA11y,
+    },
     ...rest,
   });
 }

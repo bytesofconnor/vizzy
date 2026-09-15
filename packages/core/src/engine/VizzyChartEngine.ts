@@ -192,20 +192,8 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
   // ============================================================================
 
   private _setupContainer(): void {
-    // Add chart ID and classes
     this.container.setAttribute('data-vizzy-chart', this.id);
     this.container.classList.add('vizzy-chart');
-    
-    // Set up accessibility
-    if (this.config.accessibility.enabled) {
-      this.container.setAttribute('role', 'img');
-      if (this.config.accessibility.title) {
-        this.container.setAttribute('aria-label', this.config.accessibility.title);
-      }
-      if (this.config.accessibility.description) {
-        this.container.setAttribute('aria-describedby', `${this.id}-description`);
-      }
-    }
   }
 
   private _setupResizeObserver(): void {
@@ -247,6 +235,10 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
       .attr('width', width)
       .attr('height', height)
       .attr('fill', this.config.colors.background);
+
+    if (this.config.accessibility.enabled && this.config.accessibility.title) {
+      this._svg.append('title').text(this.config.accessibility.title);
+    }
     
     // Add accessibility description if provided
     if (this.config.accessibility.enabled && this.config.accessibility.description) {

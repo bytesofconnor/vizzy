@@ -78,7 +78,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'publish_chart',
     description:
-      'Publish rows to Vizzy share and get a paste URL plus PNG. This is the product action. Attach source when you gathered the data. Include a real url if you have one — do not invent a link or a confidence score. Set axes.x.label and axes.y.label. Uses VIZZY_SHARE_URL (default https://vizzy-ruddy.vercel.app).',
+      'Publish rows to Vizzy share and get a paste URL plus PNG. This is the product action. Attach source when you gathered the data. Include a real url if you have one — do not invent a link or a confidence score. Set axes.x.label and axes.y.label. Uses VIZZY_SHARE_URL (default https://vizzy.run). After the free meter, set VIZZY_WALLET_TOKEN for Authorization: Bearer.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -165,12 +165,19 @@ export async function handlePublishChart(args: {
     return { ok: false, error: 'title and data are required' };
   }
 
-  const base = (process.env.VIZZY_SHARE_URL ?? 'https://vizzy-ruddy.vercel.app').replace(/\/$/, '');
+  const base = (process.env.VIZZY_SHARE_URL ?? 'https://vizzy.run').replace(/\/$/, '');
+  const wallet = process.env.VIZZY_WALLET_TOKEN?.trim();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (wallet) {
+    headers.Authorization = wallet.toLowerCase().startsWith('bearer ')
+      ? wallet
+      : `Bearer ${wallet}`;
+  }
 
   try {
     const response = await fetch(`${base}/api/publish`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         title,
         kicker: args.kicker,
@@ -186,6 +193,7 @@ export async function handlePublishChart(args: {
         ok: false,
         error: typeof payload.error === 'string' ? payload.error : `Publish failed (${response.status})`,
         issues: payload.issues ?? [],
+        pay: payload.pay === true,
       };
     }
     return payload;

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { CARD } from '../../../../lib/compose';
+import { signedInNavEmail } from '../../../../lib/billing';
 import { hydrateToken } from '../../../../lib/mint';
 import { Studio } from '../../../components/Studio';
 
@@ -20,6 +21,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: piece.title,
     description: piece.note,
+    robots: { index: false, follow: false },
     openGraph: {
       title: piece.title,
       description: piece.note,
@@ -41,5 +43,12 @@ export default async function MintedPage({ params }: PageProps) {
     notFound();
   }
 
-  return <Studio piece={piece} />;
+  let email: string | undefined;
+  try {
+    email = await signedInNavEmail();
+  } catch {
+    email = undefined;
+  }
+
+  return <Studio piece={piece} email={email} />;
 }

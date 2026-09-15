@@ -17,6 +17,23 @@ jobs:
       - run: npm install
       - run: npm test --workspace=@vizzy/core --workspace=@vizzy/react --workspace=@vizzy/mcp --if-present
 
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/share
+      - run: npx playwright test e2e/home.spec.ts e2e/a11y.spec.ts
+        working-directory: apps/share
+        env:
+          CI: true
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3456
+
   e2e:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest

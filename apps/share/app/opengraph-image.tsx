@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { DustChart, DustRule, INK, MUTE, PAPER } from '../lib/brand-mark';
+import { BrandBars, DustRule, INK, MUTE, PAPER } from '../lib/brand-mark';
 
 export const alt = 'Vizzy — A chart you can paste.';
 export const size = { width: 1200, height: 630 };
@@ -61,10 +61,10 @@ export default function OpenGraphImage() {
               fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
             }}
           >
-            Pull the data. Chart it. Paste it anywhere.
+            Type it, or ask your AI. Paste the chart.
           </div>
         </div>
-        <DustChart width={280} height={96} gap={8} />
+        <BrandBars width={168} height={112} gap={14} />
       </div>
     ),
     size

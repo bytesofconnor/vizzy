@@ -9,6 +9,7 @@ export type Quota = {
   credits: number;
   unlimited: boolean;
   saved: boolean;
+  justPaid: boolean;
   offerGoogle: boolean;
   email?: string;
   packCredits: number;
@@ -79,6 +80,32 @@ export async function readWalletToken(): Promise<string | undefined> {
   return jar.get(WALLET_COOKIE)?.value;
 }
 
+function normalizeWalletToken(raw: string): string | undefined {
+  const token = raw.trim();
+  if (!token) {
+    return undefined;
+  }
+  if (token.toLowerCase().startsWith('vizzy_')) {
+    const inner = token.slice(6);
+    return inner || undefined;
+  }
+  return token;
+}
+
+export async function walletTokenFromRequest(request?: Request): Promise<string | undefined> {
+  const header = request?.headers.get('authorization');
+  if (header) {
+    const match = header.match(/^Bearer\s+(\S+)/i);
+    if (match?.[1]) {
+      const fromHeader = normalizeWalletToken(match[1]);
+      if (fromHeader) {
+        return fromHeader;
+      }
+    }
+  }
+  return readWalletToken();
+}
+
 export function walletCookieOptions() {
   return {
     name: WALLET_COOKIE,
@@ -118,6 +145,7 @@ export async function peekQuota(request: Request): Promise<Quota> {
       credits: 0,
       unlimited: true,
       saved: false,
+      justPaid: false,
       offerGoogle: false,
       ...pack,
     };
@@ -131,29 +159,53 @@ export async function peekQuota(request: Request): Promise<Quota> {
       credits: 0,
       unlimited: true,
       saved: false,
+      justPaid: false,
       offerGoogle: false,
       ...pack,
     };
   }
-  const status = await convexCall<Omit<Quota, 'configured' | 'packCredits' | 'packPriceLabel' | 'offerGoogle'>>(
-    'query',
-    'billing:peek',
-    {
+  const status = await convexCall<
+    Omit<Quota, 'configured' | 'packCredits' | 'packPriceLabel' | 'offerGoogle' | 'justPaid'>
+  >('query', 'billing:peek', {
     secret,
     ipHash: hashIp(requestIp(request)),
     day: utcDay(),
-    walletToken: await readWalletToken(),
+    walletToken: await walletTokenFromRequest(request),
   });
   const jar = await cookies();
   const justPaid = Boolean(jar.get(JUST_PAID_COOKIE)?.value);
   return {
     configured: true,
-    unlimited: false,
-    saved: false,
     ...status,
     ...pack,
+    justPaid,
     offerGoogle: Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) && justPaid && !status.saved,
   };
+}
+
+export async function signedInNavEmail(): Promise<string | undefined> {
+  if (!billingConfigured()) {
+    return undefined;
+  }
+  const secret = serverSecret();
+  const token = await readWalletToken();
+  if (!secret || !token) {
+    return undefined;
+  }
+  try {
+    const status = await convexCall<{ saved?: boolean; email?: string }>('query', 'billing:peek', {
+      secret,
+      ipHash: 'nav',
+      day: utcDay(),
+      walletToken: token,
+    });
+    if (status.saved && status.email) {
+      return status.email;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 export async function consumeSlot(request: Request): Promise<ConsumeResult> {
@@ -168,7 +220,7 @@ export async function consumeSlot(request: Request): Promise<ConsumeResult> {
     secret,
     ipHash: hashIp(requestIp(request)),
     day: utcDay(),
-    walletToken: await readWalletToken(),
+    walletToken: await walletTokenFromRequest(request),
   });
 }
 
@@ -185,7 +237,7 @@ export async function refundSlot(request: Request, via: 'credit' | 'free'): Prom
     ipHash: hashIp(requestIp(request)),
     day: utcDay(),
     via,
-    walletToken: await readWalletToken(),
+    walletToken: await walletTokenFromRequest(request),
   });
 }
 
@@ -276,4 +328,41 @@ export async function bindGoogleAccount(input: {
     googleSub: input.googleSub,
     googleEmail: input.googleEmail,
   });
+}
+
+export type AccountDay = {
+  day: string;
+  charts: number;
+};
+
+export type Account = {
+  email?: string;
+  credits: number;
+  unlimited: boolean;
+  saved: boolean;
+  used: number;
+  days: AccountDay[];
+  orders: WalletOrder[];
+  justPaid: boolean;
+};
+
+export async function getAccount(): Promise<Account | null> {
+  const token = await readWalletToken();
+  const secret = serverSecret();
+  if (!token || !billingConfigured() || !secret) {
+    return null;
+  }
+  const account = await convexCall<Omit<Account, 'justPaid'> | null>('query', 'billing:getAccount', {
+    secret,
+    walletToken: token,
+    now: Date.now(),
+  });
+  if (!account) {
+    return null;
+  }
+  const jar = await cookies();
+  return {
+    ...account,
+    justPaid: Boolean(jar.get(JUST_PAID_COOKIE)?.value),
+  };
 }

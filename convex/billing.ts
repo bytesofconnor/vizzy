@@ -57,10 +57,14 @@ async function resolvePaidWallet(
       credits: byMail.credits + byToken.credits,
       stripeCustomerId: args.stripeCustomerId ?? byMail.stripeCustomerId ?? byToken.stripeCustomerId,
       email,
+      googleSub: byMail.googleSub ?? byToken.googleSub,
+      googleEmail: byMail.googleEmail ?? byToken.googleEmail,
     });
     await ctx.db.replace(byToken._id, {
       token: byToken.token,
       stripeCustomerId: byToken.stripeCustomerId,
+      googleSub: byToken.googleSub,
+      googleEmail: byToken.googleEmail,
       credits: 0,
       createdAt: byToken.createdAt,
     });
@@ -126,6 +130,14 @@ function isOwnerEmail(email: string | undefined): boolean {
   return Boolean(email && ownerEmails().includes(email));
 }
 
+function isOwnerWallet(wallet: { email?: string; googleEmail?: string } | null | undefined): boolean {
+  return Boolean(wallet && (isOwnerEmail(wallet.email) || isOwnerEmail(wallet.googleEmail)));
+}
+
+function signedInEmail(wallet: { googleEmail?: string } | null | undefined): string | undefined {
+  return wallet?.googleEmail;
+}
+
 export const peek = query({
   args: {
     secret: v.string(),
@@ -148,14 +160,14 @@ export const peek = query({
       .unique();
     const credits = wallet?.credits ?? 0;
     const freeLeft = Math.max(0, FREE_PER_DAY - (daily?.count ?? 0));
-    const unlimited = isOwnerEmail(wallet?.email);
+    const unlimited = isOwnerWallet(wallet);
     return {
       freeLeft,
       credits,
       canCompose: unlimited || credits > 0 || freeLeft > 0,
       unlimited,
       saved: Boolean(wallet?.googleSub),
-      email: wallet?.email,
+      email: signedInEmail(wallet),
     };
   },
 });
@@ -182,7 +194,10 @@ export const consume = mutation({
           .unique()
       : null;
 
-    if (isOwnerEmail(wallet?.email)) {
+    if (isOwnerWallet(wallet)) {
+      if (wallet) {
+        await logUse(ctx, wallet._id, 'owner');
+      }
       return {
         ok: true,
         via: 'owner' as const,
@@ -193,6 +208,7 @@ export const consume = mutation({
 
     if (wallet && wallet.credits > 0) {
       await ctx.db.patch(wallet._id, { credits: wallet.credits - 1 });
+      await logUse(ctx, wallet._id, 'credit');
       const daily = await ctx.db
         .query('dailyFree')
         .withIndex('by_ip_day', (q) => q.eq('ipHash', args.ipHash).eq('day', args.day))
@@ -227,6 +243,9 @@ export const consume = mutation({
         day: args.day,
         count: 1,
       });
+    }
+    if (wallet) {
+      await logUse(ctx, wallet._id, 'free');
     }
 
     return {
@@ -485,8 +504,24 @@ function packFromWallet(wallet: Doc<'wallets'>) {
   return {
     walletToken: wallet.token,
     credits: wallet.credits,
-    unlimited: isOwnerEmail(wallet.email),
+    unlimited: isOwnerWallet(wallet),
   };
+}
+
+async function logUse(
+  ctx: MutationCtx,
+  walletId: Doc<'wallets'>['_id'],
+  via: 'credit' | 'free' | 'owner'
+): Promise<void> {
+  await ctx.db.insert('uses', {
+    walletId,
+    via,
+    createdAt: Date.now(),
+  });
+}
+
+function utcDayFrom(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
 }
 
 export const bindGoogle = mutation({
@@ -502,14 +537,20 @@ export const bindGoogle = mutation({
     const googleEmail = normalizeEmail(args.googleEmail);
     const byGoogle = await walletByGoogle(ctx, args.googleSub);
     if (byGoogle) {
-      return packFromWallet(byGoogle);
+      await ctx.db.patch(byGoogle._id, { googleEmail });
+      const next = await ctx.db.get(byGoogle._id);
+      if (!next) {
+        throw new Error('Wallet missing');
+      }
+      return packFromWallet(next);
     }
 
     const byToken = args.walletToken ? await walletByToken(ctx, args.walletToken) : null;
     if (byToken) {
-      if (!byToken.googleSub) {
-        await ctx.db.patch(byToken._id, { googleSub: args.googleSub });
-      }
+      await ctx.db.patch(byToken._id, {
+        googleSub: byToken.googleSub ?? args.googleSub,
+        googleEmail,
+      });
       const next = await ctx.db.get(byToken._id);
       if (!next) {
         throw new Error('Wallet missing');
@@ -519,9 +560,10 @@ export const bindGoogle = mutation({
 
     const byMail = await walletByEmail(ctx, googleEmail);
     if (byMail) {
-      if (!byMail.googleSub) {
-        await ctx.db.patch(byMail._id, { googleSub: args.googleSub });
-      }
+      await ctx.db.patch(byMail._id, {
+        googleSub: byMail.googleSub ?? args.googleSub,
+        googleEmail,
+      });
       const next = await ctx.db.get(byMail._id);
       if (!next) {
         throw new Error('Wallet missing');
@@ -530,5 +572,74 @@ export const bindGoogle = mutation({
     }
 
     return null;
+  },
+});
+
+export const getAccount = query({
+  args: {
+    secret: v.string(),
+    walletToken: v.string(),
+    now: v.number(),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      email: v.optional(v.string()),
+      credits: v.number(),
+      unlimited: v.boolean(),
+      saved: v.boolean(),
+      used: v.number(),
+      days: v.array(
+        v.object({
+          day: v.string(),
+          charts: v.number(),
+        })
+      ),
+      orders: v.array(
+        v.object({
+          createdAt: v.number(),
+          credits: v.number(),
+        })
+      ),
+    })
+  ),
+  handler: async (ctx, args) => {
+    assertServer(args.secret);
+    const wallet = await walletByToken(ctx, args.walletToken);
+    if (!wallet) {
+      return null;
+    }
+    const windowStart = args.now - 14 * 24 * 60 * 60 * 1000;
+    const uses = await ctx.db
+      .query('uses')
+      .withIndex('by_wallet', (q) => q.eq('walletId', wallet._id))
+      .order('desc')
+      .take(400);
+    const inWindow = uses.filter((row) => row.createdAt >= windowStart);
+    const byDay = new Map<string, number>();
+    for (let i = 13; i >= 0; i -= 1) {
+      const day = utcDayFrom(args.now - i * 24 * 60 * 60 * 1000);
+      byDay.set(day, 0);
+    }
+    for (const row of inWindow) {
+      const day = utcDayFrom(row.createdAt);
+      if (byDay.has(day)) {
+        byDay.set(day, (byDay.get(day) ?? 0) + 1);
+      }
+    }
+    const orders = await ctx.db
+      .query('orders')
+      .withIndex('by_wallet', (q) => q.eq('walletId', wallet._id))
+      .order('desc')
+      .take(50);
+    return {
+      email: signedInEmail(wallet),
+      credits: wallet.credits,
+      unlimited: isOwnerWallet(wallet),
+      saved: Boolean(wallet.googleSub),
+      used: inWindow.length,
+      days: [...byDay.entries()].map(([day, charts]) => ({ day, charts })),
+      orders: orders.map((row) => ({ createdAt: row.createdAt, credits: row.credits })),
+    };
   },
 });

@@ -1,7 +1,8 @@
 import { consumeSlot, refundSlot } from '../../../lib/billing';
 import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
-import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../../lib/pack';
+import { payBody, payMessage } from '../../../lib/pay';
 import { parseChartSeed, type ChartSeed } from '../../../lib/seed';
+import { siteUrl } from '../../../lib/site';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,20 +29,16 @@ function wantsHtml(request: Request): boolean {
   return (request.headers.get('accept') ?? '').includes('text/html');
 }
 
-function payPayload(error: string) {
-  return {
-    ok: false as const,
-    error,
-    pay: true,
-    packCredits: PACK_CREDITS,
-    packPriceLabel: PACK_PRICE_LABEL,
-  };
-}
-
 export async function GET() {
+  const origin = siteUrl();
   return Response.json({
     ok: true,
-    use: 'POST prompt as JSON { prompt, seed? } or form field prompt. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page.',
+    use: 'POST prompt as JSON { prompt, seed? } or form field prompt. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page. Shares the publish meter.',
+    schema: `${origin}/schema/chart-config.v1.json`,
+    docs: `${origin}/llms.txt`,
+    agents: `${origin}/agents`,
+    openapi: `${origin}/openapi.json`,
+    index: `${origin}/api`,
   });
 }
 
@@ -72,11 +69,11 @@ export async function POST(request: Request) {
   }
 
   if (!slot.ok) {
-    const message = `That's the free charts for today. ${PACK_PRICE_LABEL} for ${PACK_CREDITS} more.`;
+    const message = payMessage();
     if (wantsHtml(request)) {
       return Response.redirect(`${origin}/?error=${encodeURIComponent(message)}&pay=1`, 303);
     }
-    return Response.json(payPayload(message), { status: 402 });
+    return Response.json(payBody(message), { status: 402 });
   }
 
   try {

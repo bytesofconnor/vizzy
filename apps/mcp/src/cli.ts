@@ -23,8 +23,10 @@ program
   .description('Show tools and usage')
   .action(() => {
     console.error('Vizzy MCP — chart compiler');
-    console.error('Tools: get_schema, validate_config, suggest_chart, compile_chart');
+    console.error('Tools: get_schema, validate_config, suggest_chart, compile_chart, publish_chart');
     console.error('Start: vizzy-mcp start');
+    console.error('VIZZY_SHARE_URL defaults to https://vizzy.run');
+    console.error('VIZZY_WALLET_TOKEN is the wallet cookie after the free meter');
   });
 
 if (process.argv.length <= 2) {

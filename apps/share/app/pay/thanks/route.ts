@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const dest = NextResponse.redirect(new URL('/', origin));
+  const dest = NextResponse.redirect(new URL('/me', origin));
   if (walletToken) {
     const { name, ...opts } = walletCookieOptions();
     dest.cookies.set(name, walletToken, opts);

@@ -1,43 +1,68 @@
-import { DUST, STUDIO } from './theme';
+import { DUST, DUST_MID, STUDIO } from './theme';
 
 export const PAPER = STUDIO.paper;
 export const INK = STUDIO.ink;
 export const MUTE = STUDIO.mute;
 
-const HEIGHTS = [0.42, 0.58, 0.31, 0.78, 0.48, 0.66, 0.92, 0.38] as const;
+/** Three bars. Warm, cool, ink — the site rainbow, compressed so it still reads at 32px. */
+export const MARK_BARS = [
+  { tone: DUST_MID[0], height: 0.4 },
+  { tone: DUST_MID[5], height: 0.68 },
+  { tone: STUDIO.ink, height: 1 },
+] as const;
 
-export function DustChart({
+export function BrandBars({
   width,
   height,
-  gap = 6,
+  gap,
 }: {
   width: number;
   height: number;
-  gap?: number;
+  gap: number;
 }) {
-  const n = DUST.length;
-  const barW = (width - gap * (n - 1)) / n;
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'flex-end',
-        justifyContent: 'space-between',
         width,
         height,
         gap,
       }}
     >
-      {DUST.map((tone, index) => (
+      {MARK_BARS.map((bar) => (
         <div
-          key={tone}
+          key={bar.tone}
           style={{
-            width: barW,
-            height: Math.max(2, Math.round(height * (HEIGHTS[index] ?? 0.5))),
-            background: index === 6 ? INK : tone,
+            flexGrow: 1,
+            flexShrink: 1,
+            flexBasis: 0,
+            height: Math.max(2, Math.round(height * bar.height)),
+            background: bar.tone,
           }}
         />
       ))}
+    </div>
+  );
+}
+
+export function BrandMark({ size, pad }: { size: number; pad?: number }) {
+  const inset = Math.round(size * (pad ?? (size <= 32 ? 0.16 : 0.22)));
+  const inner = Math.max(8, size - inset * 2);
+  const gap = Math.max(size <= 32 ? 2 : 3, Math.round(inner * (size <= 32 ? 0.1 : 0.16)));
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        background: PAPER,
+        padding: inset,
+      }}
+    >
+      <BrandBars width={inner} height={inner} gap={gap} />
     </div>
   );
 }

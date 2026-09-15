@@ -7,6 +7,7 @@ import { DUST, STUDIO } from '../../lib/theme';
 import { ChartMount } from './ChartMount';
 import { ComposeBox } from './ComposeBox';
 import { EmbedActions } from './EmbedActions';
+import { KickerNav } from './KickerNav';
 import { SiteFoot } from './SiteFoot';
 import { SourceLine } from './SourceLine';
 
@@ -30,16 +31,16 @@ export function Studio({
   piece,
   error,
   askPay,
+  email,
 }: {
   piece?: Piece;
   error?: string;
   askPay?: boolean;
+  email?: string;
 }) {
   return (
-    <main className="page-main">
-      <p style={kicker}>
-        <Link href="/">Vizzy</Link>
-      </p>
+    <main id="content" className="page-main">
+      <KickerNav here="home" email={email} />
       {piece ? null : (
         <>
           <h1
@@ -63,7 +64,7 @@ export function Studio({
               marginTop: 10,
             }}
           >
-            Literally anything. We pull the data, chart it fast, and you paste it anywhere.
+            Type what to chart, or ask your AI to. Bar, line, or scatter. You get a link and a PNG.
           </p>
         </>
       )}
@@ -90,7 +91,7 @@ function Featured({ piece }: { piece: Piece }) {
     <section style={{ marginTop: 28 }}>
       <p style={kicker}>{piece.kicker}</p>
       <h1 style={chartTitle}>{piece.title}</h1>
-      <ChartMount config={piece.config} data={piece.data} />
+      <ChartMount config={piece.config} data={piece.data} label={piece.title} />
       {piece.note ? (
         <p
           style={{
@@ -132,7 +133,7 @@ function ExampleList({ skip }: { skip?: string }) {
               <p style={kicker}>{piece.kicker}</p>
               <h2 style={chartTitle}>{piece.title}</h2>
             </Link>
-            <ChartMount config={piece.config} data={piece.data} />
+            <ChartMount config={piece.config} data={piece.data} label={piece.title} />
             <p
               style={{
                 fontFamily: 'var(--font-mono), ui-monospace, monospace',

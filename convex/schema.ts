@@ -5,6 +5,7 @@ export default defineSchema({
   wallets: defineTable({
     token: v.string(),
     email: v.optional(v.string()),
+    googleEmail: v.optional(v.string()),
     stripeCustomerId: v.optional(v.string()),
     googleSub: v.optional(v.string()),
     credits: v.number(),
@@ -29,4 +30,10 @@ export default defineSchema({
   })
     .index('by_session', ['stripeSessionId'])
     .index('by_wallet', ['walletId']),
+
+  uses: defineTable({
+    walletId: v.id('wallets'),
+    via: v.union(v.literal('credit'), v.literal('free'), v.literal('owner')),
+    createdAt: v.number(),
+  }).index('by_wallet', ['walletId']),
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { dispatchTool, TOOL_DEFINITIONS } from './tools';
 
 const data = [
@@ -45,6 +45,30 @@ describe('MCP tools', () => {
     const result = (await dispatchTool('publish_chart', { data })) as { ok: boolean; error?: string };
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/title and data/);
+  });
+
+  it('publish_chart sends the wallet bearer', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        url: 'https://vizzy.run/c/x/abc',
+        png: 'https://vizzy.run/c/x/abc.png',
+        token: 'abc',
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv('VIZZY_WALLET_TOKEN', 'vizzy_abc123');
+    try {
+      const result = (await dispatchTool('publish_chart', { title: 'Revenue', data })) as { ok?: boolean };
+      expect(result.ok).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const init = fetchMock.mock.calls[0]?.[1] as { headers?: Record<string, string> };
+      expect(init.headers?.Authorization).toBe('Bearer vizzy_abc123');
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 
   it('rejects unknown tools', async () => {

@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useId, useImperativeHandle } from 'react';
 import { ChartConfig, DataPoint, VizzyError } from '@vizzy/core';
 import type { PerformanceMetrics } from '@vizzy/core';
 import { useVizzyChart } from '../hooks/useVizzyChart';
@@ -155,18 +155,20 @@ export const VizzyChart = forwardRef<VizzyChartRef, VizzyChartProps>(({
     ...style,
   };
 
+  const describedById = useId();
+
   return (
     <div
       className={`vizzy-chart-container ${className || ''}`}
       style={containerStyle}
       role="img"
       aria-label={config.accessibility?.title || 'Data visualization chart'}
-      aria-describedby={config.accessibility?.description ? 'vizzy-chart-description' : undefined}
+      aria-describedby={config.accessibility?.description ? describedById : undefined}
       tabIndex={config.accessibility?.keyboardNavigation ? 0 : undefined}
     >
       {config.accessibility?.description && (
         <div
-          id="vizzy-chart-description"
+          id={describedById}
           style={{ position: 'absolute', left: '-10000px' }}
         >
           {config.accessibility.description}

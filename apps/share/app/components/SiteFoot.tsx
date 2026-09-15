@@ -14,6 +14,10 @@ export function SiteFoot() {
     <footer style={{ marginTop: 64 }}>
       <p style={kicker}>
         <Link href="/terms">Terms</Link>
+        {' · '}
+        <Link href="/agents">Agents</Link>
+        {' · '}
+        <Link href="/llms.txt">llms.txt</Link>
       </p>
       <p
         style={{

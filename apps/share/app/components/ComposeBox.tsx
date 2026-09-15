@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import type { ChartSeed } from '../../lib/seed';
 import { DUST, STUDIO } from '../../lib/theme';
@@ -24,6 +25,8 @@ type Quota = {
   freeLeft: number;
   credits: number;
   unlimited?: boolean;
+  saved?: boolean;
+  justPaid?: boolean;
   offerGoogle?: boolean;
   packCredits: number;
   packPriceLabel: string;
@@ -265,13 +268,22 @@ function QuotaLine({
   onBuy: () => void;
 }) {
   const pack = `${quota?.packPriceLabel ?? PACK_PRICE_LABEL} for ${quota?.packCredits ?? PACK_CREDITS}`;
+  const credits = quota?.credits ?? 0;
+  const justPaid = Boolean(quota?.justPaid);
+  const unlimited = Boolean(quota?.unlimited);
+  const saved = Boolean(quota?.saved);
+
   let copy = revise
     ? `Uses a chart. ${pack} after the free ones.`
     : `Paste a source link if you have one. ${pack} after the free ones.`;
-  if (quota?.unlimited) {
-    copy = 'Yours. Draw whenever.';
-  } else if (quota?.configured && quota.credits > 0) {
-    copy = `${quota.credits} paid chart${quota.credits === 1 ? '' : 's'} left.`;
+  if (justPaid && credits > 0) {
+    copy = `${credits} chart${credits === 1 ? ' is' : 's are'} on this browser now.`;
+  } else if (quota?.configured && credits > 0 && unlimited) {
+    copy = `${credits} charts left. You can also draw whenever.`;
+  } else if (unlimited) {
+    copy = 'You can draw whenever.';
+  } else if (quota?.configured && credits > 0) {
+    copy = `${credits} paid chart${credits === 1 ? '' : 's'} left.`;
   } else if (quota?.configured) {
     copy =
       quota.freeLeft > 0
@@ -280,6 +292,8 @@ function QuotaLine({
           : `${quota.freeLeft} free today. Then ${pack}.`
         : `No free charts left today. ${pack}.`;
   }
+
+  const showBuy = !unlimited && !justPaid && (pay || Boolean(quota?.configured));
 
   return (
     <p
@@ -292,7 +306,19 @@ function QuotaLine({
       }}
     >
       {copy}
-      {!quota?.unlimited && (pay || quota?.configured) ? (
+      {quota?.offerGoogle ? (
+        <>
+          {' '}
+          <SaveGoogle auto /> so they follow you on other devices.
+        </>
+      ) : null}
+      {saved || (quota?.configured && (credits > 0 || unlimited)) ? (
+        <>
+          {' '}
+          <Link href="/me">See usage</Link>
+        </>
+      ) : null}
+      {showBuy ? (
         <>
           {' '}
           <button type="button" onClick={onBuy} disabled={buying}>
@@ -302,12 +328,6 @@ function QuotaLine({
                 ? `Buy ${quota.packCredits} more`
                 : `Buy ${quota?.packCredits ?? PACK_CREDITS}`}
           </button>
-        </>
-      ) : null}
-      {quota?.offerGoogle ? (
-        <>
-          {' '}
-          <SaveGoogle />
         </>
       ) : null}
     </p>

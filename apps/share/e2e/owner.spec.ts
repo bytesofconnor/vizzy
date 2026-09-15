@@ -50,6 +50,34 @@ test('owner charts are unlimited', async ({ context, page }) => {
   expect(next.credits).toBe(quota.credits);
 
   await page.goto('/');
-  await expect(page.getByText('Yours. Draw whenever.')).toBeVisible();
+  await expect(page.getByText(/charts left|draw whenever/i)).toBeVisible();
+  await expect(page.locator('nav[aria-label="Site"] a[href="/me"]')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toHaveCount(0);
+
+  await page.goto('/me');
+  await expect(page.getByRole('heading', { name: /charts left|draw whenever|no paid charts/i })).toBeVisible();
+  await expect(page.getByText('Last 14 days', { exact: true })).toBeVisible();
+
+  const published = await page.request.post('/api/publish', {
+    headers: { Authorization: `Bearer vizzy_${token}` },
+    data: {
+      title: 'Owner publish',
+      data: [
+        { month: 'Jan', n: 1 },
+        { month: 'Feb', n: 2 },
+      ],
+      config: {
+        schemaVersion: 1,
+        chart: { type: 'bar' },
+        dataMapping: { x: 'month', y: 'n' },
+      },
+      source: { label: 'e2e', method: 'example' },
+    },
+  });
+  expect(published.ok()).toBeTruthy();
+  const minted = (await published.json()) as { ok?: boolean; url?: string; pay?: boolean };
+  expect(minted.ok).toBe(true);
+  expect(minted.url).toMatch(/\/c\/x\//);
+  expect(minted.pay).toBeFalsy();
 });

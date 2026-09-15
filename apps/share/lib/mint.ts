@@ -70,7 +70,13 @@ export function mintPiece(input: MintInput): MintResult {
     method: 'unknown' as const,
   };
 
-  const extras: Record<string, unknown> = { source };
+  const extras: Record<string, unknown> = {
+    source,
+    accessibility: {
+      title,
+      ...(typeof input.note === 'string' && input.note.trim() ? { description: cleanText(input.note, 280) } : {}),
+    },
+  };
   if (input.config && typeof input.config === 'object' && input.config !== null && 'axes' in input.config) {
     extras.axes = (input.config as { axes?: unknown }).axes;
   }
@@ -103,7 +109,12 @@ export function mintPiece(input: MintInput): MintResult {
 }
 
 function pieceFromDraft(draft: PortableDraft, token: string): Piece {
-  const extras: Record<string, unknown> = {};
+  const extras: Record<string, unknown> = {
+    accessibility: {
+      title: draft.title,
+      ...(draft.note ? { description: draft.note } : {}),
+    },
+  };
   if (draft.source) {
     extras.source = draft.source;
   }
@@ -138,6 +149,7 @@ function withDust(
     config: studioChart(config.chart, { ...config.dataMapping, color: 'tone' }, {
       source: config.source,
       axes: config.axes,
+      accessibility: config.accessibility,
     }),
     data: rows,
   };

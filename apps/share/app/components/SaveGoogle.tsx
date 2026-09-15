@@ -12,8 +12,21 @@ type GoogleAccounts = {
         callback: (response: { credential: string }) => void;
         auto_select?: boolean;
         ux_mode?: 'popup' | 'redirect';
+        login_uri?: string;
+        use_fedcm_for_prompt?: boolean;
+        itp_support?: boolean;
       }) => void;
-      prompt: (momentListener?: (notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void) => void;
+      prompt: () => void;
+      renderButton: (
+        parent: HTMLElement,
+        options: {
+          type?: 'standard' | 'icon';
+          theme?: 'outline' | 'filled_blue' | 'filled_black';
+          size?: 'large' | 'medium' | 'small';
+          text?: 'signin_with' | 'continue_with' | 'signin';
+          ux_mode?: 'popup' | 'redirect';
+        }
+      ) => void;
     };
   };
 };
@@ -24,39 +37,70 @@ declare global {
   }
 }
 
-export function SaveGoogle() {
+export function SaveGoogle({ auto: _auto = false }: { auto?: boolean }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const googleRef = useRef<GoogleAccounts | null>(null);
+  const hostRef = useRef<HTMLSpanElement | null>(null);
+  const armed = useRef(false);
+  const [google, setGoogle] = useState<GoogleAccounts | null>(null);
+  const [loopback, setLoopback] = useState(false);
   const [fail, setFail] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setLoopback(window.location.hostname === '127.0.0.1');
+  }, []);
 
   useEffect(() => {
     if (!clientId) {
       return;
     }
     if (window.google) {
-      googleRef.current = window.google;
+      setGoogle(window.google);
       return;
     }
     const prior = document.querySelector(`script[src="${SOURCE}"]`);
+    const onLoad = () => {
+      setGoogle(window.google ?? null);
+    };
     if (prior) {
-      prior.addEventListener('load', () => {
-        googleRef.current = window.google ?? null;
-      });
-      return;
+      prior.addEventListener('load', onLoad);
+      if (window.google) {
+        setGoogle(window.google);
+      }
+      return () => prior.removeEventListener('load', onLoad);
     }
     const script = document.createElement('script');
     script.src = SOURCE;
     script.async = true;
-    script.onload = () => {
-      googleRef.current = window.google ?? null;
-    };
+    script.addEventListener('load', onLoad);
     document.head.appendChild(script);
+    return () => script.removeEventListener('load', onLoad);
   }, [clientId]);
 
-  if (!clientId) {
-    return null;
-  }
+  useEffect(() => {
+    if (!clientId || !google || !hostRef.current || armed.current) {
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        void keep(response.credential);
+      },
+      auto_select: false,
+      ux_mode: 'redirect',
+      login_uri: `${window.location.origin}/api/save/google`,
+      use_fedcm_for_prompt: false,
+      itp_support: true,
+    });
+    google.accounts.id.renderButton(hostRef.current, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'medium',
+      text: 'signin_with',
+      ux_mode: 'redirect',
+    });
+    armed.current = true;
+  }, [clientId, google]);
 
   async function keep(credential: string) {
     setBusy(true);
@@ -69,50 +113,40 @@ export function SaveGoogle() {
       });
       const body: unknown = await response.json();
       if (typeof body === 'object' && body !== null && 'ok' in body && body.ok === true) {
-        window.location.assign('/');
+        window.location.assign('/me');
         return;
       }
       const message =
         typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
           ? body.error
-          : 'Could not keep that';
+          : 'Could not sign in';
       setFail(message);
     } catch {
-      setFail('Could not keep that');
+      setFail('Could not sign in');
     }
     setBusy(false);
   }
 
-  function onClick() {
-    const google = googleRef.current ?? window.google;
-    if (!google || !clientId) {
-      setFail('Google is still loading.');
-      return;
-    }
-    setFail('');
-    google.accounts.id.initialize({
-      client_id: clientId,
-      callback: (response) => {
-        void keep(response.credential);
-      },
-      auto_select: false,
-      ux_mode: 'popup',
-    });
-    google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        setFail('Could not open Google.');
-      }
-    });
+  if (!clientId) {
+    return null;
   }
 
   return (
     <>
-      <button type="button" onClick={onClick} disabled={busy}>
-        {busy ? 'Opening…' : 'Keep with Google'}
-      </button>
+      {loopback ? (
+        <span role="alert" className="gis-fail">
+          Use http://localhost:3456 to sign in with Google.
+        </span>
+      ) : (
+        <span className="gis-wrap">
+          <span className="gis-face" aria-hidden="true">
+            {busy ? 'Signing in…' : 'Sign in with Google'}
+          </span>
+          <span ref={hostRef} className="gis-hit" />
+        </span>
+      )}
       {fail ? (
-        <span role="alert">
-          {' '}
+        <span role="alert" className="gis-fail">
           {fail}
         </span>
       ) : null}

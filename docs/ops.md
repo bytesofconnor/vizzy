@@ -57,11 +57,11 @@ Same names, different places. After a value changes, update every column that ha
 | `STRIPE_SECRET_KEY` | yes (`sk_test_…`) | | live: `sk_live_…` | secret (`sk_test_…` for CI) | CI must stay test mode. |
 | `STRIPE_PRICE_ID` | yes | | live price when you copy the $8 product | secret | Sandbox: `price_1UFzkNPc4hlkd27T24QfgKel`. Live: `price_1UG17xB54ZEn5Ro5r9v3oysJ`. |
 | `STRIPE_WEBHOOK_SECRET` | yes (`stripe listen`) | | from the Vizzy live webhook | | Forward to `/api/stripe/webhook`. |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | yes | | yes | | Web client in project `vizzy-508717`. Origins: `http://localhost:3456`, `https://vizzy.run`. |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | yes | | yes | | Web client in project `vizzy-508717`. Authorized JavaScript origins: `http://localhost`, `http://localhost:3456`, `https://vizzy.run`. Authorized redirect URIs: `http://localhost:3456/api/save/google`, `https://vizzy.run/api/save/google`. Open `http://localhost:3456`, not `127.0.0.1`. |
 | `RESEND_API_KEY` | when email works | | yes | | Restore link. Not required for checkout. |
 | `RESEND_FROM` | when email works | | yes | | |
 
-GitHub Actions e2e reads secrets listed in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). It runs on **push to `main`**. Unit tests run on PRs too.
+GitHub Actions **probe** (home + axe, no secrets) runs on pull requests. Full e2e including Stripe/Convex runs on **push to `main`**.
 
 ```bash
 npm test          # core / react / mcp
@@ -73,5 +73,7 @@ npm run test:e2e  # Playwright; reuses local :3456 if it is up
 - **Wallets, credits, owner meter** — Convex `wallets` on the deployment Next points at.
 - **Money** — Stripe Checkout + webhook. Product is 25 charts / $8.
 - **This browser** — cookie `vizzy_wallet` set by share.
-- **Google** — optional bind after Checkout (`vizzy_paid` cookie, then `/api/save/google`).
+- **Google** — after Checkout, `/pay/thanks` sets `vizzy_paid` and sends you to `/me`. Sign-in is GIS redirect (not a popup — Arc turns popups into blank tabs). Bind is `/api/save/google`.
+- **Account** — `/me` is credits, 14-day usage, purchases. Convex `uses` logs each draw.
+- **Agents** — `https://vizzy.run/llms.txt`, `https://vizzy.run/agents`, OpenAPI at `/openapi.json`, schema at `/schema/chart-config.v1.json`, JSON index at `/api`. MCP stdio from the repo: `npx tsx apps/mcp/src/cli.ts`. After the free meter, `VIZZY_WALLET_TOKEN` is the `vizzy_wallet` cookie.
 - **Restore** — Terms, checkout email. Resend when configured.

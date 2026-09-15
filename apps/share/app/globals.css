@@ -35,6 +35,224 @@ a {
   color: inherit;
 }
 
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  z-index: 20;
+  padding: 8px 12px;
+  background: var(--paper);
+  color: var(--ink);
+  transform: translateY(-160%);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+a:focus-visible,
+button:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.agents-doc {
+  max-width: 540px;
+}
+
+.agents-title {
+  font-weight: 500;
+  font-size: clamp(1.25rem, 5vw, 1.5rem);
+  letter-spacing: -0.025em;
+  margin: 12px 0 0;
+}
+
+.agents-kicker {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin: 36px 0 0;
+}
+
+.agents-p,
+.agents-list,
+.agents-code {
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 14px 0 0;
+}
+
+.agents-list {
+  padding-left: 1.15em;
+}
+
+.agents-list li + li {
+  margin-top: 8px;
+}
+
+.agents-doc code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.92em;
+}
+
+.agents-code {
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+}
+
+.agents-doc a {
+  text-underline-offset: 0.18em;
+}
+
+.gis-wrap {
+  position: relative;
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.gis-face {
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+.gis-hit {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.02;
+}
+
+.gis-hit iframe,
+.gis-hit div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.gis-fail {
+  display: block;
+  margin-top: 8px;
+}
+
+.kicker-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin: 0;
+  padding-bottom: 12px;
+}
+
+.kicker-nav a {
+  text-decoration: none;
+}
+
+.kicker-nav .kicker-mail {
+  text-transform: none;
+  letter-spacing: 0;
+  max-width: min(58vw, 16rem);
+  overflow: visible;
+}
+
+.kicker-mail-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-mail {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mute);
+  margin: 14px 0 0;
+  max-width: 540px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.kicker-here {
+  position: relative;
+  display: inline-block;
+}
+
+.kicker-dust {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  display: flex;
+  gap: 2px;
+  height: 2px;
+}
+
+.kicker-dust i {
+  flex: 1;
+  min-width: 3px;
+  display: block;
+  height: 100%;
+  transform-origin: center bottom;
+}
+
+.kicker-here.is-tap .kicker-dust i {
+  animation: kicker-dust-tap 0.48s ease;
+}
+
+.kicker-here.is-tap .kicker-dust i:nth-child(2) {
+  animation-delay: 0.04s;
+}
+
+.kicker-here.is-tap .kicker-dust i:nth-child(3) {
+  animation-delay: 0.08s;
+}
+
+.kicker-here.is-tap .kicker-dust i:nth-child(4) {
+  animation-delay: 0.12s;
+}
+
+.kicker-here.is-tap .kicker-dust i:nth-child(5) {
+  animation-delay: 0.16s;
+}
+
+.kicker-here.is-tap .kicker-dust i:nth-child(6) {
+  animation-delay: 0.2s;
+}
+
+.kicker-here.is-tap .kicker-dust i:nth-child(7) {
+  animation-delay: 0.24s;
+}
+
+.kicker-here.is-tap .kicker-dust i:nth-child(8) {
+  animation-delay: 0.28s;
+}
+
+@keyframes kicker-dust-tap {
+  0%,
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  40% {
+    transform: scaleY(2.4);
+    opacity: 1;
+  }
+}
+
 .source-block {
   margin: 14px 0 0;
   max-width: 560px;
@@ -192,6 +410,10 @@ form#again[aria-busy='true'] + section {
     animation: none;
     opacity: 0.7;
     transform: none;
+  }
+
+  .kicker-here.is-tap .kicker-dust i {
+    animation: none;
   }
 }
 

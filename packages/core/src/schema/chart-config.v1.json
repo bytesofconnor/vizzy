@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vizzy.dev/schema/chart-config.v1.json",
+  "$id": "https://vizzy.run/schema/chart-config.v1.json",
   "title": "Vizzy ChartConfig",
   "description": "Contract agents should emit. Do not invent D3. Pass the result to validate_config or compile_chart, then render with @vizzy/react VizzyChart.",
   "type": "object",
