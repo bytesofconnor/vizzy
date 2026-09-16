@@ -2,11 +2,12 @@ import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { PIECES, type Piece } from '../../lib/pieces';
 import { seedFromPiece } from '../../lib/seed';
-import { sourceLine } from '../../lib/source';
-import { DUST, STUDIO } from '../../lib/theme';
+import { DustRail } from './DustRail';
+import { ChartFrame } from './ChartFrame';
 import { ChartMount } from './ChartMount';
 import { ComposeBox } from './ComposeBox';
-import { EmbedActions } from './EmbedActions';
+import { HomeBridge } from './HomeBridge';
+import { ChartExtras } from './ChartExtras';
 import { KickerNav } from './KickerNav';
 import { SiteFoot } from './SiteFoot';
 import { SourceLine } from './SourceLine';
@@ -43,85 +44,58 @@ export function Studio({
   owner?: boolean;
 }) {
   return (
-    <main id="content" className="page-main">
+    <main id="content" className={`page-main${piece ? '' : ' page-home'}`}>
       <KickerNav here="home" email={email} known={known} owner={owner} />
-      {piece ? null : (
-        <>
-          <h1
-            style={{
-              fontWeight: 500,
-              fontSize: 'clamp(1.45rem, 6vw, 1.9rem)',
-              letterSpacing: '-0.02em',
-              lineHeight: 1.12,
-              margin: '8px 0 0',
-            }}
-          >
-            A chart you can paste.
+      {piece ? (
+        <ComposeBox error={error} askPay={askPay} seed={seedFromPiece(piece)} />
+      ) : (
+        <section className="home-hero" aria-labelledby="home-title">
+          <h1 id="home-title" className="home-hero-title">
+            The perfect chart, for you
           </h1>
-          <DustRule />
-          <p
-            style={{
-              maxWidth: 540,
-              fontSize: 14,
-              lineHeight: 1.45,
-              color: 'var(--ink)',
-              marginTop: 10,
-            }}
-          >
-            Type what to chart, or ask your AI to. Bar, line, or scatter. You get a link and a PNG.
+          <DustRail className="home-hero-dust dust-rail is-idle" />
+          <p className="home-hero-lede">
+            Writing a post, newsletter, or report? Type what you want to show. Get a link and PNG you
+            can drop in anywhere — with the source on the chart.
           </p>
-        </>
+          <ComposeBox error={error} askPay={askPay} variant="hero" />
+        </section>
       )}
-      <ComposeBox error={error} askPay={askPay} seed={piece ? seedFromPiece(piece) : undefined} />
       {piece ? <Featured piece={piece} /> : null}
-      <ExampleList skip={piece?.slug} />
+      {piece ? null : <HomeBridge />}
+      <div id="examples" className={piece ? undefined : 'home-examples'}>
+        <ExampleList skip={piece?.slug} home={!piece} />
+      </div>
       <SiteFoot />
     </main>
   );
 }
 
-function DustRule() {
-  return (
-    <div className="hero-dust" aria-hidden="true">
-      {DUST.map((tone, index) => (
-        <i key={tone} style={{ background: index === 6 ? STUDIO.ink : tone, ['--dust-i']: String(index) }} />
-      ))}
-    </div>
-  );
-}
-
 function Featured({ piece }: { piece: Piece }) {
   return (
-    <section style={{ marginTop: 28 }}>
-      <p style={kicker}>{piece.kicker}</p>
-      <h1 style={chartTitle}>{piece.title}</h1>
-      <ChartMount config={piece.config} data={piece.data} label={piece.title} />
+    <section className="studio-chart" aria-labelledby="chart-title">
+      <ChartFrame
+        head={
+          <>
+            <p style={kicker}>{piece.kicker}</p>
+            <h1 id="chart-title" style={chartTitle}>
+              {piece.title}
+            </h1>
+          </>
+        }
+      >
+        <ChartMount config={piece.config} data={piece.data} label={piece.title} framed />
+      </ChartFrame>
       {piece.note ? (
-        <p
-          style={{
-            fontFamily: 'var(--font-mono), ui-monospace, monospace',
-            color: 'var(--mute)',
-            marginTop: 12,
-            maxWidth: 640,
-            fontSize: 12,
-            lineHeight: 1.45,
-          }}
-        >
-          {piece.note}
-        </p>
+        <p className="studio-chart-note">{piece.note}</p>
       ) : null}
       {piece.config.source ? <SourceLine source={piece.config.source} /> : null}
-      <EmbedActions
-        slug={piece.slug}
-        title={piece.title}
-        note={piece.note}
-        source={piece.config.source ? `Source: ${sourceLine(piece.config.source)}` : undefined}
-      />
+      <ChartExtras piece={piece} />
     </section>
   );
 }
 
-function ExampleList({ skip }: { skip?: string }) {
+function ExampleList({ skip, home = false }: { skip?: string; home?: boolean }) {
   const pieces = PIECES.filter((piece) => piece.slug !== skip);
   if (pieces.length === 0) {
     return null;
@@ -129,7 +103,7 @@ function ExampleList({ skip }: { skip?: string }) {
 
   return (
     <>
-      <p style={{ ...kicker, marginTop: 28 }}>Examples</p>
+      <p style={{ ...kicker, marginTop: home ? 0 : 28 }}>Examples</p>
       <div className="piece-list">
         {pieces.map((piece) => (
           <article key={piece.slug}>
@@ -150,12 +124,7 @@ function ExampleList({ skip }: { skip?: string }) {
               {piece.note}
             </p>
             {piece.config.source ? <SourceLine source={piece.config.source} /> : null}
-            <EmbedActions
-              slug={piece.slug}
-              title={piece.title}
-              note={piece.note}
-              source={piece.config.source ? `Source: ${sourceLine(piece.config.source)}` : undefined}
-            />
+            <ChartExtras piece={piece} />
           </article>
         ))}
       </div>

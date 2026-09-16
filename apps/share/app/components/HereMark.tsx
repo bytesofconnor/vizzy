@@ -1,35 +1,35 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { DUST, STUDIO } from '../../lib/theme';
+import { KickerDust, useKickerTap } from './KickerDust';
 
 export function HereMark({
   href,
   children,
   mail = false,
   email,
+  className,
 }: {
   href: string;
   children: string;
   mail?: boolean;
   email?: string;
+  className?: string;
 }) {
-  const [tap, setTap] = useState(false);
+  const { tap, onTap } = useKickerTap();
 
   return (
     <Link
       href={href}
-      className={['kicker-here', tap ? 'is-tap' : '', mail ? 'kicker-mail' : ''].filter(Boolean).join(' ')}
+      className={['kicker-here', tap ? 'is-tap' : '', mail ? 'kicker-mail' : '', className]
+        .filter(Boolean)
+        .join(' ')}
       aria-current="page"
       title={mail ? email ?? children : undefined}
       aria-label={mail && email ? `Account, ${email}` : undefined}
-      onClick={() => {
-        setTap(true);
-        window.setTimeout(() => setTap(false), 800);
-      }}
+      onClick={onTap}
     >
-      <span className="kicker-here-label">
+      <span className="kicker-link-label">
         {mail ? (
           <>
             <span className="kicker-mail-short">Account</span>
@@ -38,11 +38,7 @@ export function HereMark({
         ) : (
           children
         )}
-        <span className="kicker-dust" aria-hidden="true">
-          {DUST.map((tone, index) => (
-            <i key={tone} style={{ background: index === 6 ? STUDIO.ink : tone, ['--dust-i']: String(index) }} />
-          ))}
-        </span>
+        <KickerDust />
       </span>
     </Link>
   );

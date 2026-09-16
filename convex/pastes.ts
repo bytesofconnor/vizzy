@@ -1,7 +1,7 @@
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
-const TAKEN = new Set(['july', 'price', 'corners', 'tips', 'keep', 'x']);
+const TAKEN = new Set(['reef', 'chips', 'ozone', 'tigers', 'vinyl', 'july', 'price', 'corners', 'tips', 'keep', 'x']);
 
 function assertServer(secret: string): void {
   const expected = process.env.COMPOSE_SERVER_SECRET;

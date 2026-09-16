@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { HereMark } from './HereMark';
+import { NavDustLink } from './NavDustLink';
 import { SaveGoogle } from './SaveGoogle';
 
 export function AccountLink({
@@ -24,9 +24,14 @@ export function AccountLink({
       );
     }
     return (
-      <Link href="/me" className="kicker-mail" title={email} aria-label={`Account, ${email}`}>
+      <NavDustLink
+        href="/me"
+        className="kicker-mail"
+        title={email}
+        ariaLabel={`Account, ${email}`}
+      >
         <MailNavLabel email={email} />
-      </Link>
+      </NavDustLink>
     );
   }
 
@@ -34,7 +39,11 @@ export function AccountLink({
     if (current) {
       return <HereMark href="/me">Account</HereMark>;
     }
-    return <Link href="/me">Account</Link>;
+    return (
+      <NavDustLink href="/me" className="kicker-nav-soft">
+        Account
+      </NavDustLink>
+    );
   }
 
   if (google) {
@@ -42,10 +51,18 @@ export function AccountLink({
   }
 
   if (current) {
-    return <HereMark href="/me">Account</HereMark>;
+    return (
+      <HereMark href="/me" className="kicker-nav-soft">
+        Account
+      </HereMark>
+    );
   }
 
-  return <Link href="/me">Account</Link>;
+  return (
+    <NavDustLink href="/me" className="kicker-nav-soft">
+      Account
+    </NavDustLink>
+  );
 }
 
 function MailNavLabel({ email }: { email: string }) {

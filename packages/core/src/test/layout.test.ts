@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { xAxisRoom, xTickRotate, shortCategoryNames } from '../layout';
+import {
+  compactAxisLabel,
+  looksSequentialX,
+  xAxisRoom,
+  xTickRotate,
+  shortCategoryNames,
+} from '../layout';
 
 describe('xAxisRoom', () => {
   it('rotates crowded named categories and parks the title below them', () => {
@@ -17,6 +23,13 @@ describe('xAxisRoom', () => {
     expect(room.titleY).toBeGreaterThan(room.tickDepth);
     expect(room.bottom).toBeGreaterThan(room.titleY);
     expect(room.tickDepth).toBeGreaterThan(100);
+  });
+
+  it('treats fiscal-year lines as sequential and compacts their labels', () => {
+    const years = ['2019/20', '2020/21', '2021/22', '2022/23', '2023/24', '2024/25'];
+    expect(looksSequentialX(years)).toBe(true);
+    expect(compactAxisLabel('2019/20')).toBe('19/20');
+    expect(xTickRotate(years, 320)).toBe(0);
   });
 
   it('does not rotate a short named set', () => {

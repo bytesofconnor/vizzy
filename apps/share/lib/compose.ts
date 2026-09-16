@@ -123,17 +123,69 @@ function innerSvg(chartSvg: string): string {
     .replace(/<\/svg>\s*$/, '');
 }
 
+function wrapInsightLines(text: string, maxChars: number): string[] {
+  const lines: string[] = [];
+  for (const paragraph of text.split(/\n\s*\n/)) {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      continue;
+    }
+    let line = '';
+    for (const word of words) {
+      const next = line ? `${line} ${word}` : word;
+      if (next.length > maxChars && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = next;
+      }
+    }
+    if (line) {
+      lines.push(line);
+    }
+  }
+  return lines.slice(0, 10);
+}
+
+function exportAttributionMarkup(
+  size: CardSize,
+  width: number,
+  totalHeight: number,
+  pad: number
+): string {
+  const fontSize = size === 'lg' ? 13 : size === 'sm' ? 11 : 12;
+  const y = totalHeight - Math.max(14, Math.round(pad * 0.32));
+  const x = width - pad;
+  return `<text x="${x}" y="${y}" text-anchor="end" fill="${STUDIO.mid}" font-size="${fontSize}" letter-spacing="0.03em" font-family="IBM Plex Mono, monospace">vizzy.run</text>`;
+}
+
 export function composePieceSvg(
   piece: Piece,
   chartSvg: string,
-  size: CardSize = 'md'
+  size: CardSize = 'md',
+  options?: { insight?: string }
 ): string {
   const spec = CARDS[size];
   const frame = chartFrame(size);
   const chart = innerSvg(chartSvg);
+  const maxChars = size === 'lg' ? 98 : size === 'sm' ? 74 : 90;
+  const insightLines = options?.insight ? wrapInsightLines(options.insight, maxChars) : [];
+  const insightLineHeight = spec.noteSize + 5;
+  const insightBlockHeight = insightLines.length
+    ? insightLines.length * insightLineHeight + 14
+    : 0;
+  const totalHeight = spec.height + insightBlockHeight;
+  const sourceY = spec.sourceY + insightBlockHeight;
+  const insightStartY = spec.noteY + 18;
+  const insightMarkup = insightLines
+    .map(
+      (line, index) =>
+        `<text x="${spec.pad}" y="${insightStartY + index * insightLineHeight}" fill="${STUDIO.mid}" font-size="${spec.noteSize}" font-family="IBM Plex Mono, monospace">${escapeXml(line)}</text>`
+    )
+    .join('\n  ');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${spec.width}" height="${spec.height}" viewBox="0 0 ${spec.width} ${spec.height}">
+<svg xmlns="http://www.w3.org/2000/svg" width="${spec.width}" height="${totalHeight}" viewBox="0 0 ${spec.width} ${totalHeight}">
   <rect width="100%" height="100%" fill="${STUDIO.paper}"/>
   <text x="${spec.pad}" y="${spec.kickerY}" fill="${STUDIO.mute}" font-size="${spec.kickerSize}" letter-spacing="1.2" font-family="IBM Plex Mono, monospace">${escapeXml(piece.kicker.toUpperCase())}</text>
   <text x="${spec.pad}" y="${spec.titleY}" fill="${STUDIO.ink}" font-size="${spec.titleSize}" font-family="Archivo, Helvetica, sans-serif">${escapeXml(piece.title)}</text>
@@ -141,6 +193,8 @@ export function composePieceSvg(
     ${chart}
   </svg>
   <text x="${spec.pad}" y="${spec.noteY}" fill="${STUDIO.mute}" font-size="${spec.noteSize}" font-family="IBM Plex Mono, monospace">${escapeXml(piece.note)}</text>
-  ${piece.config.source ? `<text x="${spec.pad}" y="${spec.sourceY}" fill="${STUDIO.mute}" font-size="${spec.sourceSize}" font-family="IBM Plex Mono, monospace">${escapeXml(`SOURCE  ${sourceCardLine(piece.config.source)}`)}</text>` : ''}
+  ${insightMarkup}
+  ${piece.config.source ? `<text x="${spec.pad}" y="${sourceY}" fill="${STUDIO.mute}" font-size="${spec.sourceSize}" font-family="IBM Plex Mono, monospace">${escapeXml(`SOURCE  ${sourceCardLine(piece.config.source)}`)}</text>` : ''}
+  ${exportAttributionMarkup(size, spec.width, totalHeight, spec.pad)}
 </svg>`;
 }

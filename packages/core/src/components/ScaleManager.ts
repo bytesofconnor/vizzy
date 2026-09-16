@@ -94,7 +94,7 @@ export class ScaleManager {
       return d3.scalePoint<string>()
         .domain(domain as string[])
         .range([0, innerWidth])
-        .padding(0.5);
+        .padding(chart.type === 'line' ? 0.62 : 0.5);
     } else {
       // Numeric domain
       const [min, max] = domain as [number, number];

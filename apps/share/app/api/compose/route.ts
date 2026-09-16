@@ -1,4 +1,5 @@
 import { consumeSlot, refundSlot } from '../../../lib/billing';
+import { reportProgress, type ComposeProgressReporter } from '../../../lib/compose-progress';
 import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
 import { pasteHref } from '../../../lib/paste';
 import { payBody, payMessage } from '../../../lib/pay';
@@ -31,11 +32,122 @@ function wantsHtml(request: Request): boolean {
   return (request.headers.get('accept') ?? '').includes('text/html');
 }
 
+function wantsStream(request: Request): boolean {
+  return (request.headers.get('accept') ?? '').includes('text/event-stream');
+}
+
+function sseLine(event: Record<string, unknown>): string {
+  return `data: ${JSON.stringify(event)}\n\n`;
+}
+
+async function runCompose(
+  origin: string,
+  request: Request,
+  prompt: string,
+  seed: ChartSeed | undefined,
+  onProgress?: ComposeProgressReporter
+) {
+  const minted = await pieceFromPrompt(prompt, seed, onProgress);
+  if (!minted.ok) {
+    return { ok: false as const, minted };
+  }
+
+  reportProgress(onProgress, {
+    stage: 'save',
+    progress: 94,
+    message: 'Saving link…',
+    barCount: minted.piece.data.length,
+  });
+
+  const paste = await pasteHref(origin.replace(/\/$/, ''), minted.token);
+  await recordAfterChart({
+    request,
+    slug: paste.slug,
+    title: minted.piece.title,
+    route: 'compose',
+  });
+
+  reportProgress(onProgress, {
+    stage: 'done',
+    progress: 100,
+    message: 'Ready to paste',
+    url: paste.url,
+    png: paste.png,
+    token: minted.token,
+    barCount: minted.piece.data.length,
+  });
+
+  return {
+    ok: true as const,
+    minted,
+    paste,
+  };
+}
+
+function streamCompose(
+  origin: string,
+  request: Request,
+  prompt: string,
+  seed: ChartSeed | undefined,
+  slot: Awaited<ReturnType<typeof consumeSlot>>
+): Response {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send: ComposeProgressReporter = (event) => {
+        controller.enqueue(encoder.encode(sseLine(event)));
+      };
+
+      try {
+        const result = await runCompose(origin, request, prompt, seed, send);
+        if (!result.ok) {
+          if (slot.via === 'credit' || slot.via === 'free') {
+            await refundSlot(request, slot.via);
+          }
+          send({
+            stage: 'error',
+            progress: 100,
+            message: result.minted.error,
+            error: result.minted.error,
+          });
+        }
+      } catch (error) {
+        if (slot.via === 'credit' || slot.via === 'free') {
+          try {
+            await refundSlot(request, slot.via);
+          } catch (refundError) {
+            console.error('compose refund failed', refundError);
+          }
+        }
+        console.error('compose failed', error);
+        const message = publicComposeError(error);
+        send({
+          stage: 'error',
+          progress: 100,
+          message,
+          error: message,
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    },
+  });
+}
+
 export async function GET() {
   const origin = siteUrl();
   return Response.json({
     ok: true,
-    use: 'POST a text prompt as JSON { prompt, seed? } or form field prompt. No voice API. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page. Shares the publish meter.',
+    use: 'POST a text prompt as JSON { prompt, seed? } or form field prompt. No voice API. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page. Shares the publish meter. Accept text/event-stream for live progress.',
     schema: `${origin}/schema/chart-config.v1.json`,
     docs: `${origin}/llms.txt`,
     agents: `${origin}/agents`,
@@ -78,33 +190,30 @@ export async function POST(request: Request) {
     return Response.json(payBody(message), { status: 402 });
   }
 
+  if (wantsStream(request) && !wantsHtml(request)) {
+    return streamCompose(origin, request, prompt, seed, slot);
+  }
+
   try {
-    const minted = await pieceFromPrompt(prompt, seed);
-    if (!minted.ok) {
+    const result = await runCompose(origin, request, prompt, seed);
+    if (!result.ok) {
       if (slot.via === 'credit' || slot.via === 'free') {
         await refundSlot(request, slot.via);
       }
       if (wantsHtml(request)) {
-        return Response.redirect(`${origin}/?error=${encodeURIComponent(minted.error)}`, 303);
+        return Response.redirect(`${origin}/?error=${encodeURIComponent(result.minted.error)}`, 303);
       }
-      return Response.json(minted, { status: 400 });
+      return Response.json(result.minted, { status: 400 });
     }
 
-    const paste = await pasteHref(origin.replace(/\/$/, ''), minted.token);
-    await recordAfterChart({
-      request,
-      slug: paste.slug,
-      title: minted.piece.title,
-      route: 'compose',
-    });
     if (wantsHtml(request)) {
-      return Response.redirect(paste.url, 303);
+      return Response.redirect(result.paste.url, 303);
     }
     return Response.json({
       ok: true,
-      url: paste.url,
-      png: paste.png,
-      token: minted.token,
+      url: result.paste.url,
+      png: result.paste.png,
+      token: result.minted.token,
     });
   } catch (error) {
     if (slot.via === 'credit' || slot.via === 'free') {

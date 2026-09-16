@@ -3,7 +3,7 @@
 const NAME_PARTICLE = /^(van|von|de|da|del|di|la|le|el|al|bin|ibn|st\.?)$/i;
 
 export function looksSequentialX(names: string[]): boolean {
-  if (names.length < 8) {
+  if (names.length < 4) {
     return false;
   }
   const hits = names.filter((name) => {
@@ -35,19 +35,36 @@ export function ticksFit(
 
 export type XTickRotate = 0 | -40 | -65;
 
+export function compactAxisLabel(name: string): string {
+  const trimmed = name.trim();
+  const fiscal = trimmed.match(/^20(\d{2})\s*[-–/]\s*(?:(\d{2})|20(\d{2}))$/);
+  if (fiscal) {
+    const end = fiscal[3] ?? fiscal[2];
+    return end ? `${fiscal[1]}/${end}` : trimmed;
+  }
+  if (/^20(\d{2})$/.test(trimmed)) {
+    return trimmed.slice(2);
+  }
+  return trimmed;
+}
+
 export function xTickRotate(names: string[], innerWidth: number): XTickRotate {
-  if (names.length <= 6 || looksSequentialX(names)) {
+  const labels = shortCategoryNames(names).map(compactAxisLabel);
+  if (looksSequentialX(names)) {
     return 0;
   }
-  const slot = innerWidth / Math.max(names.length, 1);
-  const items = names.map((name, index) => ({
+  if (labels.length < 4) {
+    return 0;
+  }
+  const slot = innerWidth / Math.max(labels.length, 1);
+  const items = labels.map((name, index) => ({
     x: (index + 0.5) * slot,
     width: Math.max(name.length * 6.6, 10),
   }));
   if (ticksFit(items, items.map(() => true))) {
     return 0;
   }
-  return names.length > 12 || names.some((name) => name.length > 16) ? -65 : -40;
+  return labels.length > 12 || labels.some((name) => name.length > 16) ? -65 : -40;
 }
 
 /** Last names when a crowded set is clearly people. Keeps every bar labeled. */
@@ -109,8 +126,8 @@ export function xAxisRoom(
 ): { rotate: XTickRotate; tickDepth: number; titleY: number; bottom: number } {
   const innerWidth = options.innerWidth ?? 640;
   const hasTitle = Boolean(options.hasTitle);
-  const labels = shortCategoryNames(names);
-  const rotate = xTickRotate(labels, innerWidth);
+  const labels = shortCategoryNames(names).map(compactAxisLabel);
+  const rotate = xTickRotate(names, innerWidth);
   const longest = labels.reduce((max, name) => Math.max(max, name.length), 1);
   const wrapLines =
     rotate === 0 && labels.some((name) => name.includes(' ') && name.length * 7 > innerWidth / Math.max(labels.length, 1) + 10)

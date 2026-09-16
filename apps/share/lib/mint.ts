@@ -99,7 +99,7 @@ export function mintPiece(input: MintInput): MintResult {
     studio.axes.x.label ||
     studio.axes.y.label ||
     studio.axes.y.domain ||
-    studio.axes.y.tickCount !== 3
+    studio.axes.y.tickCount !== 5
   ) {
     draft.axes = studio.axes;
   }

@@ -1,11 +1,13 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex } from '@vizzy/core';
-import { countedSeriesRows, gatherFacts } from './lookup';
+import { countedSeriesRows, gatherFacts, pastedATable } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { followUpNeedsLookup, seedBriefing, type ChartSeed } from './seed';
 import { COMPOSE_MODELS } from './ai-models';
 import { logAiFromResult } from './ai-usage';
+import { mostlyGenericPlaceholders, relabelGenericCategories } from './category-labels';
+import { lookupDetail, reportProgress, type ComposeProgressReporter } from './compose-progress';
 import {
   estimateBasisEvidence,
   firstPromptUrl,
@@ -42,14 +44,14 @@ Use the user's numbers when they paste a table.
 If LOOKED-UP NOTES contain a real series, chart those numbers. Do not invent a different table.
 Aim for about 15 rows on a ranking or named-category bar chart. A year by month is 12. A season is the published games so far. Do not pad past the natural series. Only take a top N when the user asked for one.
 If LOOKED-UP NOTES contain real numbers with a page, chart them and set sourceMethod scraped or official. Attach the page in sourceLabel. Put the page URL in SOURCE CANDIDATES on the chart when you have one.
-If lookup failed and the user pasted no numbers, return sourceMethod estimate only when you must illustrate shape — never pretend it is published data. sourceLabel must name what you tried to find (topic or site), never the single word Estimate. evidence must say lookup failed and that rows are illustrative.
+If lookup failed and the user pasted no numbers, return sourceMethod estimate only when you must illustrate shape — never pretend it is published data. sourceLabel must name what you tried to find (topic or site), never the single word Estimate. evidence must say lookup failed and that rows are illustrative. Even then, x must be real names from the question (Japan, Brazil, Arsenal) — never Country A, Team B, Item 1, or any letter-or-number placeholder.
 If the asked year is still in progress, chart published months from the notes and mark later months as forecast in the note. sourceMethod estimate only for the unpublished tail. Never attach a URL to purely invented rows.
 Always name xLabel and yLabel in words a reader can trust (Month, Wins, Points). Never leave them as x or y.
 Never invent a source URL. Prefer the looked-up page title in sourceLabel.
 y must be numeric. Keep titles short. Named categories cap around 15. Sequential series may be longer.
 If y is a calendar year, keep it as the year. Do not convert it to a count from zero.
 Keep category names short enough to sit under a bar: August Schell, not August Schell Brewing Company.
-x is the name of each thing (skill, team, city). Never Rank 1, #3, or a place index. A top-10 chart still labels each bar with the name.
+x is the name of each thing (skill, team, city, country). Never Rank 1, #3, Country A, or a place index. A top-10 chart still labels each bar with the name. For a country chart with no lookup, pick diverse real countries the reader recognizes.
 One comparison per chart. Each x value is one thing, once. Never "Claude Code (Rank)" and "Claude Code (usage %)". Pick one metric for y. Rank (lower is better) and a percentage (higher is better) must never share a chart.
 If CURRENT CHART is in the prompt, this is a second pass on that chart. Keep those rows unless the follow-up asks to drop, add, sort, or change numbers. Honor the follow-up. Do not switch subjects. Keep the existing source unless new numbers were looked up.`;
 
@@ -67,7 +69,11 @@ export function publicComposeError(error: unknown): string {
   return message;
 }
 
-export async function pieceFromPrompt(prompt: string, from?: ChartSeed): Promise<MintResult> {
+export async function pieceFromPrompt(
+  prompt: string,
+  from?: ChartSeed,
+  onProgress?: ComposeProgressReporter
+): Promise<MintResult> {
   const asked = prompt.trim();
   if (asked.length < 3) {
     return { ok: false, error: 'Say what to chart', issues: [] };
@@ -76,14 +82,38 @@ export async function pieceFromPrompt(prompt: string, from?: ChartSeed): Promise
     return { ok: false, error: 'Keep it under 4000 characters', issues: [] };
   }
 
+  reportProgress(onProgress, {
+    stage: 'queue',
+    progress: 10,
+    message: from ? 'Reading your revision…' : 'Reading your prompt…',
+  });
+
   const lookup = !from || followUpNeedsLookup(asked);
   let gathered = { notes: '', urls: [] as string[] };
   if (lookup) {
+    reportProgress(onProgress, {
+      stage: 'lookup',
+      progress: 18,
+      message: 'Searching public sources…',
+    });
     try {
       gathered = await gatherFacts(asked);
     } catch {
       gathered = { notes: '', urls: [] };
     }
+    reportProgress(onProgress, {
+      stage: 'lookup',
+      progress: 38,
+      message: 'Lookup complete',
+      detail: lookupDetail(gathered, pastedATable(asked)),
+    });
+  } else {
+    reportProgress(onProgress, {
+      stage: 'lookup',
+      progress: 38,
+      message: 'Using your current chart',
+      detail: 'Revising in place',
+    });
   }
   const briefing = [
     from ? seedBriefing(from) : '',
@@ -94,6 +124,12 @@ export async function pieceFromPrompt(prompt: string, from?: ChartSeed): Promise
   ]
     .filter(Boolean)
     .join('\n\n');
+
+  reportProgress(onProgress, {
+    stage: 'draft',
+    progress: 48,
+    message: 'Drafting chart…',
+  });
 
   let lastError: unknown;
   for (const model of MODELS) {
@@ -106,6 +142,11 @@ export async function pieceFromPrompt(prompt: string, from?: ChartSeed): Promise
 
       const hinted = countedSeriesRows(gathered.notes);
       if (!from && output.rows.length < 8 && hinted >= 12) {
+        reportProgress(onProgress, {
+          stage: 'draft',
+          progress: 56,
+          message: 'Adding rows from source…',
+        });
         const richer = await draftChart(
           model,
           `${briefing}\n\nThe first draft only used ${output.rows.length} rows. The notes have about ${hinted}. Emit about 15 rows from the notes. One name per row. One metric for y. Do not invent extras.`
@@ -115,6 +156,11 @@ export async function pieceFromPrompt(prompt: string, from?: ChartSeed): Promise
         }
       }
       if (mostlyRankIndex(output.rows)) {
+        reportProgress(onProgress, {
+          stage: 'draft',
+          progress: 62,
+          message: 'Naming each bar…',
+        });
         const named = await draftChart(
           model,
           `${briefing}\n\nThe first draft labeled bars Rank 1, Rank 2. That is not a chart. x must be the skill or item NAME from the notes. y is the score or count. Do not use Rank 1 as x.`
@@ -123,6 +169,35 @@ export async function pieceFromPrompt(prompt: string, from?: ChartSeed): Promise
           output = named;
         }
       }
+      if (mostlyGenericPlaceholders(output.rows)) {
+        reportProgress(onProgress, {
+          stage: 'draft',
+          progress: 66,
+          message: 'Replacing placeholder labels…',
+        });
+        const named = await draftChart(
+          model,
+          `${briefing}\n\nThe first draft used placeholder labels like Country A or Item 1. Replace every x with a REAL name from the user's question or notes (country, city, team, product). Illustrative y values are fine. Never Country A, Team B, or Item 3.`
+        );
+        if (named && !mostlyGenericPlaceholders(named.rows)) {
+          output = named;
+        }
+      }
+
+      reportProgress(onProgress, {
+        stage: 'draft',
+        progress: 74,
+        message: rowProgressMessage(output.chartType, output.rows.length),
+        barCount: output.rows.length,
+        detail: output.title.trim().slice(0, 88),
+      });
+
+      reportProgress(onProgress, {
+        stage: 'mint',
+        progress: 86,
+        message: 'Building chart…',
+        barCount: output.rows.length,
+      });
 
       return mintDraft(asked, gathered, output, from);
     } catch (error) {
@@ -209,9 +284,17 @@ function mintDraft(
   if (output.chartType !== 'scatter' && mostlyRankIndex(named.rows)) {
     return { ok: false, error: 'Could not find named figures to chart', issues: [] };
   }
+  const noteNames = namesFromNotes(gathered.notes);
+  let rows = relabelGenericCategories(named.rows, noteNames, asked);
+  if (output.chartType !== 'scatter' && mostlyGenericPlaceholders(rows)) {
+    return {
+      ok: false,
+      error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
+      issues: [],
+    };
+  }
   const xLabel = named.xLabel;
   const yLabel = tidied.yLabel;
-  const rows = named.rows;
   const forecastAt = output.chartType === 'line' ? forecastStartIndex(rows, 'x') : -1;
   const forecastFrom = forecastAt >= 0 ? String(rows[forecastAt]?.x ?? '') : '';
 
@@ -243,10 +326,20 @@ function mintDraft(
       dataMapping: { x: 'x', y: 'y' },
       axes: {
         x: { show: true, grid: false, label: xLabel.slice(0, 40) },
-        y: { show: true, grid: true, label: yLabel.slice(0, 40) },
+        y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 5, label: yLabel.slice(0, 40) },
       },
     },
   });
+}
+
+function rowProgressMessage(chartType: 'bar' | 'line' | 'scatter', count: number): string {
+  if (chartType === 'line') {
+    return `Plotting ${count} points`;
+  }
+  if (chartType === 'scatter') {
+    return `Placing ${count} points`;
+  }
+  return `Drawing ${count} bars`;
 }
 
 function isRateLimited(error: unknown): boolean {
@@ -278,7 +371,7 @@ export function namesFromNotes(notes: string): string[] {
     const cells = (line: string) => line.split('|').map((cell) => cell.trim()).filter(Boolean);
     const header = cells(table[0] ?? '');
     let index = header.findIndex((cell) =>
-      /^(skill|name|title|tool|item|package|repo|city|team|player|company)/i.test(cell)
+      /^(skill|name|title|tool|item|package|repo|city|team|player|company|country|nation|economy|state|region)/i.test(cell)
     );
     if (index < 0) {
       index = header.findIndex((cell) => !/rank|#|score|rating|stars|count|downloads|%|url|date/i.test(cell));
@@ -330,6 +423,9 @@ export function withNamedCategories(
 function nameAxisLabel(xLabel: string, asked: string): string {
   if (/skill/i.test(xLabel) || /skill/i.test(asked)) {
     return 'Skill';
+  }
+  if (/country|nation/i.test(xLabel) || /\b(countr(y|ies)|nation|nations)\b/i.test(asked)) {
+    return 'Country';
   }
   if (/rank/i.test(xLabel)) {
     return 'Name';

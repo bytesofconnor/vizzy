@@ -264,8 +264,10 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
     // Create render context
     const { width, height } = this._getContainerDimensions();
     const { margin } = this.config.dimensions;
-    if (this.config.chart.type === 'bar') {
-      const names = this._data.map((row) => String(row[this.config.dataMapping.x] ?? ''));
+    if (this.config.chart.type === 'bar' || this.config.chart.type === 'line') {
+      const names = [
+        ...new Set(this._data.map((row) => String(row[this.config.dataMapping.x] ?? ''))),
+      ];
       const room = xAxisRoom(names, {
         hasTitle: Boolean(this.config.axes.x.label),
         innerWidth: width - margin.left - margin.right,

@@ -10,6 +10,7 @@
 
 import type * as billing from "../billing.js";
 import type * as charts from "../charts.js";
+import type * as connections from "../connections.js";
 import type * as pastes from "../pastes.js";
 import type * as telemetry from "../telemetry.js";
 
@@ -22,6 +23,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   billing: typeof billing;
   charts: typeof charts;
+  connections: typeof connections;
   pastes: typeof pastes;
   telemetry: typeof telemetry;
 }>;

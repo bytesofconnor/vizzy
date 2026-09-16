@@ -8,34 +8,56 @@ export function ChartMount({
   config,
   data,
   label,
+  framed = false,
 }: {
   config: ChartConfig;
   data: DataPoint[];
   label?: string;
+  framed?: boolean;
 }) {
   const live = useMemo(() => {
     const xLabel = config.axes?.x?.label;
     const yLabel = config.axes?.y?.label;
-    const names = data.map((row) => String(row[config.dataMapping.x] ?? ''));
+    const names = [
+      ...new Set(data.map((row) => String(row[config.dataMapping.x] ?? ''))),
+    ];
     const bar = config.chart?.type === 'bar';
-    const bottom = bar
-      ? xAxisRoom(names, { hasTitle: Boolean(xLabel), innerWidth: 720 }).bottom
-      : xLabel
-        ? 58
-        : 36;
+    const narrowInner = 340;
+    const wideInner = 720;
+    const room = xAxisRoom(names, {
+      hasTitle: Boolean(xLabel),
+      innerWidth: bar ? wideInner : narrowInner,
+    });
+    const bottom = Math.max(bar ? room.bottom : xLabel ? 48 : 32, room.bottom);
     const title = config.accessibility?.title || label;
+    const legendTop = config.legend?.show && config.legend.position === 'top';
     const motion =
       typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const baseMargin = config.dimensions?.margin ?? {};
     return validateChartConfig({
       ...config,
+      colors: {
+        ...config.colors,
+        grid: config.colors?.grid ?? '#c5c2b9',
+      },
       dimensions: {
         ...config.dimensions,
         width: 'responsive',
         margin: {
-          top: 28,
-          right: 20,
+          top: legendTop ? Math.max(Number(baseMargin.top ?? 0), 44) : 28,
+          right: Math.max(Number(baseMargin.right ?? 0), 32),
           bottom,
-          left: yLabel ? 64 : 28,
+          left: yLabel ? Math.max(Number(baseMargin.left ?? 0), 64) : 28,
+        },
+      },
+      axes: {
+        x: { ...config.axes?.x, show: config.axes?.x?.show ?? true, grid: false },
+        y: {
+          ...config.axes?.y,
+          show: config.axes?.y?.show ?? true,
+          grid: true,
+          gridOpacity: config.axes?.y?.gridOpacity ?? 0.55,
+          tickCount: config.axes?.y?.tickCount ?? 5,
         },
       },
       animation: {
@@ -54,7 +76,7 @@ export function ChartMount({
 
   return (
     <VizzyChart
-      className="chart-mount"
+      className={framed ? 'chart-mount is-framed' : 'chart-mount'}
       config={live}
       data={data}
       showPerformanceMetrics={false}

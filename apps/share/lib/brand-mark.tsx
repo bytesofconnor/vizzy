@@ -47,22 +47,22 @@ export function BrandBars({
 }
 
 export function BrandMark({ size, pad }: { size: number; pad?: number }) {
-  const inset = Math.round(size * (pad ?? (size <= 32 ? 0.16 : 0.22)));
+  const inset = Math.round(size * (pad ?? (size <= 32 ? 0.2 : 0.24)));
   const inner = Math.max(8, size - inset * 2);
-  const gap = Math.max(size <= 32 ? 2 : 3, Math.round(inner * (size <= 32 ? 0.1 : 0.16)));
+  const ruleHeight = Math.max(2, Math.round(size * (size <= 32 ? 0.14 : 0.1)));
   return (
     <div
       style={{
         width: size,
         height: size,
         display: 'flex',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         justifyContent: 'center',
         background: PAPER,
         padding: inset,
       }}
     >
-      <BrandBars width={inner} height={inner} gap={gap} />
+      <DustRule width={inner} height={ruleHeight} />
     </div>
   );
 }

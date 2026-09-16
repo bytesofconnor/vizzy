@@ -22,7 +22,12 @@
             "grouping": { "enum": ["single", "grouped", "stacked"], "default": "single" },
             "barPadding": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.1 },
             "groupPadding": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.05 },
-            "cornerRadius": { "type": "number", "minimum": 0, "default": 0 }
+            "cornerRadius": { "type": "number", "minimum": 0, "default": 0 },
+            "showValues": {
+              "type": "boolean",
+              "default": false,
+              "description": "When true, paint the numeric value above each bar (best for small bar counts)."
+            }
           }
         },
         {

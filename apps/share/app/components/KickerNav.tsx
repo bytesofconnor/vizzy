@@ -1,8 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { AccountLink } from './AccountLink';
 import { HereMark } from './HereMark';
+import { NavDustLink } from './NavDustLink';
+import { VizzyHomeLink } from './VizzyHomeLink';
 
 export function KickerNav({
   here,
@@ -17,10 +18,18 @@ export function KickerNav({
 }) {
   return (
     <nav className="kicker-nav" aria-label="Site">
-      {here === 'home' ? <HereMark href="/">Vizzy</HereMark> : <Link href="/">Vizzy</Link>}
+      <VizzyHomeLink current={here === 'home'} />
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 16 }}>
         {owner ? (
-          here === 'admin' ? <HereMark href="/admin">Admin</HereMark> : <Link href="/admin">Admin</Link>
+          here === 'admin' ? (
+            <HereMark href="/admin" className="kicker-nav-soft">
+              Admin
+            </HereMark>
+          ) : (
+            <NavDustLink href="/admin" className="kicker-nav-soft">
+              Admin
+            </NavDustLink>
+          )
         ) : null}
         <AccountLink current={here === 'account'} email={email} known={known} />
       </span>

@@ -9,6 +9,7 @@ import {
 import { STACK_MODELS } from '../../lib/ai-models';
 import { readWalletToken, signedInNav } from '../../lib/billing';
 import { getAdminInsights, type AdminInsights } from '../../lib/telemetry';
+import { AdminRecentAiCalls } from '../components/AdminRecentAiCalls';
 import { KickerNav } from '../components/KickerNav';
 import { SiteFoot } from '../components/SiteFoot';
 
@@ -176,16 +177,7 @@ export default async function AdminPage() {
           </p>
         </section>
       )}
-      {insights.recentAi.length > 0 ? (
-        <DetailList
-          title="Recent AI calls"
-          rows={insights.recentAi.map((row) => ({
-            key: `${row.createdAt}-${row.route}`,
-            primary: `${aiRouteLabel(row.route)} · ${shortModel(row.model)}`,
-            secondary: `${formatTokens(row.inputTokens)} in · ${formatTokens(row.outputTokens)} out · ${formatWhen(row.createdAt)}`,
-          }))}
-        />
-      ) : null}
+      <AdminRecentAiCalls rows={insights.recentAi} />
       {insights.recentSaved.length > 0 ? (
         <DetailList
           title="Recent saved charts"
@@ -289,28 +281,11 @@ function eventLabel(name: string): string {
     purchase: 'Purchase completed',
     sign_in: 'Google sign-in',
     tap_agents: 'Agents link tapped',
+    tap_writers: 'Writers link tapped',
     tap_terms: 'Terms link tapped',
     tap_llms: 'llms.txt link tapped',
   };
   return labels[name] ?? name.replace(/_/g, ' ');
-}
-
-function aiRouteLabel(route: string): string {
-  if (route === 'compose') {
-    return 'Draft chart';
-  }
-  if (route === 'lookup') {
-    return 'Lookup';
-  }
-  if (route === 'lookup_sonar') {
-    return 'Sonar lookup';
-  }
-  return route;
-}
-
-function shortModel(model: string): string {
-  const tail = model.split('/').pop() ?? model;
-  return tail.length > 28 ? `${tail.slice(0, 25)}…` : tail;
 }
 
 function formatTokens(count: number): string {

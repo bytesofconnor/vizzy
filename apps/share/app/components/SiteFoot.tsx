@@ -18,6 +18,10 @@ export function SiteFoot() {
           Terms
         </EventLink>
         {' · '}
+        <EventLink href="/for/writers" name="tap_writers">
+          Writers
+        </EventLink>
+        {' · '}
         <EventLink href="/agents" name="tap_agents">
           Agents
         </EventLink>

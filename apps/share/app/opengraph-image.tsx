@@ -24,11 +24,11 @@ export default function OpenGraphImage() {
           <div
             style={{
               display: 'flex',
-              fontSize: 18,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color: MUTE,
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontSize: 22,
+              letterSpacing: '-0.01em',
+              fontWeight: 500,
+              color: INK,
+              fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
             }}
           >
             Vizzy

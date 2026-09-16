@@ -19,8 +19,8 @@ test('install and share images exist', async ({ request }) => {
 
 test('landing is the chart prompt', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'A chart you can paste.' })).toBeVisible();
-  await expect(page.getByText('Type what to chart, or ask your AI to.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The perfect chart, for you' })).toBeVisible();
+  await expect(page.getByText(/Writing a post, newsletter, or report/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Make chart' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speak' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);

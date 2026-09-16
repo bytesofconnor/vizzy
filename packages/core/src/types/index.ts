@@ -78,6 +78,7 @@ export const BarChartConfigSchema = z.object({
   barPadding: z.number().min(0).max(1).default(0.1),
   groupPadding: z.number().min(0).max(1).default(0.05),
   cornerRadius: z.number().min(0).default(0),
+  showValues: z.boolean().default(false),
 });
 export type BarChartConfig = z.infer<typeof BarChartConfigSchema>;
 

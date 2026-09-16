@@ -251,9 +251,14 @@ export const getInsights = query({
       }
     }
     const aiByModel = [...byModel.values()].sort((a, b) => b.inputTokens - a.inputTokens);
-    const recentAi = [...aiInWindow]
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 15)
+    const recentAiCandidates = await ctx.db
+      .query('aiCalls')
+      .withIndex('by_created')
+      .order('desc')
+      .take(120);
+    const recentAi = recentAiCandidates
+      .filter((row) => row.createdAt >= windowStart)
+      .slice(0, 80)
       .map((row) => ({
         route: row.route,
         model: row.model,

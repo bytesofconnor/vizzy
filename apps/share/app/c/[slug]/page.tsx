@@ -13,7 +13,7 @@ type PageProps = {
 };
 
 export function generateStaticParams() {
-  return ['july', 'price', 'corners', 'tips', 'keep'].map((slug) => ({ slug }));
+  return ['reef', 'chips', 'ozone', 'tigers', 'vinyl'].map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

@@ -42,15 +42,26 @@ export function studioChart(
   const extraAxes = extra.axes as { x?: Record<string, unknown>; y?: Record<string, unknown> } | undefined;
   const extraDimensions = extra.dimensions as Record<string, unknown> | undefined;
   const extraA11y = extra.accessibility as { title?: string; description?: string } | undefined;
+  const extraColors = extra.colors as Record<string, unknown> | undefined;
+  const extraLegend = extra.legend as Record<string, unknown> | undefined;
   const rest = { ...extra };
   delete rest.axes;
   delete rest.dimensions;
   delete rest.accessibility;
+  delete rest.colors;
+  delete rest.legend;
   const xLabel = typeof extraAxes?.x?.label === 'string' ? extraAxes.x.label : undefined;
   const yLabel = typeof extraAxes?.y?.label === 'string' ? extraAxes.y.label : undefined;
   const resolvedChart =
-    chart.type === 'bar' && typeof (chart as { barPadding?: number }).barPadding !== 'number'
-      ? { ...chart, barPadding: 0.32 }
+    chart.type === 'bar'
+      ? {
+          ...chart,
+          barPadding:
+            typeof (chart as { barPadding?: number }).barPadding === 'number'
+              ? (chart as { barPadding?: number }).barPadding
+              : 0.32,
+          showValues: (chart as { showValues?: boolean }).showValues ?? true,
+        }
       : chart;
 
   return validateChartConfig({
@@ -76,13 +87,14 @@ export function studioChart(
       text: STUDIO.ink,
       grid: STUDIO.rule,
       palette: [STUDIO.ink, STUDIO.mid, STUDIO.wash],
+      ...extraColors,
     },
     animation: { enabled: false, duration: 0 },
     interaction: { hover: false, tooltip: false },
-    legend: { show: false },
+    legend: { show: false, ...extraLegend },
     axes: {
       x: { show: true, grid: false, ...extraAxes?.x },
-      y: { show: true, grid: true, gridOpacity: 0.65, tickCount: 3, ...extraAxes?.y },
+      y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 5, ...extraAxes?.y },
     },
     accessibility: {
       enabled: true,

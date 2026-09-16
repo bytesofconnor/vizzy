@@ -46,7 +46,11 @@ function withDom<T>(run: () => Promise<T>): Promise<T> {
   });
 }
 
-export async function renderPiecePng(piece: Piece, size: CardSize = 'md'): Promise<Buffer> {
+export async function renderPiecePng(
+  piece: Piece,
+  size: CardSize = 'md',
+  options?: { insight?: string }
+): Promise<Buffer> {
   const frame = chartFrame(size);
   const config = validateChartConfig({
     ...piece.config,
@@ -58,7 +62,7 @@ export async function renderPiecePng(piece: Piece, size: CardSize = 'md'): Promi
     },
   });
   const chartSvg = await withDom(() => renderToSVG(config, piece.data));
-  const card = composePieceSvg({ ...piece, config }, chartSvg, size);
+  const card = composePieceSvg({ ...piece, config }, chartSvg, size, options);
   const resvg = new Resvg(card, {
     fitTo: { mode: 'width', value: CARDS[size].width },
     background: STUDIO.paper,

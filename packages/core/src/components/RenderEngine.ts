@@ -1,5 +1,13 @@
 import * as d3 from 'd3';
-import { looksSequentialX, rotatedTickDepth, shortCategoryNames, ticksFit, type XTickRotate } from '../layout';
+import { formatDataValue } from '../format';
+import {
+  compactAxisLabel,
+  looksSequentialX,
+  rotatedTickDepth,
+  shortCategoryNames,
+  ticksFit,
+  type XTickRotate,
+} from '../layout';
 import { ChartConfig, RenderStrategy, VizzyError } from '../types';
 import { ScaleSystem, ScaleDimensions } from './ScaleManager';
 
@@ -53,23 +61,6 @@ function wrapBandName(name: string, maxChars: number): string[] {
     lines.push(current);
   }
   return lines.slice(0, 3);
-}
-
-function formatYTick(n: number, domain: [number, number]): string {
-  if (!Number.isFinite(n)) {
-    return '';
-  }
-  const yearAxis = domain[0] >= 1000 && domain[1] <= 2100 && domain[1] - domain[0] < 800;
-  if (yearAxis) {
-    return String(Math.round(n));
-  }
-  if (Math.abs(n) >= 10_000) {
-    return d3.format('~s')(n).replace('G', 'B');
-  }
-  if (Math.abs(n) >= 1000) {
-    return d3.format(',')(n);
-  }
-  return Number.isInteger(n) ? String(n) : d3.format('.1f')(n);
 }
 
 export class RenderEngine {
@@ -209,7 +200,7 @@ export class RenderEngine {
       const yAxis = d3.axisLeft(scales.y as any)
         .tickSize(0)
         .tickPadding(8)
-        .tickFormat((value) => formatYTick(Number(value), scales.y.domain() as [number, number]));
+        .tickFormat((value) => formatDataValue(Number(value), scales.y.domain() as [number, number]));
       
       if (config.axes.y.tickCount) {
         yAxis.ticks(config.axes.y.tickCount);
@@ -377,10 +368,14 @@ export class RenderEngine {
     const { svg, scales, dimensions, config } = this._context;
     const { margin } = config.dimensions;
 
-    // Create grid group
-    const gridGroup = svg.select('.grid-group').empty()
-      ? svg.insert('g', ':first-child').attr('class', 'grid-group')
-      : svg.select('.grid-group');
+    // Grid must sit above the full-bleed background rect but under marks and axes.
+    let gridGroup = svg.select('.grid-group');
+    if (gridGroup.empty()) {
+      const afterBg = svg.select('.vizzy-bg + *');
+      gridGroup = afterBg.empty()
+        ? svg.append('g').attr('class', 'grid-group')
+        : svg.insert('g', '.vizzy-bg + *').attr('class', 'grid-group');
+    }
 
     gridGroup.attr('transform', `translate(${margin.left}, ${margin.top})`);
 
@@ -395,10 +390,7 @@ export class RenderEngine {
         .tickSize(-dimensions.innerHeight)
         .tickFormat(() => '');
 
-      xGrid
-        .attr('transform', `translate(0, ${dimensions.innerHeight})`)
-        .style('opacity', config.axes.x.gridOpacity)
-        .style('color', config.colors.grid);
+      xGrid.attr('transform', `translate(0, ${dimensions.innerHeight})`);
 
       if (options.animate && config.animation.enabled) {
         xGrid
@@ -408,6 +400,10 @@ export class RenderEngine {
       } else {
         xGrid.call(xAxis as any);
       }
+
+      this._polishGridLines(xGrid, config.colors.grid, {
+        opacity: config.axes.x.gridOpacity,
+      });
     }
 
     // Y Grid
@@ -421,9 +417,9 @@ export class RenderEngine {
         .tickSize(-dimensions.innerWidth)
         .tickFormat(() => '');
 
-      yGrid
-        .style('opacity', config.axes.y.gridOpacity)
-        .style('color', config.colors.grid);
+      if (config.axes.y.tickCount) {
+        yAxis.ticks(config.axes.y.tickCount);
+      }
 
       if (options.animate && config.animation.enabled) {
         yGrid
@@ -434,13 +430,10 @@ export class RenderEngine {
         yGrid.call(yAxis as any);
       }
 
-      yGrid.select('.domain').attr('stroke', 'none');
-      yGrid.selectAll('.tick')
-        .filter((value) => Number(value) === 0)
-        .remove();
-      yGrid.selectAll('line')
-        .attr('stroke', config.colors.grid)
-        .attr('stroke-width', 1);
+      this._polishGridLines(yGrid, config.colors.grid, {
+        hideZero: true,
+        opacity: config.axes.y.gridOpacity,
+      });
     }
   }
 
@@ -483,16 +476,23 @@ export class RenderEngine {
     // Y Grid
     if (config.axes.y.grid) {
       context.globalAlpha = config.axes.y.gridOpacity;
+      context.setLineDash([2, 5]);
       const linearScale = scales.y as d3.ScaleLinear<number, number>;
-      const ticks = linearScale.ticks();
-      
+      const ticks = config.axes.y.tickCount
+        ? linearScale.ticks(config.axes.y.tickCount)
+        : linearScale.ticks();
+
       ticks.forEach(value => {
+        if (value === 0) {
+          return;
+        }
         const y = margin.top + linearScale(value);
         context.beginPath();
         context.moveTo(margin.left, y);
         context.lineTo(margin.left + dimensions.innerWidth, y);
         context.stroke();
       });
+      context.setLineDash([]);
     }
 
     context.restore();
@@ -510,8 +510,8 @@ export class RenderEngine {
       legendGroup = svg.append('g').attr('class', 'legend-group');
     }
 
-    // Calculate legend position
-    const legendX = this._calculateLegendX(dimensions, legend.position);
+    const legendOffsets = this._legendItemOffsets(legendData);
+    const legendX = this._calculateLegendX(dimensions, legend.position, legendData, legendOffsets.total);
     const legendY = this._calculateLegendY(dimensions, legend.position);
 
     legendGroup.attr('transform', `translate(${legendX}, ${legendY})`);
@@ -543,12 +543,11 @@ export class RenderEngine {
     const itemsUpdate = itemsEnter.merge(items as any);
 
     itemsUpdate
-      .attr('transform', (d, i) => {
+      .attr('transform', (_d, i) => {
         if (legend.orientation === 'horizontal') {
-          return `translate(${i * 100}, 0)`;
-        } else {
-          return `translate(0, ${i * (legend.symbolSize + legend.itemSpacing)})`;
+          return `translate(${legendOffsets.offsets[i] ?? 0}, 0)`;
         }
+        return `translate(0, ${i * (legend.symbolSize + legend.itemSpacing)})`;
       });
 
     itemsUpdate.select('.legend-symbol')
@@ -571,7 +570,8 @@ export class RenderEngine {
     context.font = '12px sans-serif';
     context.fillStyle = config.colors.text;
 
-    const legendX = this._calculateLegendX(dimensions, legend.position);
+    const legendOffsets = this._legendItemOffsets(legendData);
+    const legendX = this._calculateLegendX(dimensions, legend.position, legendData, legendOffsets.total);
     const legendY = this._calculateLegendY(dimensions, legend.position);
 
     legendData.forEach((item, i) => {
@@ -579,7 +579,7 @@ export class RenderEngine {
       let y = legendY;
 
       if (legend.orientation === 'horizontal') {
-        x += i * 100;
+        x += legendOffsets.offsets[i] ?? 0;
       } else {
         y += i * (legend.symbolSize + legend.itemSpacing);
       }
@@ -614,9 +614,9 @@ export class RenderEngine {
       const x = Number(/translate\(([-0-9.]+)/.exec(node.getAttribute('transform') ?? '')?.[1] ?? 0);
       return { node, name, x };
     });
-    const labels = shortCategoryNames(raw.map((item) => item.name));
+    const labels = shortCategoryNames(raw.map((item) => item.name)).map(compactAxisLabel);
     const items = raw.map((item, index) => {
-      const label = labels[index] ?? item.name;
+      const label = labels[index] ?? compactAxisLabel(item.name);
       return { ...item, label, width: Math.max(label.length * 6.6, 10) };
     });
 
@@ -641,9 +641,18 @@ export class RenderEngine {
     }
 
     const slot = 'bandwidth' in scale ? scale.bandwidth() + 10 : 80;
-    const rotate = !sequential && items.length > 6 && !ticksFit(items, keep)
-      ? (items.length > 12 || items.some((item) => item.label.length > 16) ? -65 : -40)
-      : 0;
+    const visibleItems = items.filter((_, index) => keep[index]);
+    let rotate: XTickRotate = 0;
+    if (!sequential && items.length >= 4 && !ticksFit(items, keep)) {
+      rotate = items.length > 12 || items.some((item) => item.label.length > 16) ? -65 : -40;
+    }
+    if (
+      rotate === 0 &&
+      visibleItems.length >= 4 &&
+      !ticksFit(visibleItems, visibleItems.map(() => true))
+    ) {
+      rotate = visibleItems.length > 8 ? -65 : -40;
+    }
 
     let tallest = 1;
     const longest = items.reduce((max, item) => Math.max(max, item.label.length), 0);
@@ -685,6 +694,27 @@ export class RenderEngine {
     return { rotate, titleY: tickDepth + 20 };
   }
 
+  private _polishGridLines(
+    group: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    stroke: string,
+    options: { hideZero?: boolean; opacity?: number } = {}
+  ): void {
+    const lineOpacity = Math.min(1, Math.max(0.12, options.opacity ?? 0.55));
+    group.select('.domain').attr('stroke', 'none');
+    group.style('opacity', null);
+    if (options.hideZero) {
+      group.selectAll('.tick')
+        .filter((value) => Number(value) === 0)
+        .remove();
+    }
+    group.selectAll('line')
+      .attr('stroke', stroke)
+      .attr('stroke-width', 1)
+      .attr('stroke-dasharray', '2 5')
+      .attr('stroke-opacity', lineOpacity)
+      .attr('shape-rendering', 'crispEdges');
+  }
+
   private _polishAxis(
     group: d3.Selection<d3.BaseType, unknown, null, undefined>,
     textColor: string,
@@ -702,9 +732,30 @@ export class RenderEngine {
         : 'var(--font-sans), Archivo, Helvetica, sans-serif');
   }
 
-  private _calculateLegendX(dimensions: ScaleDimensions, position: string): number {
+  private _legendItemOffsets(legendData: Array<{ label: string; color: string }>): {
+    offsets: number[];
+    total: number;
+  } {
+    const { legend } = this._config;
+    const offsets: number[] = [];
+    let cursor = 0;
+    legendData.forEach((item, index) => {
+      offsets.push(cursor);
+      const itemWidth = legend.symbolSize + 5 + item.label.length * 6.8;
+      cursor += itemWidth + (index < legendData.length - 1 ? legend.itemSpacing : 0);
+    });
+    return { offsets, total: cursor };
+  }
+
+  private _calculateLegendX(
+    dimensions: ScaleDimensions,
+    position: string,
+    legendData: Array<{ label: string; color: string }>,
+    legendWidth: number
+  ): number {
     const { margin } = this._config.dimensions;
-    
+    const { legend } = this._config;
+
     switch (position) {
       case 'left':
         return 10;
@@ -712,8 +763,12 @@ export class RenderEngine {
         return margin.left + dimensions.innerWidth + 20;
       case 'top':
       case 'bottom':
-      default:
+        if (legend.orientation === 'horizontal') {
+          return margin.left + Math.max(8, (dimensions.innerWidth - legendWidth) / 2);
+        }
         return margin.left + dimensions.innerWidth / 2;
+      default:
+        return margin.left + Math.max(8, (dimensions.innerWidth - legendWidth) / 2);
     }
   }
 

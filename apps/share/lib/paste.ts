@@ -4,7 +4,15 @@ import { hydrateToken } from './mint';
 
 type ConvexResult<T> = { status: 'success'; value: T } | { status: 'error'; errorMessage?: string };
 
-const TAKEN = new Set(['x', ...PIECES.map((piece) => piece.slug)]);
+const TAKEN = new Set([
+  'x',
+  'july',
+  'price',
+  'corners',
+  'tips',
+  'keep',
+  ...PIECES.map((piece) => piece.slug),
+]);
 
 function convexUrl(): string | undefined {
   return process.env.NEXT_PUBLIC_CONVEX_URL || process.env.CONVEX_URL;

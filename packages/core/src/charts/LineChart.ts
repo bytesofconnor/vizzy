@@ -4,6 +4,7 @@ import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
 import { DataProcessor, ProcessedData } from '../components/DataProcessor';
 import { forecastStartIndex } from '../forecast';
+import { formatDataValue, linePointLabelPlacement } from '../format';
 
 export class LineChart<TData extends DataPoint = DataPoint> {
   private _config: ChartConfig;
@@ -97,7 +98,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       : svg.select('.lines-group');
 
     linesGroup.attr('transform', `translate(${margin.left}, ${margin.top})`);
-    this._clipPlot(linesGroup as any, dimensions.innerWidth, dimensions.innerHeight);
+    this._clipPlot(linesGroup as any, dimensions.innerWidth, dimensions.innerHeight, 18);
 
     // Group data by color field if present
     const colorField = config.dataMapping.color;
@@ -106,8 +107,11 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       : [{ key: 'default', values: this._processedData.processed }];
 
     // Render each line group
-    for (const group of groupedData) {
-      await this._renderLineGroup(linesGroup as any, group, chartConfig);
+    for (let i = 0; i < groupedData.length; i += 1) {
+      const group = groupedData[i];
+      if (group) {
+        await this._renderLineGroup(linesGroup as any, group, chartConfig, i, groupedData.length);
+      }
     }
   }
 
@@ -131,7 +135,9 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   private async _renderLineGroup(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
     lineData: { key: string; values: TData[] },
-    chartConfig: any
+    chartConfig: { pointRadius?: number; curve?: string; area?: boolean; showPoints?: boolean; forecastFrom?: string | number },
+    seriesIndex: number,
+    seriesCount: number
   ): Promise<void> {
     const { dataMapping, colors, animation } = this._config;
     
@@ -194,9 +200,21 @@ export class LineChart<TData extends DataPoint = DataPoint> {
 
     const inflection = cut < 0 ? this._findInflection(published) : null;
     if (inflection) {
-      this._renderInflection(group, inflection, lineColor);
+      this._renderInflection(group, inflection, lineColor, published);
     }
-    this._renderEndCap(group, { ...lineData, values: published }, lineColor, chartConfig, !inflection && cut < 0);
+    const showEndLabel =
+      !inflection &&
+      cut < 0 &&
+      (seriesCount === 1 || !this._config.legend.show);
+    this._renderEndCap(
+      group,
+      { ...lineData, values: published },
+      lineColor,
+      chartConfig,
+      showEndLabel,
+      seriesIndex,
+      seriesCount
+    );
 
     const linePath = group.select(`.line-${lineData.key}`);
     if (this._config.interaction.hover && !linePath.empty()) {
@@ -360,7 +378,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   private _clipPlot(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
     width: number,
-    height: number
+    height: number,
+    inset = 0
   ): void {
     const svgEl = group.node()?.ownerSVGElement;
     if (!svgEl) {
@@ -378,10 +397,10 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       clip.append('rect');
     }
     clip.select('rect')
-      .attr('x', 0)
-      .attr('y', 0)
-      .attr('width', width)
-      .attr('height', height);
+      .attr('x', -inset)
+      .attr('y', -inset)
+      .attr('width', width + inset * 2)
+      .attr('height', height + inset * 2);
     group.attr('clip-path', `url(#${clipId})`);
   }
 
@@ -467,7 +486,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   private _renderInflection(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
     beat: TData,
-    color: string
+    color: string,
+    seriesValues: TData[]
   ): void {
     const scales = this._scaleManager.getScales();
     if (!scales) {
@@ -478,7 +498,10 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     const x = this._scaleManager.getXValue(beat[dataMapping.x]);
     const y = this._scaleManager.getYValue(beat[dataMapping.y]);
     const y0 = this._plotFloor();
-    const yTop = Math.min(...(scales.y.range() as number[]));
+    const yRange = scales.y.range() as number[];
+    const plotTop = Math.min(...yRange);
+    const plotBottom = Math.max(...yRange);
+    const yTop = plotTop;
 
     group.selectAll('.inflection-rule').data([beat]).join('line')
       .attr('class', 'inflection-rule')
@@ -498,15 +521,44 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       .attr('fill', color)
       .attr('stroke', 'none');
 
+    const beatIndex = seriesValues.findIndex((row) => row === beat);
+    const prevRow = beatIndex > 0 ? seriesValues[beatIndex - 1] : undefined;
+    const prevY =
+      prevRow !== undefined ? this._scaleManager.getYValue(prevRow[dataMapping.y]) : null;
+    const placement = linePointLabelPlacement({ x, y, prevY, plotTop, plotBottom });
+    const domain = (scales?.y.domain() ?? [0, 1]) as [number, number];
+
     group.selectAll('.inflection-label').data([beat]).join('text')
       .attr('class', 'inflection-label')
-      .attr('x', x)
-      .attr('y', y - 12)
-      .attr('text-anchor', 'middle')
+      .attr('x', placement.x)
+      .attr('y', placement.y)
+      .attr('text-anchor', placement.textAnchor)
+      .attr('dominant-baseline', placement.dominantBaseline)
       .attr('fill', colors.text)
-      .style('font-size', '12px')
+      .call((sel) => this._styleValueLabel(sel))
+      .text(formatDataValue(Number(beat[dataMapping.y]), domain));
+  }
+
+  private _styleValueLabel(
+    selection: d3.Selection<SVGTextElement, unknown, null, undefined>
+  ): void {
+    selection
+      .style('font-size', '10px')
       .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
-      .text(String(beat[dataMapping.y]));
+      .style('opacity', '0.72')
+      .style('paint-order', 'stroke fill')
+      .style('stroke', this._config.colors.background)
+      .style('stroke-width', '3px')
+      .style('stroke-linejoin', 'round');
+  }
+
+  private _plotYBounds(): { plotTop: number; plotBottom: number } {
+    const scales = this._scaleManager.getScales();
+    const yRange = (scales?.y.range() ?? [0, 0]) as number[];
+    return {
+      plotTop: Math.min(...yRange),
+      plotBottom: Math.max(...yRange),
+    };
   }
 
   private _renderEndCap(
@@ -514,7 +566,9 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     lineData: { key: string; values: TData[] },
     color: string,
     chartConfig: { pointRadius?: number },
-    withLabel: boolean
+    withLabel: boolean,
+    seriesIndex: number,
+    seriesCount: number
   ): void {
     const last = lineData.values[lineData.values.length - 1];
     if (!last) {
@@ -524,7 +578,11 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     const { dataMapping } = this._config;
     const x = this._scaleManager.getXValue(last[dataMapping.x]);
     const y = this._scaleManager.getYValue(last[dataMapping.y]);
-    const value = last[dataMapping.y];
+    const prev = lineData.values.length >= 2 ? lineData.values[lineData.values.length - 2] : null;
+    const prevY = prev ? this._scaleManager.getYValue(prev[dataMapping.y]) : null;
+    const { plotTop, plotBottom } = this._plotYBounds();
+    const scales = this._scaleManager.getScales();
+    const domain = (scales?.y.domain() ?? [0, 1]) as [number, number];
 
     group.selectAll(`.end-cap-${lineData.key}`).data([last]).join('circle')
       .attr('class', `end-cap end-cap-${lineData.key}`)
@@ -536,15 +594,29 @@ export class LineChart<TData extends DataPoint = DataPoint> {
 
     const labels = group.selectAll(`.end-label-${lineData.key}`).data(withLabel ? [last] : []);
     labels.exit().remove();
+    if (!withLabel) {
+      return;
+    }
+
+    const placement = linePointLabelPlacement({
+      x,
+      y,
+      prevY,
+      plotTop,
+      plotBottom,
+      seriesIndex,
+      seriesCount,
+    });
+
     labels.join('text')
       .attr('class', `end-label end-label-${lineData.key}`)
-      .attr('x', x)
-      .attr('y', y - 11)
-      .attr('text-anchor', 'middle')
+      .attr('x', placement.x)
+      .attr('y', placement.y)
+      .attr('text-anchor', placement.textAnchor)
+      .attr('dominant-baseline', placement.dominantBaseline)
       .attr('fill', this._config.colors.text)
-      .style('font-size', '12px')
-      .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
-      .text(String(value));
+      .call((sel) => this._styleValueLabel(sel))
+      .text(formatDataValue(Number(last[dataMapping.y]), domain));
   }
 
   private _getCurveFunction(curveType: string): d3.CurveFactory {

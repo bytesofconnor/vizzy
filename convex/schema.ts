@@ -64,4 +64,16 @@ export default defineSchema({
     outputTokens: v.number(),
     createdAt: v.number(),
   }).index('by_created', ['createdAt']),
+
+  connections: defineTable({
+    walletId: v.id('wallets'),
+    connectorId: v.string(),
+    status: v.union(v.literal('active'), v.literal('revoked'), v.literal('error')),
+    secrets: v.string(),
+    label: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_wallet', ['walletId'])
+    .index('by_wallet_connector', ['walletId', 'connectorId']),
 });

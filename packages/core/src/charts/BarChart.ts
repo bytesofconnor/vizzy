@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { formatDataValue } from '../format';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
@@ -178,6 +179,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     }
 
     this._drawBaseline(group);
+    this._renderBarLabels(group, data);
   }
 
   private async _renderGroupedBars(
@@ -198,6 +200,55 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     // This would involve stacking values and calculating cumulative heights
     // For now, fall back to single bars
     await this._renderSingleBars(group, data);
+  }
+
+  private _renderBarLabels(
+    group: d3.Selection<SVGGElement, unknown, null, undefined>,
+    data: TData[]
+  ): void {
+    const chartConfig = this._config.chart as { showValues?: boolean; orientation?: string };
+    if (!chartConfig.showValues || chartConfig.orientation === 'horizontal' || data.length > 14) {
+      group.selectAll('.bar-label').remove();
+      return;
+    }
+
+    const scales = this._scaleManager.getScales();
+    if (!scales) {
+      return;
+    }
+
+    const { dataMapping, colors } = this._config;
+    const domain = scales.y.domain() as [number, number];
+    const labels = group.selectAll<SVGTextElement, TData>('.bar-label')
+      .data(data, (d) => String(d[dataMapping.x]));
+
+    labels.exit().remove();
+
+    const merged = labels.enter()
+      .append('text')
+      .attr('class', 'bar-label')
+      .merge(labels);
+
+    merged
+      .attr('x', (d) => this._scaleManager.getXValue(d[dataMapping.x]))
+      .attr('y', (d) => {
+        const height = this._barHeight(d[dataMapping.y]);
+        if (height < 12) {
+          return this._scaleManager.getYValue(d[dataMapping.y]) - 4;
+        }
+        return this._scaleManager.getYValue(d[dataMapping.y]) - 6;
+      })
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'auto')
+      .style('fill', colors.text)
+      .style('opacity', (d) => (this._barHeight(d[dataMapping.y]) >= 12 ? 0.72 : 0))
+      .style('font-size', '10px')
+      .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
+      .style('paint-order', 'stroke fill')
+      .style('stroke', colors.background)
+      .style('stroke-width', '3px')
+      .style('stroke-linejoin', 'round')
+      .text((d) => formatDataValue(Number(d[dataMapping.y]), domain));
   }
 
   private _drawBaseline(

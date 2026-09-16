@@ -43,8 +43,12 @@ function gatewayAuthToken(): string | undefined {
   return undefined;
 }
 
-function gatewayConfigured(): boolean {
+export function isAiGatewayConfigured(): boolean {
   return Boolean(gatewayAuthToken());
+}
+
+function gatewayConfigured(): boolean {
+  return isAiGatewayConfigured();
 }
 
 async function gatewayFetch(path: string, auth: boolean): Promise<Response> {
