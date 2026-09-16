@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { signedInNav } from '../../../lib/billing';
 import { CARD } from '../../../lib/compose';
 import { loadPaste } from '../../../lib/paste';
-import { pieceBySlug } from '../../../lib/pieces';
+import { PIECES, pieceBySlug } from '../../../lib/pieces';
 import { siteUrl } from '../../../lib/site';
 import { JsonLd } from '../../components/JsonLd';
 import { Studio } from '../../components/Studio';
@@ -13,7 +13,7 @@ type PageProps = {
 };
 
 export function generateStaticParams() {
-  return ['reef', 'chips', 'ozone', 'tigers', 'vinyl'].map((slug) => ({ slug }));
+  return PIECES.map((piece) => ({ slug: piece.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

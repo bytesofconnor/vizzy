@@ -47,7 +47,7 @@ const DefaultLoadingComponent: React.FC = () => (
       alignItems: 'center',
       justifyContent: 'center',
       height: '100%',
-      color: '#6b7280',
+      color: '#534f48',
       fontSize: '14px',
     }}
   >

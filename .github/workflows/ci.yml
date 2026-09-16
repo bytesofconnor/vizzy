@@ -48,8 +48,8 @@ jobs:
       - run: npm run build --workspace=@vizzy/core --workspace=@vizzy/eval
       - run: node apps/eval/dist/cli.js run --publish
         env:
-          CONVEX_URL: ${{ secrets.CONVEX_URL }}
-          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+          CONVEX_URL: ${{ secrets.CONVEX_PROD_URL }}
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.CONVEX_PROD_URL }}
           COMPOSE_SERVER_SECRET: ${{ secrets.COMPOSE_SERVER_SECRET }}
 
   e2e:

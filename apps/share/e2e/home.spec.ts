@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { PIECES } from '../lib/pieces';
 
 test('install and share images exist', async ({ request }) => {
   const manifest = await request.get('/manifest.webmanifest');
@@ -43,7 +44,7 @@ test('agents can find the contract', async ({ request }) => {
   const sitemap = await request.get('/sitemap.xml');
   expect(sitemap.ok()).toBeTruthy();
   const map = await sitemap.text();
-  expect(map).toContain('/c/july');
+  expect(map).toContain(`/c/${PIECES[0].slug}`);
   expect(map).toContain('/llms.txt');
   expect(map).toContain('/agents');
   expect(map).toContain('/openapi.json');

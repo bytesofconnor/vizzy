@@ -4,7 +4,7 @@ Mechanical chart eval. Isolated from Next and billing.
 
 **Grid:** 6 prompt styles × 4 data situations = 24 cells, × 2 models × 2 seeds = 96 drafts. No compose API. No schedule.
 
-**CI:** tests on every PR and push to `main`. On push to `main` after `check` passes, `vizzy-eval run --publish` writes the summary to Convex. `/admin` reads the latest run.
+**CI:** tests on every PR and push to `main`. On push to `main` after `check` passes, `vizzy-eval run --publish` writes to **prod** Convex (`CONVEX_PROD_URL`). `/admin` on vizzy.run reads that deployment. E2e keeps using the dev `CONVEX_URL`.
 
 **CLI**
 

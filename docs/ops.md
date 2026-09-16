@@ -48,7 +48,8 @@ Same names, different places. After a value changes, update every column that ha
 | --- | --- | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | yes | | prod: `https://vizzy.run` or the Vercel URL | CI sets `http://127.0.0.1:3456` | |
 | `NEXT_PUBLIC_CONVEX_URL` | yes | | yes | secret | Dev: `https://beloved-fennec-81.convex.cloud`. Prod: `https://impartial-ostrich-883.convex.cloud`. |
-| `CONVEX_URL` | yes | | optional | secret | Same as Convex URL. Root `.env.local` also has this for the CLI. |
+| `CONVEX_URL` | yes | | optional | secret | Same as Convex URL. Root `.env.local` also has this for the CLI. CI e2e uses this (dev). |
+| `CONVEX_PROD_URL` | | | | secret | Prod Convex for the `eval` job: `https://impartial-ostrich-883.convex.cloud`. |
 | `CONVEX_DEPLOYMENT` | | | | | Root `.env.local` only. `dev:beloved-fennec-81`. |
 | `COMPOSE_SERVER_SECRET` | yes | **yes** | yes | secret | Must match on Next and Convex. |
 | `COMPOSE_SALT` | yes | | yes | | Cookie / IP hashing. |
@@ -62,7 +63,7 @@ Same names, different places. After a value changes, update every column that ha
 | `RESEND_FROM` | when email works | | yes | | |
 | `AI_GATEWAY_API_KEY` | optional | | yes | | Admin `/admin` reads gateway credit balance and model catalog rates. Vercel → AI Gateway → API keys. |
 
-GitHub Actions **probe** (home + axe, no secrets) runs on pull requests. Full e2e including Stripe/Convex runs on **push to `main`**.
+GitHub Actions **probe** (home + axe, no secrets) runs on pull requests. Full e2e including Stripe/Convex runs on **push to `main`**. Owner unlimited skips unless `E2E_OWNER_EMAIL` has a wallet on the CI Convex. Example-chart checks use the first slug in `PIECES` (`/c/reef`).
 
 ```bash
 npm test          # core / react / mcp
