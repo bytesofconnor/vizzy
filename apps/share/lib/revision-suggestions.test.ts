@@ -45,4 +45,14 @@ describe('heuristicRevisionPrompts', () => {
     const lower = prompts.map((line) => line.toLowerCase());
     expect(new Set(lower).size).toBe(lower.length);
   });
+
+  it('offers print grayscale when the chart is still in color', () => {
+    const prompts = heuristicRevisionPrompts(barSeed);
+    expect(prompts.some((line) => /grayscale for print/i.test(line))).toBe(true);
+  });
+
+  it('skips print grayscale when already applied', () => {
+    const prompts = heuristicRevisionPrompts({ ...barSeed, printGrayscale: true });
+    expect(prompts.some((line) => /grayscale for print/i.test(line))).toBe(false);
+  });
 });

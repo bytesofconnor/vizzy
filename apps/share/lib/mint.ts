@@ -8,6 +8,7 @@ import {
 import { decodePortableDraft, encodePortableDraft, type PortableDraft } from './portable';
 import type { Piece } from './pieces';
 import { cleanSourceLabel } from './source';
+import { applyPrintGrayscale } from './print-grayscale';
 import { DUST, studioChart } from './theme';
 
 const MAX_ROWS = 80;
@@ -19,6 +20,7 @@ export interface MintInput {
   config?: unknown;
   data?: unknown;
   source?: unknown;
+  printGrayscale?: boolean;
 }
 
 export type MintResult =
@@ -84,6 +86,9 @@ export function mintPiece(input: MintInput): MintResult {
   let studio = studioChart(checked.config.chart, checked.config.dataMapping, extras);
   let rows = data as DataPoint[];
   ({ config: studio, data: rows } = withDust(studio, rows));
+  if (input.printGrayscale) {
+    ({ config: studio, data: rows } = applyPrintGrayscale(studio, rows));
+  }
 
   const draft: PortableDraft = {
     kicker: cleanText(input.kicker, 80) || 'Chart',
@@ -93,6 +98,7 @@ export function mintPiece(input: MintInput): MintResult {
     mapping: studio.dataMapping,
     source: studio.source,
     data: rows,
+    ...(input.printGrayscale ? { printGrayscale: true } : {}),
   };
 
   if (
@@ -122,13 +128,20 @@ function pieceFromDraft(draft: PortableDraft, slug: string): Piece {
     extras.axes = draft.axes;
   }
 
+  let config = studioChart(draft.chart, draft.mapping, extras);
+  let data = draft.data;
+  if (draft.printGrayscale) {
+    ({ config, data } = applyPrintGrayscale(config, data));
+  }
+
   return {
     slug,
     kicker: draft.kicker,
     title: draft.title,
     note: draft.note,
-    config: studioChart(draft.chart, draft.mapping, extras),
-    data: draft.data,
+    printGrayscale: draft.printGrayscale,
+    config,
+    data,
   };
 }
 

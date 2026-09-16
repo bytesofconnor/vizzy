@@ -1,3 +1,4 @@
+import type { MintInput } from './mint';
 import type { Piece } from './pieces';
 
 export type ChartSeed = {
@@ -12,6 +13,7 @@ export type ChartSeed = {
   sourceMethod: 'official' | 'export' | 'scraped' | 'estimate' | 'manual' | 'example' | 'unknown';
   evidence: string;
   sourceUrl?: string;
+  printGrayscale?: boolean;
   rows: Array<{ x: string | number; y: number }>;
 };
 
@@ -44,7 +46,36 @@ export function seedFromPiece(piece: Piece): ChartSeed {
     sourceMethod: method,
     evidence: source?.evidence ?? '',
     sourceUrl: source?.url,
+    printGrayscale: piece.printGrayscale ?? false,
     rows,
+  };
+}
+
+export function mintInputFromSeed(seed: ChartSeed, overrides?: { printGrayscale?: boolean }): MintInput {
+  return {
+    title: seed.title,
+    kicker: seed.kicker,
+    note: seed.note,
+    data: seed.rows.map((row) => ({ x: row.x, y: row.y })),
+    source: {
+      label: seed.sourceLabel,
+      method: seed.sourceMethod,
+      evidence: seed.evidence,
+      ...(seed.sourceUrl ? { url: seed.sourceUrl } : {}),
+    },
+    config: {
+      chart: {
+        type: seed.chartType,
+        ...(seed.chartType === 'bar' ? { barPadding: 0.32 } : {}),
+        ...(seed.chartType === 'line' && seed.area ? { area: true, curve: 'linear' } : {}),
+      },
+      dataMapping: { x: 'x', y: 'y' },
+      axes: {
+        x: { show: true, grid: false, label: seed.xLabel },
+        y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 5, label: seed.yLabel },
+      },
+    },
+    printGrayscale: overrides?.printGrayscale ?? seed.printGrayscale,
   };
 }
 
@@ -90,6 +121,7 @@ export function parseChartSeed(value: unknown): ChartSeed | undefined {
     sourceMethod: method,
     evidence: typeof raw.evidence === 'string' ? raw.evidence.slice(0, 160) : '',
     sourceUrl: typeof raw.sourceUrl === 'string' && /^https?:\/\//.test(raw.sourceUrl) ? raw.sourceUrl : undefined,
+    printGrayscale: raw.printGrayscale === true,
     rows: rows.slice(0, 24),
   };
 }

@@ -43,6 +43,10 @@ export function heuristicRevisionPrompts(seed: ChartSeed): string[] {
   const bottom = sorted[sorted.length - 1];
   const prompts: string[] = [];
 
+  if (!seed.printGrayscale) {
+    prompts.push('Make it grayscale for print.');
+  }
+
   if (seed.chartType === 'bar') {
     if (rows.length > 4) {
       prompts.push(`Sort by ${yWord(seed)}. Drop the bottom three.`);

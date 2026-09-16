@@ -34,6 +34,30 @@ export const DUST_MID = [
   '#726168',
 ] as const;
 
+/** Ink-to-paper ramp for newsletters and print PDFs — no hue. */
+export const PRINT_PALETTE = [
+  STUDIO.ink,
+  '#3a3834',
+  STUDIO.mid,
+  '#7a7770',
+  STUDIO.wash,
+  '#a8a59c',
+  STUDIO.rule,
+  STUDIO.haze,
+] as const;
+
+export function printColorScheme() {
+  return {
+    primary: STUDIO.ink,
+    secondary: STUDIO.haze,
+    accent: STUDIO.ink,
+    background: STUDIO.paper,
+    text: STUDIO.ink,
+    grid: '#b8b5ad',
+    palette: [...PRINT_PALETTE],
+  };
+}
+
 export function studioChart(
   chart: { type: ChartConfig['chart']['type'] } & Record<string, unknown>,
   mapping: ChartConfig['dataMapping'],

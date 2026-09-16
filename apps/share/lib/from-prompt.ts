@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { forecastStartIndex } from '@vizzy/core';
 import { countedSeriesRows, gatherFacts, pastedATable } from './lookup';
 import { mintPiece, type MintResult } from './mint';
-import { followUpNeedsLookup, seedBriefing, type ChartSeed } from './seed';
+import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
+import { followUpNeedsLookup, mintInputFromSeed, seedBriefing, type ChartSeed } from './seed';
 import { COMPOSE_MODELS } from './ai-models';
 import { logAiFromResult } from './ai-usage';
 import { mostlyGenericPlaceholders, relabelGenericCategories } from './category-labels';
@@ -87,6 +88,15 @@ export async function pieceFromPrompt(
     progress: 10,
     message: from ? 'Reading your revision…' : 'Reading your prompt…',
   });
+
+  if (from && isGrayscaleOnlyRevision(asked)) {
+    reportProgress(onProgress, {
+      stage: 'mint',
+      progress: 86,
+      message: 'Switching to print grayscale…',
+    });
+    return mintPiece(mintInputFromSeed(from, { printGrayscale: true }));
+  }
 
   const lookup = !from || followUpNeedsLookup(asked);
   let gathered = { notes: '', urls: [] as string[] };
@@ -316,6 +326,7 @@ function mintDraft(
     note: output.note,
     data: rows,
     source,
+    printGrayscale: wantsPrintGrayscale(asked),
     config: {
       chart: {
         type: output.chartType,

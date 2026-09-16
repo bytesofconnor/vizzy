@@ -9,6 +9,7 @@ export interface PortableDraft {
   mapping: { x: string; y: string; color?: string; size?: string; group?: string };
   source?: Source;
   axes?: unknown;
+  printGrayscale?: boolean;
   data: DataPoint[];
 }
 

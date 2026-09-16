@@ -7,6 +7,7 @@ export interface Piece {
   title: string;
   note: string;
   insight?: string;
+  printGrayscale?: boolean;
   config: ChartConfig;
   data: DataPoint[];
 }
