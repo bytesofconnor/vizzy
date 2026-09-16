@@ -2,58 +2,40 @@
 /* eslint-disable no-console */
 
 import { Command } from 'commander';
-import { aggregateRun } from './aggregate';
 import { cannedRun } from './canned';
-import { EVAL_GRID } from './grid';
+import { payloadFromRun } from './payload';
+import { publishPayload } from './publish';
 import { formatReportText, reportFromRun } from './report';
 
 const program = new Command();
 
 program
   .name('vizzy-eval')
-  .description('Vizzy chart eval lab — grid, mechanical scores, admin recs. Offline by default.')
+  .description('Score the canned chart grid. Publish a summary to Convex with --publish.')
   .version('0.1.0');
 
 program
-  .command('grid')
-  .description('Print the 24 prompt cells (style × data situation)')
-  .action(() => {
-    console.log(JSON.stringify(EVAL_GRID, null, 2));
-  });
-
-program
   .command('run')
-  .description('Score the canned batch (2 models × 2 seeds × 24 prompts). No network.')
-  .option('--json', 'Print the full report JSON')
-  .action((opts: { json?: boolean }) => {
+  .description('24 prompts × 2 models × 2 seeds. No compose API.')
+  .option('--json', 'Print the Convex payload')
+  .option('--publish', 'Write the payload to Convex (CONVEX_URL + COMPOSE_SERVER_SECRET)')
+  .action(async (opts: { json?: boolean; publish?: boolean }) => {
     const run = cannedRun();
-    const report = reportFromRun(run);
+    const payload = payloadFromRun(run);
+    if (opts.publish) {
+      await publishPayload(payload);
+    }
     if (opts.json) {
-      console.log(JSON.stringify({ report, stats: aggregateRun(run) }, null, 2));
+      console.log(JSON.stringify(payload, null, 2));
       return;
     }
-    console.log(formatReportText(report));
+    console.log(formatReportText(reportFromRun(run)));
+    if (opts.publish) {
+      console.log('\nRecorded in Convex.');
+    }
   });
 
-program
-  .command('cases')
-  .description('List failing canned cases')
-  .action(() => {
-    const run = cannedRun();
-    const fails = run.cases.filter((row) => !row.pass);
-    console.log(
-      JSON.stringify(
-        fails.map((row) => ({
-          promptId: row.promptId,
-          model: row.model,
-          seed: row.seed,
-          issues: row.issues.map((issue) => issue.code),
-          prompt: row.prompt.prompt,
-        })),
-        null,
-        2
-      )
-    );
-  });
-
-program.parse();
+program.parseAsync().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});

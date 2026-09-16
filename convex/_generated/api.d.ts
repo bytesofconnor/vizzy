@@ -11,6 +11,7 @@
 import type * as billing from "../billing.js";
 import type * as charts from "../charts.js";
 import type * as connections from "../connections.js";
+import type * as eval from "../eval.js";
 import type * as pastes from "../pastes.js";
 import type * as telemetry from "../telemetry.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   billing: typeof billing;
   charts: typeof charts;
   connections: typeof connections;
+  eval: typeof eval;
   pastes: typeof pastes;
   telemetry: typeof telemetry;
 }>;

@@ -7,7 +7,9 @@ import {
 } from '../../lib/ai-gateway';
 import { STACK_MODELS } from '../../lib/ai-models';
 import { readWalletToken, signedInNav } from '../../lib/billing';
+import { getLatestEval } from '../../lib/eval';
 import { getAdminInsights, type AdminInsights } from '../../lib/telemetry';
+import { AdminEval } from '../components/AdminEval';
 import { AdminModelCatalog } from '../components/AdminModelCatalog';
 import { AdminRecentAiCalls } from '../components/AdminRecentAiCalls';
 import { AdminRecentSavedCharts } from '../components/AdminRecentSavedCharts';
@@ -38,9 +40,10 @@ const body = {
 
 export default async function AdminPage() {
   const token = await readWalletToken();
-  const [insights, gateway] = await Promise.all([
+  const [insights, gateway, evalRun] = await Promise.all([
     token ? getAdminInsights(token) : Promise.resolve(null),
     fetchGatewayStatus(),
+    getLatestEval(),
   ]);
   if (!insights) {
     notFound();
@@ -167,6 +170,7 @@ export default async function AdminPage() {
           </p>
         </section>
       )}
+      <AdminEval run={evalRun} />
       <AdminRecentAiCalls rows={insights.recentAi} />
       <AdminRecentSavedCharts rows={insights.recentSaved} />
       <section style={{ marginTop: 36, maxWidth: 540 }}>

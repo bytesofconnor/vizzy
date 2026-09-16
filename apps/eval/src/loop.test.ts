@@ -3,6 +3,7 @@ import { aggregateRun } from './aggregate';
 import { cannedRun, CHALLENGER_MODEL, DEFAULT_MODEL, draftFor } from './canned';
 import { runComposeBatch } from './compose';
 import { EVAL_GRID } from './grid';
+import { payloadFromRun } from './payload';
 import { recommendFromRun } from './recommend';
 import { formatReportText, reportFromRun } from './report';
 
@@ -69,6 +70,17 @@ describe('report', () => {
     expect(text).toContain('By style');
     expect(text).toContain('Recommendations');
     expect(text).toContain('do not auto-merge');
+  });
+});
+
+describe('payload', () => {
+  it('is a bounded Convex document, not 96 full drafts', () => {
+    const payload = payloadFromRun(cannedRun());
+    expect(payload.n).toBe(96);
+    expect(payload.fails.length).toBeGreaterThan(0);
+    expect(payload.fails.length).toBeLessThanOrEqual(40);
+    expect(payload.recs.length).toBeGreaterThan(0);
+    expect(payload.fails[0]?.issues.length).toBeGreaterThan(0);
   });
 });
 

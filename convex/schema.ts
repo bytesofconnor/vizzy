@@ -76,4 +76,48 @@ export default defineSchema({
   })
     .index('by_wallet', ['walletId'])
     .index('by_wallet_connector', ['walletId', 'connectorId']),
+
+  evalRuns: defineTable({
+    runId: v.string(),
+    kind: v.string(),
+    models: v.array(v.string()),
+    repeats: v.number(),
+    n: v.number(),
+    passed: v.number(),
+    rate: v.number(),
+    byStyle: v.array(
+      v.object({ key: v.string(), n: v.number(), passed: v.number(), rate: v.number() })
+    ),
+    bySituation: v.array(
+      v.object({ key: v.string(), n: v.number(), passed: v.number(), rate: v.number() })
+    ),
+    byModel: v.array(
+      v.object({ key: v.string(), n: v.number(), passed: v.number(), rate: v.number() })
+    ),
+    byDomain: v.array(
+      v.object({ key: v.string(), n: v.number(), passed: v.number(), rate: v.number() })
+    ),
+    byIssue: v.array(v.object({ code: v.string(), n: v.number() })),
+    brittle: v.array(v.object({ promptId: v.string(), model: v.string() })),
+    recs: v.array(
+      v.object({
+        id: v.string(),
+        kind: v.string(),
+        claim: v.string(),
+        evidence: v.string(),
+        examplePromptIds: v.array(v.string()),
+        suggestedChange: v.string(),
+      })
+    ),
+    fails: v.array(
+      v.object({
+        promptId: v.string(),
+        model: v.string(),
+        seed: v.number(),
+        issues: v.array(v.string()),
+        prompt: v.string(),
+      })
+    ),
+    createdAt: v.number(),
+  }).index('by_created', ['createdAt']),
 });

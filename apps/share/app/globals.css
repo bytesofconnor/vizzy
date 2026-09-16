@@ -2004,6 +2004,20 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
   text-decoration-color: var(--ink);
 }
 
+.admin-eval-recs {
+  margin-top: 16px;
+}
+
+.admin-eval-recs ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+}
+
+.admin-eval-recs li + li {
+  margin-top: 12px;
+}
+
 .admin-log-empty {
   margin: 10px 0 0;
   font-size: 15px;
