@@ -41,6 +41,7 @@ Mint: `POST /api/publish` with `{ title, data, config?, source? }`. Compose and 
 | Package | Role |
 |---|---|
 | `apps/share` | The product — page, PNG, mint |
+| `@vizzy/eval` | Offline chart eval lab (prompt grid, scores, recs) |
 | `@vizzy/mcp` | Pipe for any MCP client |
 | `@vizzy/core` | Schema, validate, draw the SVG |
 | `@vizzy/react` | `<VizzyChart config data />` on a live page |
@@ -51,6 +52,7 @@ Supported types: **bar**, **line**, **scatter**. Line charts may set `area: true
 
 ```bash
 npm test
+npm run eval
 npm run test:e2e
 npm run type-check
 ```

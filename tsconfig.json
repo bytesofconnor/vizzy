@@ -15,7 +15,8 @@
     "paths": {
       "@vizzy/core": ["./packages/core/src"],
       "@vizzy/react": ["./packages/react/src"],
-      "@vizzy/mcp": ["./apps/mcp/src"]
+      "@vizzy/mcp": ["./apps/mcp/src"],
+      "@vizzy/eval": ["./apps/eval/src"]
     }
   },
   "exclude": ["node_modules", "dist"]
