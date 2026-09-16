@@ -2,9 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
-
-export const ADMIN_VIEWS = ['meter', 'eval', 'log'] as const;
-export type AdminView = (typeof ADMIN_VIEWS)[number];
+import { ADMIN_VIEWS, type AdminView } from '../../lib/admin-view';
 
 const COPY: Record<AdminView, { title: string; lede: string; label: string }> = {
   meter: {
@@ -24,10 +22,6 @@ const COPY: Record<AdminView, { title: string; lede: string; label: string }> = 
     lede: 'Recent AI calls, saved charts, and site taps.',
   },
 };
-
-export function parseAdminView(value: string | undefined): AdminView {
-  return ADMIN_VIEWS.includes(value as AdminView) ? (value as AdminView) : 'meter';
-}
 
 export function AdminDesk({
   view: initial,
