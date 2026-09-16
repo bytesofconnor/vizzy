@@ -92,6 +92,13 @@ export async function listRecentCharts(
 
 export type AdminInsights = {
   people: number;
+  users: Array<{
+    email: string;
+    vias: Array<'google' | 'checkout'>;
+    credits: number;
+    owner: boolean;
+    createdAt: number;
+  }>;
   meterDraws: number;
   savedFromPrompt: number;
   savedFromPublish: number;

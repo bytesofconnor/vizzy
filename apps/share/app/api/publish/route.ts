@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     slot = await consumeSlot(request);
   } catch (error) {
     console.error('publish quota failed', error);
-    return Response.json({ ok: false, error: 'Could not draw that. Try again in a moment.', issues: [] }, { status: 500 });
+    return Response.json({ ok: false, error: 'Could not generate that chart. Try again in a moment.', issues: [] }, { status: 500 });
   }
 
   if (!slot.ok) {

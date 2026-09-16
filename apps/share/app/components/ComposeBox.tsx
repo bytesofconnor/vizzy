@@ -114,13 +114,13 @@ export function ComposeBox({
       const message =
         typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
           ? body.error
-          : 'Could not draw that';
+          : 'Could not generate that chart';
       setFail(message);
       if (response.status === 402 || (typeof body === 'object' && body !== null && 'pay' in body && body.pay === true)) {
         setPay(true);
       }
     } catch {
-      setFail('Could not draw that');
+      setFail('Could not generate that chart');
     }
 
     setBusy(false);
@@ -179,7 +179,7 @@ export function ComposeBox({
             marginBottom: 10,
           }}
         >
-          {seed ? 'Try another pass' : 'Make one'}
+          {seed ? 'Revise it' : 'Make one'}
         </label>
         <textarea
           id={seed ? 'again-prompt' : 'prompt'}
@@ -212,7 +212,7 @@ export function ComposeBox({
         />
         {busy ? null : (
           <p className="compose-actions">
-            <button type="submit">{seed ? 'Draw' : 'Make chart'}</button>
+            <button type="submit">{seed ? 'Update chart' : 'Make chart'}</button>
           </p>
         )}
         {!busy ? <QuotaLine quota={quota} pay={pay} buying={buying} revise={Boolean(seed)} onBuy={() => void buy()} /> : null}
@@ -232,7 +232,7 @@ export function ComposeBox({
       </div>
       {busy ? (
         <div className="compose-draw" aria-live="polite">
-          <p>Drawing</p>
+          <p>Generating…</p>
           <div className="compose-draw-plot" aria-hidden="true">
             {DUST.map((tone, index) => (
               <span
@@ -276,16 +276,16 @@ function QuotaLine({
   if (justPaid && credits > 0) {
     copy = `${credits} chart${credits === 1 ? ' is' : 's are'} on this browser now.`;
   } else if (quota?.configured && credits > 0 && unlimited) {
-    copy = `${credits} charts left. You can also draw whenever.`;
+    copy = `${credits} charts left. You can also generate whenever.`;
   } else if (unlimited) {
-    copy = 'You can draw whenever.';
+    copy = 'Generate charts whenever.';
   } else if (quota?.configured && credits > 0) {
     copy = `${credits} paid chart${credits === 1 ? '' : 's'} left.`;
   } else if (quota?.configured) {
     copy =
       quota.freeLeft > 0
         ? revise
-          ? `${quota.freeLeft} free today. Another pass uses one.`
+          ? `${quota.freeLeft} free today. Each update uses one.`
           : `${quota.freeLeft} free today. Then ${pack}.`
         : quota.offerGoogle
           ? `No free charts left today. Sign in if you already have charts, or ${pack}.`

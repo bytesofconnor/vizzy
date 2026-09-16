@@ -50,12 +50,12 @@ test('owner charts are unlimited', async ({ context, page }) => {
   expect(next.credits).toBe(quota.credits);
 
   await page.goto('/');
-  await expect(page.getByText(/charts left|draw whenever/i)).toBeVisible();
+  await expect(page.getByText(/charts left|generate whenever/i)).toBeVisible();
   await expect(page.locator('nav[aria-label="Site"] a[href="/me"]')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
 
   await page.goto('/me');
-  await expect(page.getByRole('heading', { name: /charts left|draw whenever|no paid charts/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /charts left|generate whenever|no paid charts/i })).toBeVisible();
   await expect(page.getByText(/signed in as/i)).toHaveCount(0);
   await expect(page.getByRole('button', { name: /buy \d+ more/i })).toBeVisible();
   await expect(page.getByText('Last 14 days', { exact: true })).toBeVisible();

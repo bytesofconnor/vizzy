@@ -8,7 +8,7 @@ import {
 } from '../../lib/ai-gateway';
 import { STACK_MODELS } from '../../lib/ai-models';
 import { readWalletToken, signedInNav } from '../../lib/billing';
-import { getAdminInsights } from '../../lib/telemetry';
+import { getAdminInsights, type AdminInsights } from '../../lib/telemetry';
 import { KickerNav } from '../components/KickerNav';
 import { SiteFoot } from '../components/SiteFoot';
 
@@ -68,7 +68,7 @@ export default async function AdminPage() {
         Last 30 days
       </h1>
       <p style={{ ...body, maxWidth: 540, marginTop: 14 }}>
-        Meter draws count every chart made. Saved links are charts someone can reopen on{' '}
+        Charts generated counts every compose and publish. Saved links are charts someone can reopen on{' '}
         <span style={{ fontFamily: 'var(--font-mono), ui-monospace, monospace', fontSize: 13 }}>/me</span>.
         AI spend only tracks calls after logging shipped.
       </p>
@@ -81,8 +81,8 @@ export default async function AdminPage() {
           maxWidth: 720,
         }}
       >
-        <Stat label="Signed-in people" value={insights.people} />
-        <Stat label="Meter draws" value={insights.meterDraws} />
+        <Stat label="Known accounts" value={insights.people} />
+        <Stat label="Charts generated" value={insights.meterDraws} />
         <Stat label="Saved from prompt" value={insights.savedFromPrompt} />
         <Stat label="Saved from API" value={insights.savedFromPublish} />
         <Stat label="Purchases" value={insights.purchases} />
@@ -159,6 +159,23 @@ export default async function AdminPage() {
           </ul>
         )}
       </section>
+      {insights.users.length > 0 ? (
+        <DetailList
+          title="Users"
+          rows={insights.users.map((row) => ({
+            key: row.email,
+            primary: row.email,
+            secondary: userSecondary(row),
+          }))}
+        />
+      ) : (
+        <section style={{ marginTop: 36, maxWidth: 540 }}>
+          <p style={kicker}>Users</p>
+          <p style={{ ...body, marginTop: 10, color: 'var(--mute)' }}>
+            No Google sign-ins or checkout emails yet. Wallets without an email stay anonymous.
+          </p>
+        </section>
+      )}
       {insights.recentAi.length > 0 ? (
         <DetailList
           title="Recent AI calls"
@@ -252,6 +269,16 @@ function DetailList({
       </ul>
     </section>
   );
+}
+
+function userSecondary(row: AdminInsights['users'][number]): string {
+  const viaLabels = row.vias.map((via) => (via === 'google' ? 'Google sign-in' : 'Checkout email'));
+  const via = viaLabels.length > 0 ? viaLabels.join(' · ') : 'Email only';
+  const credits =
+    row.owner && row.credits === 0
+      ? 'Owner · unlimited'
+      : `${row.credits} chart${row.credits === 1 ? '' : 's'} left${row.owner ? ' · owner' : ''}`;
+  return `${via} · ${credits} · since ${formatWhen(row.createdAt)}`;
 }
 
 function eventLabel(name: string): string {

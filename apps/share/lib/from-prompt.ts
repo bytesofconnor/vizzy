@@ -59,10 +59,10 @@ const MODELS = COMPOSE_MODELS;
 export function publicComposeError(error: unknown): string {
   const message = error instanceof Error ? error.message : '';
   if (/free tier|credits|upgrade|unauthorized|api key|gateway|rate limit|429|403/i.test(message)) {
-    return 'Could not draw that. Try again in a moment.';
+    return 'Could not generate that chart. Try again in a moment.';
   }
   if (!message || message.length > 140) {
-    return 'Could not draw that';
+    return 'Could not generate that chart';
   }
   return message;
 }

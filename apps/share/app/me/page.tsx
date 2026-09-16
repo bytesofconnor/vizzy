@@ -102,7 +102,9 @@ export default async function MePage() {
       ) : null}
       <AccountBuy more={Boolean(account)} />
       {account ? <YourCharts charts={recent} /> : null}
-      {account && account.used > 0 && !account.unlimited ? <Activity account={account} /> : null}
+      {account && account.used > 0 && !account.unlimited ? (
+        <Activity account={account} savedCount={recent.length} />
+      ) : null}
       {account ? <Purchases orders={account.orders} /> : null}
       <p style={{ ...body, marginTop: 36 }}>
         <Link href="/" style={rowTitle}>
@@ -125,7 +127,7 @@ function headline(account: Awaited<ReturnType<typeof getAccount>>): string {
     return `${account.credits} charts left.`;
   }
   if (account.unlimited) {
-    return 'You can draw whenever.';
+    return 'Generate whenever.';
   }
   if (account.credits > 0) {
     return `${account.credits} chart${account.credits === 1 ? '' : 's'} left.`;
@@ -147,8 +149,8 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
   }
   if (account.unlimited) {
     return account.saved
-      ? 'You can draw whenever. These paid charts stay until you use them.'
-      : 'You can draw whenever.';
+      ? 'Generate whenever. These paid charts stay until you use them.'
+      : 'Generate whenever.';
   }
   if (account.credits > 0) {
     return account.saved
@@ -189,15 +191,20 @@ function YourCharts({
 
 function Activity({
   account,
+  savedCount,
 }: {
   account: NonNullable<Awaited<ReturnType<typeof getAccount>>>;
+  savedCount: number;
 }) {
   const activeDays = account.days.filter((row) => row.charts > 0);
-  const summary = activitySummary(account.used, activeDays);
+  const summary = activitySummary(account.used, activeDays, savedCount);
 
   return (
     <section style={{ marginTop: 36, maxWidth: 720 }}>
       <p style={kicker}>Activity</p>
+      <p style={{ ...body, marginTop: 10, color: 'var(--mute)' }}>
+        Every chart you make spends meter — including ones with no link listed above.
+      </p>
       <p style={{ ...body, marginTop: 10 }}>{summary}</p>
       {activeDays.length >= 2 ? (
         <ActivityChart days={activeDays} />
@@ -217,39 +224,44 @@ function ActivityChart({ days }: { days: Array<{ day: string; charts: number }> 
     {
       axes: {
         x: { label: 'Day' },
-        y: { label: 'Charts' },
+        y: { label: 'Generated' },
       },
       accessibility: {
-        title: 'Charts per day, last two weeks',
-        description: 'Days when you drew at least one chart.',
+        title: 'Charts generated per day, last two weeks',
+        description: 'Days when you generated at least one chart.',
       },
     }
   );
 
   return (
     <div style={{ marginTop: 16 }}>
-      <ChartMount config={config} data={data} label="Charts per day, last two weeks" />
+      <ChartMount config={config} data={data} label="Charts generated per day, last two weeks" />
     </div>
   );
 }
 
 function activitySummary(
   used: number,
-  activeDays: Array<{ day: string; charts: number }>
+  activeDays: Array<{ day: string; charts: number }>,
+  savedCount: number
 ): string {
-  const noun = `${used} chart${used === 1 ? '' : 's'}`;
+  const noun = `${used} chart${used === 1 ? '' : 's'} generated`;
+  const listedNote =
+    savedCount > 0
+      ? `${savedCount} listed above.`
+      : 'None listed above yet.';
   if (activeDays.length === 0) {
-    return `${noun} in the last two weeks.`;
+    return `${noun} in the last two weeks. ${listedNote}`;
   }
   if (activeDays.length === 1) {
     const only = activeDays[0]!;
-    return `${noun} in the last two weeks — all on ${formatDayLabel(only.day)}.`;
+    return `${noun} in the last two weeks — all on ${formatDayLabel(only.day)}. ${listedNote}`;
   }
   const busiest = [...activeDays].sort((a, b) => b.charts - a.charts)[0];
   if (busiest && busiest.charts === used) {
-    return `${noun} in the last two weeks — busiest on ${formatDayLabel(busiest.day)} (${busiest.charts}).`;
+    return `${noun} in the last two weeks — busiest on ${formatDayLabel(busiest.day)} (${busiest.charts}). ${listedNote}`;
   }
-  return `${noun} across ${activeDays.length} days in the last two weeks.`;
+  return `${noun} across ${activeDays.length} days in the last two weeks. ${listedNote}`;
 }
 
 function Purchases({ orders }: { orders: Array<{ createdAt: number; credits: number }> }) {

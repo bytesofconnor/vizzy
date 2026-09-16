@@ -1,4 +1,5 @@
 import { mutation, query, type QueryCtx } from './_generated/server';
+import { normalizeEmail } from './billing';
 import type { Doc } from './_generated/dataModel';
 import { v } from 'convex/values';
 
@@ -104,6 +105,13 @@ const savedChartRow = v.object({
   route: v.union(v.literal('compose'), v.literal('publish')),
   createdAt: v.number(),
 });
+const userRow = v.object({
+  email: v.string(),
+  vias: v.array(v.union(v.literal('google'), v.literal('checkout'))),
+  credits: v.number(),
+  owner: v.boolean(),
+  createdAt: v.number(),
+});
 
 export const getInsights = query({
   args: {
@@ -113,6 +121,7 @@ export const getInsights = query({
   },
   returns: v.union(v.null(), v.object({
     people: v.number(),
+    users: v.array(userRow),
     meterDraws: v.number(),
     savedFromPrompt: v.number(),
     savedFromPublish: v.number(),
@@ -143,7 +152,55 @@ export const getInsights = query({
     const windowDay = utcDayFrom(windowStart);
 
     const wallets = await ctx.db.query('wallets').collect();
-    const people = wallets.filter((row) => Boolean(row.googleSub || row.email)).length;
+    const usersByEmail = new Map<
+      string,
+      {
+        email: string;
+        vias: Set<'google' | 'checkout'>;
+        credits: number;
+        owner: boolean;
+        createdAt: number;
+      }
+    >();
+    for (const row of wallets) {
+      const raw = row.googleEmail ?? row.email;
+      if (!raw) {
+        continue;
+      }
+      const email = normalizeEmail(raw);
+      const existing = usersByEmail.get(email);
+      const vias = existing?.vias ?? new Set<'google' | 'checkout'>();
+      if (row.googleSub) {
+        vias.add('google');
+      }
+      if (row.email) {
+        vias.add('checkout');
+      }
+      if (existing) {
+        existing.credits += row.credits;
+        existing.owner = existing.owner || isOwnerWallet(row);
+        existing.createdAt = Math.min(existing.createdAt, row.createdAt);
+        existing.vias = vias;
+      } else {
+        usersByEmail.set(email, {
+          email: raw,
+          vias,
+          credits: row.credits,
+          owner: isOwnerWallet(row),
+          createdAt: row.createdAt,
+        });
+      }
+    }
+    const users = [...usersByEmail.values()]
+      .map((row) => ({
+        email: row.email,
+        vias: [...row.vias].sort(),
+        credits: row.credits,
+        owner: row.owner,
+        createdAt: row.createdAt,
+      }))
+      .sort((a, b) => a.email.localeCompare(b.email));
+    const people = users.length;
 
     const uses = await ctx.db.query('uses').collect();
     const meterDraws = uses.filter((row) => row.createdAt >= windowStart).length;
@@ -215,6 +272,7 @@ export const getInsights = query({
 
     return {
       people,
+      users,
       meterDraws,
       savedFromPrompt,
       savedFromPublish,

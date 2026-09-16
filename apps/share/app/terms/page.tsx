@@ -72,7 +72,7 @@ export default async function TermsPage() {
         Terms
       </h1>
       <p style={body}>
-        Vizzy draws a chart you can paste. Three free prompts a day. Then {PACK_PRICE_LABEL} for {PACK_CREDITS}{' '}
+        Vizzy generates a chart you can paste. Three free prompts a day. Then {PACK_PRICE_LABEL} for {PACK_CREDITS}{' '}
         more. Paid charts stay on the email from your first checkout. Later buys on this browser add to those
         charts, even if Apple Pay uses another address. This browser keeps a cookie. Sign in with Google so the
         charts follow you on other devices. Account and usage live at /me. A new browser can still restore from

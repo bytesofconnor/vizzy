@@ -65,9 +65,9 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('compose quota failed', error);
     if (wantsHtml(request)) {
-      return Response.redirect(`${origin}/?error=${encodeURIComponent('Could not draw that. Try again in a moment.')}`, 303);
+      return Response.redirect(`${origin}/?error=${encodeURIComponent('Could not generate that chart. Try again in a moment.')}`, 303);
     }
-    return Response.json({ ok: false, error: 'Could not draw that. Try again in a moment.' }, { status: 500 });
+    return Response.json({ ok: false, error: 'Could not generate that chart. Try again in a moment.' }, { status: 500 });
   }
 
   if (!slot.ok) {

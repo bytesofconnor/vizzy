@@ -59,7 +59,7 @@ export function openApiSpec(origin: string) {
     tags: [
       { name: 'compose', description: 'Prompt in, paste URL and PNG out.' },
       { name: 'publish', description: 'Rows plus ChartConfig in, paste URL and PNG out.' },
-      { name: 'quota', description: 'What this wallet or IP can still draw today.' },
+      { name: 'quota', description: 'What this wallet or IP can still generate today.' },
     ],
     security: [{ bearerAuth: [] }, {}],
     paths: {
@@ -77,7 +77,7 @@ export function openApiSpec(origin: string) {
         },
         post: {
           tags: ['compose'],
-          summary: 'Draw a chart from a prompt',
+          summary: 'Generate a chart from a prompt',
           operationId: 'composeChart',
           requestBody: {
             required: true,

@@ -1,4 +1,4 @@
-import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { v } from 'convex/values';
 
@@ -14,8 +14,66 @@ const quotaReturn = v.object({
   email: v.optional(v.string()),
 });
 
-function normalizeEmail(email: string): string {
+export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+async function mergeWallets(
+  ctx: MutationCtx,
+  keepId: Doc<'wallets'>['_id'],
+  dropId: Doc<'wallets'>['_id']
+): Promise<Doc<'wallets'>> {
+  if (keepId === dropId) {
+    const wallet = await ctx.db.get('wallets', keepId);
+    if (!wallet) {
+      throw new Error('Wallet missing');
+    }
+    return wallet;
+  }
+  const keep = await ctx.db.get('wallets', keepId);
+  const drop = await ctx.db.get('wallets', dropId);
+  if (!keep || !drop) {
+    throw new Error('Wallet missing');
+  }
+
+  await ctx.db.patch(keepId, {
+    credits: keep.credits + drop.credits,
+    stripeCustomerId: keep.stripeCustomerId ?? drop.stripeCustomerId,
+    email: keep.email ?? drop.email,
+    googleSub: keep.googleSub ?? drop.googleSub,
+    googleEmail: keep.googleEmail ?? drop.googleEmail,
+  });
+
+  for (const row of await ctx.db
+    .query('orders')
+    .withIndex('by_wallet', (q) => q.eq('walletId', dropId))
+    .collect()) {
+    await ctx.db.patch(row._id, { walletId: keepId });
+  }
+  for (const row of await ctx.db
+    .query('uses')
+    .withIndex('by_wallet', (q) => q.eq('walletId', dropId))
+    .collect()) {
+    await ctx.db.patch(row._id, { walletId: keepId });
+  }
+  for (const row of await ctx.db
+    .query('charts')
+    .withIndex('by_wallet', (q) => q.eq('walletId', dropId))
+    .collect()) {
+    await ctx.db.patch(row._id, { walletId: keepId });
+  }
+
+  await ctx.db.replace(dropId, {
+    token: drop.token,
+    credits: 0,
+    createdAt: drop.createdAt,
+  });
+
+  const merged = await ctx.db.get('wallets', keepId);
+  if (!merged) {
+    throw new Error('Wallet missing');
+  }
+  return merged;
 }
 
 function newWalletToken(): string {
@@ -59,26 +117,7 @@ async function resolvePaidWallet(
   }
 
   if (byMail && byToken && byMail._id !== byToken._id) {
-    await ctx.db.patch(byMail._id, {
-      credits: byMail.credits + byToken.credits,
-      stripeCustomerId: args.stripeCustomerId ?? byMail.stripeCustomerId ?? byToken.stripeCustomerId,
-      email,
-      googleSub: byMail.googleSub ?? byToken.googleSub,
-      googleEmail: byMail.googleEmail ?? byToken.googleEmail,
-    });
-    await ctx.db.replace(byToken._id, {
-      token: byToken.token,
-      stripeCustomerId: byToken.stripeCustomerId,
-      googleSub: byToken.googleSub,
-      googleEmail: byToken.googleEmail,
-      credits: 0,
-      createdAt: byToken.createdAt,
-    });
-    const merged = await ctx.db.get(byMail._id);
-    if (!merged) {
-      throw new Error('Wallet missing');
-    }
-    return merged;
+    return await mergeWallets(ctx, byMail._id, byToken._id);
   }
 
   if (byMail) {
@@ -530,6 +569,47 @@ function utcDayFrom(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
+export const repairDuplicateWallets = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const wallets = await ctx.db.query('wallets').collect();
+    const byEmail = new Map<string, Doc<'wallets'>[]>();
+    for (const wallet of wallets) {
+      const raw = wallet.googleEmail ?? wallet.email;
+      if (!raw) {
+        continue;
+      }
+      const email = normalizeEmail(raw);
+      const group = byEmail.get(email) ?? [];
+      group.push(wallet);
+      byEmail.set(email, group);
+    }
+
+    let mergedCount = 0;
+    for (const group of byEmail.values()) {
+      if (group.length < 2) {
+        continue;
+      }
+      const sorted = [...group].sort((a, b) => {
+        if (a.email && !b.email) {
+          return -1;
+        }
+        if (!a.email && b.email) {
+          return 1;
+        }
+        return a.createdAt - b.createdAt;
+      });
+      const keep = sorted[0]!;
+      for (let index = 1; index < sorted.length; index += 1) {
+        await mergeWallets(ctx, keep._id, sorted[index]!._id);
+        mergedCount += 1;
+      }
+    }
+    return mergedCount;
+  },
+});
+
 export const bindGoogle = mutation({
   args: {
     secret: v.string(),
@@ -542,53 +622,45 @@ export const bindGoogle = mutation({
     assertServer(args.secret);
     const googleEmail = normalizeEmail(args.googleEmail);
     const byGoogle = await walletByGoogle(ctx, args.googleSub);
-    if (byGoogle) {
-      await ctx.db.patch(byGoogle._id, { googleEmail });
-      const next = await ctx.db.get(byGoogle._id);
-      if (!next) {
-        throw new Error('Wallet missing');
-      }
-      return packFromWallet(next);
-    }
-
-    const byToken = args.walletToken ? await walletByToken(ctx, args.walletToken) : null;
-    if (byToken) {
-      await ctx.db.patch(byToken._id, {
-        googleSub: byToken.googleSub ?? args.googleSub,
-        googleEmail,
-      });
-      const next = await ctx.db.get(byToken._id);
-      if (!next) {
-        throw new Error('Wallet missing');
-      }
-      return packFromWallet(next);
-    }
-
     const byMail = await walletByEmail(ctx, googleEmail);
-    if (byMail) {
-      await ctx.db.patch(byMail._id, {
-        googleSub: byMail.googleSub ?? args.googleSub,
+    const byToken = args.walletToken ? await walletByToken(ctx, args.walletToken) : null;
+
+    let canonical = byMail ?? byGoogle ?? byToken;
+    if (!canonical) {
+      const walletId = await ctx.db.insert('wallets', {
+        token: newWalletToken(),
+        googleSub: args.googleSub,
         googleEmail,
+        email: googleEmail,
+        credits: 0,
+        createdAt: Date.now(),
       });
-      const next = await ctx.db.get(byMail._id);
-      if (!next) {
+      const created = await ctx.db.get(walletId);
+      if (!created) {
         throw new Error('Wallet missing');
       }
-      return packFromWallet(next);
+      return packFromWallet(created);
     }
 
-    const walletId = await ctx.db.insert('wallets', {
-      token: newWalletToken(),
+    const mergeIds = new Set<Doc<'wallets'>['_id']>();
+    for (const wallet of [byMail, byGoogle, byToken]) {
+      if (!wallet || wallet._id === canonical._id || mergeIds.has(wallet._id)) {
+        continue;
+      }
+      mergeIds.add(wallet._id);
+      canonical = await mergeWallets(ctx, canonical._id, wallet._id);
+    }
+
+    await ctx.db.patch(canonical._id, {
       googleSub: args.googleSub,
       googleEmail,
-      credits: 0,
-      createdAt: Date.now(),
+      email: canonical.email ?? googleEmail,
     });
-    const created = await ctx.db.get(walletId);
-    if (!created) {
+    const next = await ctx.db.get(canonical._id);
+    if (!next) {
       throw new Error('Wallet missing');
     }
-    return packFromWallet(created);
+    return packFromWallet(next);
   },
 });
 
