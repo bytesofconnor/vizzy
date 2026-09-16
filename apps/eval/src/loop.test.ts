@@ -59,6 +59,7 @@ describe('recs', () => {
     expect(ids).toContain('type-fit');
     expect(ids).toContain('brittle-repeats');
     expect(ids).toContain('model-gap');
+    expect(new Set(ids).size).toBe(ids.length);
     expect(recs.every((rec) => rec.suggestedChange.length > 20)).toBe(true);
   });
 });
@@ -96,5 +97,14 @@ describe('compose batch', () => {
     expect(cases).toHaveLength(1);
     expect(cases[0]?.promptId).toBe(prompts[0]?.id);
     expect(cases[0]?.pass).toBe(true);
+  });
+});
+
+describe('close loop', () => {
+  it('drops recs that the next snapshot no longer emits', async () => {
+    const { recsDropped } = await import('./close');
+    expect(recsDropped(['placeholders', 'honest-miss'], ['honest-miss', 'pasted-table'])).toEqual([
+      'placeholders',
+    ]);
   });
 });

@@ -9,6 +9,7 @@ import { STACK_MODELS } from '../../lib/ai-models';
 import { readWalletToken, signedInNav } from '../../lib/billing';
 import { getLatestEval } from '../../lib/eval';
 import { getAdminInsights, type AdminInsights } from '../../lib/telemetry';
+import { AdminDesk, parseAdminView } from '../components/AdminDesk';
 import { AdminEval } from '../components/AdminEval';
 import { AdminModelCatalog } from '../components/AdminModelCatalog';
 import { AdminRecentAiCalls } from '../components/AdminRecentAiCalls';
@@ -38,8 +39,13 @@ const body = {
   margin: 0,
 } as const;
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const token = await readWalletToken();
+  const { view: viewParam } = await searchParams;
   const [insights, gateway, evalRun] = await Promise.all([
     token ? getAdminInsights(token) : Promise.resolve(null),
     fetchGatewayStatus(),
@@ -61,28 +67,17 @@ export default async function AdminPage() {
   return (
     <main id="content" className="page-main">
       <KickerNav here="admin" owner email={nav.email} known={nav.known ?? Boolean(token)} />
-      <h1
-        style={{
-          fontWeight: 500,
-          fontSize: 'clamp(1.45rem, 6vw, 1.9rem)',
-          letterSpacing: '-0.02em',
-          lineHeight: 1.12,
-          margin: '8px 0 0',
-        }}
-      >
-        Last 30 days
-      </h1>
-      <p style={{ ...body, maxWidth: 540, marginTop: 14 }}>
-        Charts generated counts every compose and publish. Saved links are charts someone can reopen on{' '}
-        <span style={{ fontFamily: 'var(--font-mono), ui-monospace, monospace', fontSize: 13 }}>/me</span>.
-        AI spend only tracks calls after logging shipped.
-      </p>
+      <AdminDesk
+        view={parseAdminView(viewParam)}
+        evalLabel={evalRun ? `Eval ${Math.round(evalRun.rate * 100)}%` : 'Eval'}
+        meter={
+          <>
       <section
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
           gap: 12,
-          marginTop: 28,
+          marginTop: 8,
           maxWidth: 720,
         }}
       >
@@ -170,7 +165,11 @@ export default async function AdminPage() {
           </p>
         </section>
       )}
-      <AdminEval run={evalRun} />
+          </>
+        }
+        evalPane={<AdminEval run={evalRun} />}
+        log={
+          <>
       <AdminRecentAiCalls rows={insights.recentAi} />
       <AdminRecentSavedCharts rows={insights.recentSaved} />
       <section style={{ marginTop: 36, maxWidth: 540 }}>
@@ -197,6 +196,9 @@ export default async function AdminPage() {
           </ul>
         )}
       </section>
+          </>
+        }
+      />
       <SiteFoot />
     </main>
   );

@@ -2004,8 +2004,132 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
   text-decoration-color: var(--ink);
 }
 
-.admin-eval-recs {
-  margin-top: 16px;
+.admin-desk-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.admin-desk-tab {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--rule) 78%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mute);
+  font: inherit;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.admin-desk-tab:hover,
+.admin-desk-tab:focus-visible {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--rule));
+  outline: 2px solid color-mix(in srgb, var(--ink) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.admin-desk-tab.is-on {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+  border-color: color-mix(in srgb, var(--ink) 28%, var(--rule));
+}
+
+.admin-desk-title {
+  font-weight: 500;
+  font-size: clamp(1.45rem, 6vw, 1.9rem);
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  margin: 18px 0 0;
+}
+
+.admin-desk-lede {
+  max-width: 540px;
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.admin-desk-pane .admin-log-section:first-child {
+  margin-top: 20px;
+}
+
+.admin-log-table--eval {
+  min-width: 420px;
+}
+
+.admin-eval-weak {
+  margin: 10px 0 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--mute);
+}
+
+.admin-eval-kind {
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.admin-eval-claim {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.admin-eval-next {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.admin-eval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.admin-eval-act {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--rule) 78%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.admin-eval-act {
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-eval-act:hover,
+.admin-eval-act:focus-visible {
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--rule));
+  outline: 2px solid color-mix(in srgb, var(--ink) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.admin-eval-act:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 .admin-eval-recs ul {

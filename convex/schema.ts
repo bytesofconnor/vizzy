@@ -119,5 +119,12 @@ export default defineSchema({
       })
     ),
     createdAt: v.number(),
+    clearedRecIds: v.optional(v.array(v.string())),
   }).index('by_created', ['createdAt']),
+
+  evalRecStates: defineTable({
+    recId: v.string(),
+    status: v.union(v.literal('working'), v.literal('wont')),
+    updatedAt: v.number(),
+  }).index('by_rec', ['recId']),
 });

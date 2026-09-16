@@ -15,4 +15,4 @@ node apps/eval/dist/cli.js run
 node apps/eval/dist/cli.js run --publish   # CONVEX_URL + COMPOSE_SERVER_SECRET
 ```
 
-Recs are drafts. Do not auto-merge into `from-prompt`.
+Recs are drafts, regenerated on each publish. They do not auto-merge into `from-prompt`. On `/admin` Eval: **Working** (you are changing code), **Park** (hide until the grid drops it), **GitHub issue** (pre-filled). A rec leaves the list when the next CI eval no longer emits that id.
