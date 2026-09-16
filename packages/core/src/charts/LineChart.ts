@@ -1,10 +1,17 @@
 import * as d3 from 'd3';
-import { ChartConfig, DataPoint, VizzyError } from '../types';
+import { ChartConfig, DataPoint, LineChartConfig, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
 import { DataProcessor, ProcessedData } from '../components/DataProcessor';
 import { forecastStartIndex } from '../forecast';
 import { formatDataValue, linePointLabelPlacement } from '../format';
+
+type LineSeriesOptions = Partial<
+  Pick<
+    LineChartConfig,
+    'pointRadius' | 'curve' | 'area' | 'showPoints' | 'forecastFrom' | 'strokeWidth'
+  >
+>;
 
 export class LineChart<TData extends DataPoint = DataPoint> {
   private _config: ChartConfig;
@@ -135,7 +142,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   private async _renderLineGroup(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
     lineData: { key: string; values: TData[] },
-    chartConfig: { pointRadius?: number; curve?: string; area?: boolean; showPoints?: boolean; forecastFrom?: string | number },
+    chartConfig: LineSeriesOptions,
     seriesIndex: number,
     seriesCount: number
   ): Promise<void> {
@@ -232,7 +239,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     line: d3.Line<TData>,
     values: TData[],
     color: string,
-    chartConfig: { strokeWidth?: number },
+    chartConfig: LineSeriesOptions,
     dashed: boolean
   ): void {
     let path = group.select(selector);
@@ -540,7 +547,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   }
 
   private _styleValueLabel(
-    selection: d3.Selection<SVGTextElement, unknown, null, undefined>
+    selection: d3.Selection<d3.BaseType, unknown, d3.BaseType, unknown>
   ): void {
     selection
       .style('font-size', '10px')

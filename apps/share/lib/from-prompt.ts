@@ -285,7 +285,7 @@ function mintDraft(
     return { ok: false, error: 'Could not find named figures to chart', issues: [] };
   }
   const noteNames = namesFromNotes(gathered.notes);
-  let rows = relabelGenericCategories(named.rows, noteNames, asked);
+  const rows = relabelGenericCategories(named.rows, noteNames, asked);
   if (output.chartType !== 'scatter' && mostlyGenericPlaceholders(rows)) {
     return {
       ok: false,
