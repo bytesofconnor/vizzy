@@ -155,7 +155,15 @@ export const latest = query({
     if (!row) {
       return null;
     }
-    const recs = [];
+    const recs: Array<{
+      id: string;
+      kind: string;
+      claim: string;
+      evidence: string;
+      examplePromptIds: string[];
+      suggestedChange: string;
+      loop: 'open' | 'working' | 'wont';
+    }> = [];
     for (const item of row.recs) {
       const state = await recStateById(ctx, item.id);
       recs.push({
