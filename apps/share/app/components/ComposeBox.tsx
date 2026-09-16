@@ -274,7 +274,9 @@ function QuotaLine({
     ? `Uses a chart. ${pack} after the free ones.`
     : `Paste a source link if you have one. ${pack} after the free ones.`;
   if (justPaid && credits > 0) {
-    copy = `${credits} chart${credits === 1 ? ' is' : 's are'} on this browser now.`;
+    copy = saved
+      ? `${credits} chart${credits === 1 ? '' : 's'} added to your account.`
+      : `${credits} chart${credits === 1 ? ' is' : 's are'} on this browser now.`;
   } else if (quota?.configured && credits > 0 && unlimited) {
     copy = `${credits} charts left. You can also generate whenever.`;
   } else if (unlimited) {

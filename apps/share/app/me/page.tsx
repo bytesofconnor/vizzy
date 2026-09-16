@@ -101,7 +101,7 @@ export default async function MePage() {
         </p>
       ) : null}
       <AccountBuy more={Boolean(account)} />
-      {account ? <YourCharts charts={recent} /> : null}
+      {account ? <YourCharts charts={recent} saved={account.saved} /> : null}
       {account && account.used > 0 && !account.unlimited ? (
         <Activity account={account} savedCount={recent.length} />
       ) : null}
@@ -121,6 +121,9 @@ function headline(account: Awaited<ReturnType<typeof getAccount>>): string {
     return 'No charts on this browser yet.';
   }
   if (account.justPaid && account.credits > 0) {
+    if (account.saved) {
+      return `${account.credits} chart${account.credits === 1 ? '' : 's'} added to your account.`;
+    }
     return `${account.credits} chart${account.credits === 1 ? ' is' : 's are'} on this browser now.`;
   }
   if (account.unlimited && account.credits > 0) {
@@ -145,7 +148,9 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
       : `Buy ${PACK_CREDITS} for ${PACK_PRICE_LABEL}, or make a free chart on the home page.`;
   }
   if (account.justPaid) {
-    return 'They stay on this browser until you sign in.';
+    return account.saved
+      ? 'Signed in — they follow you on other devices.'
+      : 'They stay on this browser until you sign in.';
   }
   if (account.unlimited) {
     return account.saved
@@ -165,14 +170,20 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
 
 function YourCharts({
   charts,
+  saved,
 }: {
   charts: Array<{ slug: string; title: string; createdAt: number }>;
+  saved: boolean;
 }) {
   return (
     <section style={{ marginTop: 36 }}>
       <p style={kicker}>Your charts</p>
       {charts.length === 0 ? (
-        <p style={body}>Charts you make on this browser show up here as links you can reopen.</p>
+        <p style={body}>
+          {saved
+            ? 'Charts you make show up here as links you can reopen on any device.'
+            : 'Charts you make on this browser show up here as links you can reopen.'}
+        </p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, marginTop: 14, maxWidth: 540 }}>
           {charts.map((chart) => (
