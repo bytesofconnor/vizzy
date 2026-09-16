@@ -17,7 +17,13 @@ export async function publishPayload(payload: EvalPayload): Promise<void> {
       format: 'json',
     }),
   });
-  const body = (await response.json()) as ConvexResult<null>;
+  const text = await response.text();
+  let body: ConvexResult<null>;
+  try {
+    body = JSON.parse(text) as ConvexResult<null>;
+  } catch {
+    throw new Error(`eval:record HTTP ${response.status}: ${text.slice(0, 200)}`);
+  }
   if (body.status !== 'success') {
     throw new Error(body.errorMessage || 'eval:record failed');
   }

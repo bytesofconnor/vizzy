@@ -50,7 +50,7 @@ jobs:
         env:
           CONVEX_URL: ${{ secrets.CONVEX_PROD_URL }}
           NEXT_PUBLIC_CONVEX_URL: ${{ secrets.CONVEX_PROD_URL }}
-          COMPOSE_SERVER_SECRET: ${{ secrets.COMPOSE_SERVER_SECRET }}
+          COMPOSE_SERVER_SECRET: ${{ secrets.COMPOSE_SERVER_SECRET_PROD }}
 
   e2e:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

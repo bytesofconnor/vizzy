@@ -50,6 +50,7 @@ Same names, different places. After a value changes, update every column that ha
 | `NEXT_PUBLIC_CONVEX_URL` | yes | | yes | secret | Dev: `https://beloved-fennec-81.convex.cloud`. Prod: `https://impartial-ostrich-883.convex.cloud`. |
 | `CONVEX_URL` | yes | | optional | secret | Same as Convex URL. Root `.env.local` also has this for the CLI. CI e2e uses this (dev). |
 | `CONVEX_PROD_URL` | | | | secret | Prod Convex for the `eval` job: `https://impartial-ostrich-883.convex.cloud`. |
+| `COMPOSE_SERVER_SECRET_PROD` | | | | secret | Must match Convex **prod** `COMPOSE_SERVER_SECRET`. CI e2e keeps using the dev `COMPOSE_SERVER_SECRET`. |
 | `CONVEX_DEPLOYMENT` | | | | | Root `.env.local` only. `dev:beloved-fennec-81`. |
 | `COMPOSE_SERVER_SECRET` | yes | **yes** | yes | secret | Must match on Next and Convex. |
 | `COMPOSE_SALT` | yes | | yes | | Cookie / IP hashing. |
