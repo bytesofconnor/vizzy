@@ -440,7 +440,7 @@ function heroPersonalBadge(quota: Quota | null): string | null {
     return `${quota.credits} added`;
   }
   if (quota.unlimited) {
-    return quota.credits > 0 ? `${quota.credits} left · unlimited` : 'Unlimited';
+    return 'Unlimited';
   }
   if (quota.credits > 0) {
     return `${quota.credits} left`;
@@ -472,16 +472,33 @@ function HeroPricingNote({
   const showBuy = !unlimited && !justPaid && (pay || outOfFree);
 
   const badge = heroPersonalBadge(quota);
+  const showMarketing = !unlimited && !justPaid;
+
+  if (unlimited && badge) {
+    return (
+      <span className="compose-bar-note">
+        <span className="compose-bar-note-badge">{badge}</span>
+      </span>
+    );
+  }
+
+  if (justPaid && badge) {
+    return (
+      <span className="compose-bar-note">
+        <span className="compose-bar-note-badge">{badge}</span>
+      </span>
+    );
+  }
 
   return (
     <span className="compose-bar-note">
       {badge ? (
         <>
           <span className="compose-bar-note-badge">{badge}</span>
-          <span aria-hidden="true">·</span>
+          {showMarketing ? <span aria-hidden="true">·</span> : null}
         </>
       ) : null}
-      <span className="compose-bar-note-status">{heroMarketingLine()}</span>
+      {showMarketing ? <span className="compose-bar-note-status">{heroMarketingLine()}</span> : null}
       {showBuy ? (
         <span className="compose-bar-note-actions">
           {' · '}
