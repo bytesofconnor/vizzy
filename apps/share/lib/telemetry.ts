@@ -121,6 +121,7 @@ export type AdminInsights = {
     createdAt: number;
   }>;
   recentSaved: Array<{
+    slug: string;
     title: string;
     route: 'compose' | 'publish';
     createdAt: number;

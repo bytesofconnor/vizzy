@@ -688,6 +688,7 @@ export const getAccount = query({
         v.object({
           createdAt: v.number(),
           credits: v.number(),
+          stripeSessionId: v.string(),
         })
       ),
     })
@@ -728,7 +729,11 @@ export const getAccount = query({
       saved: Boolean(wallet.googleSub),
       used: inWindow.length,
       days: [...byDay.entries()].map(([day, charts]) => ({ day, charts })),
-      orders: orders.map((row) => ({ createdAt: row.createdAt, credits: row.credits })),
+      orders: orders.map((row) => ({
+        createdAt: row.createdAt,
+        credits: row.credits,
+        stripeSessionId: row.stripeSessionId,
+      })),
     };
   },
 });

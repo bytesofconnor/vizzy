@@ -6,7 +6,6 @@ import { DustRail } from './DustRail';
 import { ChartFrame } from './ChartFrame';
 import { ChartMount } from './ChartMount';
 import { ComposeBox } from './ComposeBox';
-import { HomeBridge } from './HomeBridge';
 import { ChartExtras } from './ChartExtras';
 import { KickerNav } from './KickerNav';
 import { SiteFoot } from './SiteFoot';
@@ -51,18 +50,17 @@ export function Studio({
       ) : (
         <section className="home-hero" aria-labelledby="home-title">
           <h1 id="home-title" className="home-hero-title">
-            The perfect chart, for you
+            Turn a question into a publish-ready chart
           </h1>
           <DustRail className="home-hero-dust dust-rail is-idle" />
           <p className="home-hero-lede">
-            Writing a post, newsletter, or report? Type what you want to show. Get a link and PNG you
-            can drop in anywhere — with the source on the chart.
+            AI drafts the series. You get a link and PNG. Add a source when you have one — it shows on
+            the chart.
           </p>
           <ComposeBox error={error} askPay={askPay} variant="hero" />
         </section>
       )}
       {piece ? <Featured piece={piece} /> : null}
-      {piece ? null : <HomeBridge />}
       <div id="examples" className={piece ? undefined : 'home-examples'}>
         <ExampleList skip={piece?.slug} home={!piece} />
       </div>

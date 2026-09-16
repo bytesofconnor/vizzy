@@ -3,13 +3,14 @@ import { notFound } from 'next/navigation';
 import {
   estimateLoggedSpend,
   fetchGatewayStatus,
-  formatPerMillion,
   formatUsd,
 } from '../../lib/ai-gateway';
 import { STACK_MODELS } from '../../lib/ai-models';
 import { readWalletToken, signedInNav } from '../../lib/billing';
 import { getAdminInsights, type AdminInsights } from '../../lib/telemetry';
+import { AdminModelCatalog } from '../components/AdminModelCatalog';
 import { AdminRecentAiCalls } from '../components/AdminRecentAiCalls';
+import { AdminRecentSavedCharts } from '../components/AdminRecentSavedCharts';
 import { KickerNav } from '../components/KickerNav';
 import { SiteFoot } from '../components/SiteFoot';
 
@@ -132,34 +133,23 @@ export default async function AdminPage() {
           </p>
         ) : null}
       </section>
-      <section style={{ marginTop: 36, maxWidth: 540 }}>
-        <p style={kicker}>AI · model catalog</p>
-        {gateway.catalogError ? (
-          <p style={{ ...body, marginTop: 10, color: 'var(--mute)' }}>{gateway.catalogError}</p>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0, marginTop: 10 }}>
-            {STACK_MODELS.map((id) => {
-              const row = catalogById.get(id);
-              const used = insights.aiByModel.find((entry) => entry.model === id);
-              return (
-                <li key={id} style={{ ...body, marginBottom: 12 }}>
-                  <p style={{ fontWeight: 500, margin: 0 }}>{row?.name ?? id}</p>
-                  <p style={{ margin: '2px 0 0', color: 'var(--mute)' }}>
-                    {row
-                      ? `${formatPerMillion(row.inputPerToken)} in · ${formatPerMillion(row.outputPerToken)} out${
-                          row.contextWindow ? ` · ${formatTokens(row.contextWindow)} ctx` : ''
-                        }${row.maxOutputTokens ? ` · ${formatTokens(row.maxOutputTokens)} max out` : ''}`
-                      : 'Not in gateway catalog'}
-                    {used
-                      ? ` · ${used.calls} logged call${used.calls === 1 ? '' : 's'} (${formatTokens(used.inputTokens)} in)`
-                      : ''}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <AdminModelCatalog
+        error={gateway.catalogError}
+        rows={STACK_MODELS.map((id) => {
+          const row = catalogById.get(id);
+          const used = insights.aiByModel.find((entry) => entry.model === id);
+          return {
+            id,
+            name: row?.name ?? id,
+            inputPerToken: row?.inputPerToken,
+            outputPerToken: row?.outputPerToken,
+            contextWindow: row?.contextWindow,
+            maxOutputTokens: row?.maxOutputTokens,
+            calls: used?.calls ?? 0,
+            inputTokens: used?.inputTokens ?? 0,
+          };
+        })}
+      />
       {insights.users.length > 0 ? (
         <DetailList
           title="Users"
@@ -178,16 +168,7 @@ export default async function AdminPage() {
         </section>
       )}
       <AdminRecentAiCalls rows={insights.recentAi} />
-      {insights.recentSaved.length > 0 ? (
-        <DetailList
-          title="Recent saved charts"
-          rows={insights.recentSaved.map((row) => ({
-            key: `${row.createdAt}-${row.title}`,
-            primary: row.title,
-            secondary: `${row.route === 'compose' ? 'From prompt' : 'From API'} · ${formatWhen(row.createdAt)}`,
-          }))}
-        />
-      ) : null}
+      <AdminRecentSavedCharts rows={insights.recentSaved} />
       <section style={{ marginTop: 36, maxWidth: 540 }}>
         <p style={kicker}>Events</p>
         {insights.taps.length === 0 ? (

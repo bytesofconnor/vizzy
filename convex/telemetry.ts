@@ -101,6 +101,7 @@ const aiCallRow = v.object({
   createdAt: v.number(),
 });
 const savedChartRow = v.object({
+  slug: v.string(),
   title: v.string(),
   route: v.union(v.literal('compose'), v.literal('publish')),
   createdAt: v.number(),
@@ -268,8 +269,9 @@ export const getInsights = query({
       }));
     const recentSaved = [...recentCharts]
       .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 15)
+      .slice(0, 80)
       .map((row) => ({
+        slug: row.slug,
         title: row.title,
         route: row.route,
         createdAt: row.createdAt,

@@ -7,6 +7,8 @@ import { googleClientId } from '../../lib/google';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import { studioChart } from '../../lib/theme';
 import { AccountBuy } from '../components/AccountBuy';
+import { AccountChartsTable } from '../components/AccountChartsTable';
+import { AccountPurchasesTable } from '../components/AccountPurchasesTable';
 import { ChartMount } from '../components/ChartMount';
 import { KickerNav } from '../components/KickerNav';
 import { SaveGoogle } from '../components/SaveGoogle';
@@ -43,13 +45,6 @@ const rowTitle = {
   textUnderlineOffset: '0.18em',
 } as const;
 
-const rowMeta = {
-  fontSize: 15,
-  lineHeight: 1.45,
-  color: 'var(--mute)',
-  marginTop: 2,
-} as const;
-
 export default async function MePage() {
   let account: Awaited<ReturnType<typeof getAccount>> = null;
   let recent: Awaited<ReturnType<typeof listRecentCharts>> = [];
@@ -58,7 +53,7 @@ export default async function MePage() {
     account = await getAccount();
     const token = await readWalletToken();
     if (token && account) {
-      recent = await listRecentCharts(token);
+      recent = await listRecentCharts(token, 50);
     }
     owner = await ownerSession();
   } catch (error) {
@@ -101,11 +96,11 @@ export default async function MePage() {
         </p>
       ) : null}
       <AccountBuy more={Boolean(account)} />
-      {account ? <YourCharts charts={recent} saved={account.saved} /> : null}
+      {account ? <AccountChartsTable charts={recent} saved={account.saved} /> : null}
       {account && account.used > 0 && !account.unlimited ? (
         <Activity account={account} savedCount={recent.length} />
       ) : null}
-      {account ? <Purchases orders={account.orders} /> : null}
+      {account ? <AccountPurchasesTable orders={account.orders} /> : null}
       <p style={{ ...body, marginTop: 36 }}>
         <Link href="/" style={rowTitle}>
           Make a chart
@@ -166,38 +161,6 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
     return 'You still get three free charts a day. Buy a stack when you want paid ones on hand.';
   }
   return `The next ${PACK_CREDITS} are ${PACK_PRICE_LABEL}.`;
-}
-
-function YourCharts({
-  charts,
-  saved,
-}: {
-  charts: Array<{ slug: string; title: string; createdAt: number }>;
-  saved: boolean;
-}) {
-  return (
-    <section style={{ marginTop: 36 }}>
-      <p style={kicker}>Your charts</p>
-      {charts.length === 0 ? (
-        <p style={body}>
-          {saved
-            ? 'Charts you make show up here as links you can reopen on any device.'
-            : 'Charts you make on this browser show up here as links you can reopen.'}
-        </p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0, marginTop: 14, maxWidth: 540 }}>
-          {charts.map((chart) => (
-            <li key={`${chart.slug}-${chart.createdAt}`} style={{ margin: '0 0 14px' }}>
-              <Link href={`/c/${chart.slug}`} style={rowTitle}>
-                {chart.title}
-              </Link>
-              <p style={rowMeta}>{formatRecentAt(chart.createdAt)}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
 }
 
 function Activity({
@@ -275,25 +238,6 @@ function activitySummary(
   return `${noun} across ${activeDays.length} days in the last two weeks. ${listedNote}`;
 }
 
-function Purchases({ orders }: { orders: Array<{ createdAt: number; credits: number }> }) {
-  return (
-    <section style={{ marginTop: 36 }}>
-      <p style={kicker}>Purchases</p>
-      {orders.length === 0 ? (
-        <p style={body}>No Stripe charges on this account.</p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0, marginTop: 14, maxWidth: 540 }}>
-          {orders.map((order, index) => (
-            <li key={`${order.createdAt}-${index}`} style={{ ...body, margin: '0 0 8px' }}>
-              {formatPaidAt(order.createdAt)} · {order.credits} charts · {PACK_PRICE_LABEL}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 function shortDay(day: string): string {
   const parts = day.split('-');
   const month = Number(parts[1]);
@@ -304,10 +248,6 @@ function shortDay(day: string): string {
   return `${month}/${date}`;
 }
 
-function formatRecentAt(ms: number): string {
-  return formatDayLabel(new Date(ms).toISOString().slice(0, 10));
-}
-
 function formatDayLabel(day: string): string {
   const [year, month, date] = day.split('-').map(Number);
   if (!year || !month || !date) {
@@ -316,15 +256,6 @@ function formatDayLabel(day: string): string {
   return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
-    timeZone: 'UTC',
-  });
-}
-
-function formatPaidAt(ms: number): string {
-  return new Date(ms).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
     timeZone: 'UTC',
   });
 }

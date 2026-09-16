@@ -266,6 +266,7 @@ export async function creditPurchase(input: {
 export type WalletOrder = {
   createdAt: number;
   credits: number;
+  stripeSessionId: string;
 };
 
 export type WalletState = {

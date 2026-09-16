@@ -185,7 +185,10 @@ export function ComposeBox({
 
 
   async function submit() {
-    const asked = prompt.trim();
+    let asked = prompt.trim();
+    if (asked.length < 3 && hero && typedExample.trim().length >= 3) {
+      asked = typedExample.trim();
+    }
     if (busy || asked.length < 3) {
       return;
     }
@@ -354,29 +357,40 @@ export function ComposeBox({
                   </div>
                 )}
                 <div className="compose-hero-bar">
-                  {hero && showTypewriter ? (
-                    <button
-                      type="button"
-                      className="compose-hero-use"
-                      onClick={() => onPickIdea(typedExample)}
-                    >
-                      Use this example
+                  <div className="compose-hero-actions">
+                    <button type="submit" className="compose-hero-submit is-primary">
+                      {studio ? 'Update chart' : 'Generate my chart'}
                     </button>
-                  ) : studio && showReviseTypewriter ? (
-                    <button
-                      type="button"
-                      className="compose-hero-use"
-                      onClick={() => onPickIdea(reviseExample)}
-                    >
-                      Use suggestion
-                    </button>
-                  ) : (
-                    <button type="submit" className="compose-hero-submit">
-                      {studio ? 'Update chart' : 'Make chart'}
-                    </button>
-                  )}
+                    {hero && showTypewriter ? (
+                      <button
+                        type="button"
+                        className="compose-hero-use"
+                        onClick={() => onPickIdea(typedExample)}
+                      >
+                        Use this example
+                      </button>
+                    ) : null}
+                    {studio && showReviseTypewriter ? (
+                      <button
+                        type="button"
+                        className="compose-hero-use"
+                        onClick={() => onPickIdea(reviseExample)}
+                      >
+                        Use suggestion
+                      </button>
+                    ) : null}
+                  </div>
                   <span className="compose-hero-bar-note">
-                    {hero ? heroBarNote(quota) : <StudioBarNote quota={quota} pay={pay} buying={buying} onBuy={() => void buy()} />}
+                    {hero ? (
+                      <HeroPricingNote
+                        quota={quota}
+                        pay={pay}
+                        buying={buying}
+                        onBuy={() => void buy()}
+                      />
+                    ) : (
+                      <StudioBarNote quota={quota} pay={pay} buying={buying} onBuy={() => void buy()} />
+                    )}
                   </span>
                 </div>
               </>
@@ -384,12 +398,16 @@ export function ComposeBox({
           </div>
         ) : null}
         {hero ? (
-          <div className={busy ? 'hero-examples-dim' : undefined}>
-            <HeroExamples onPick={onPickIdea} />
-          </div>
-        ) : null}
-        {!busy && hero ? (
-          <HeroFoot quota={quota} pay={pay} buying={buying} onBuy={() => void buy()} />
+          <>
+            <div className={busy ? 'hero-examples-dim' : undefined}>
+              <HeroExamples onPick={onPickIdea} />
+            </div>
+            {!busy ? (
+              <p className="hero-jump">
+                <a href="#examples">See example charts</a>
+              </p>
+            ) : null}
+          </>
         ) : null}
         {fail && !busy ? (
           <p
@@ -410,29 +428,33 @@ export function ComposeBox({
   );
 }
 
-function heroBarNote(quota: Quota | null): string {
+function heroMarketingLine(): string {
+  return `${FREE_PER_DAY} free today, then ${PACK_PRICE_LABEL} for ${PACK_CREDITS}`;
+}
+
+function heroPersonalBadge(quota: Quota | null): string | null {
   if (!quota?.configured) {
-    return `${FREE_PER_DAY} free · link + PNG`;
+    return null;
   }
-  if (quota.justPaid && quota.credits > 0) {
+  if (quota.justPaid && (quota.credits ?? 0) > 0) {
     return `${quota.credits} added`;
   }
-  if (quota.unlimited && quota.credits > 0) {
-    return `${quota.credits} left`;
-  }
   if (quota.unlimited) {
-    return 'Unlimited';
+    return quota.credits > 0 ? `${quota.credits} left · unlimited` : 'Unlimited';
   }
   if (quota.credits > 0) {
     return `${quota.credits} left`;
   }
-  if (quota.freeLeft > 0) {
+  if (quota.freeLeft > 0 && quota.freeLeft < FREE_PER_DAY) {
     return `${quota.freeLeft} free today`;
   }
-  return `${PACK_PRICE_LABEL} for ${PACK_CREDITS}`;
+  if (quota.freeLeft <= 0) {
+    return 'No free charts today';
+  }
+  return null;
 }
 
-function HeroFoot({
+function HeroPricingNote({
   quota,
   pay,
   buying,
@@ -445,17 +467,30 @@ function HeroFoot({
 }) {
   const unlimited = Boolean(quota?.unlimited);
   const justPaid = Boolean(quota?.justPaid);
-  const showBuy = !unlimited && !justPaid && (pay || Boolean(quota?.configured));
-  if (!showBuy) {
-    return null;
-  }
+  const outOfFree =
+    Boolean(quota?.configured) && !unlimited && quota.freeLeft <= 0 && (quota.credits ?? 0) <= 0;
+  const showBuy = !unlimited && !justPaid && (pay || outOfFree);
+
+  const badge = heroPersonalBadge(quota);
 
   return (
-    <p className="compose-hero-meta">
-      <button type="button" className="compose-hero-link" onClick={onBuy} disabled={buying}>
-        {buying ? 'Opening…' : `Buy ${quota?.packCredits ?? PACK_CREDITS}`}
-      </button>
-    </p>
+    <span className="compose-bar-note">
+      {badge ? (
+        <>
+          <span className="compose-bar-note-badge">{badge}</span>
+          <span aria-hidden="true">·</span>
+        </>
+      ) : null}
+      <span className="compose-bar-note-status">{heroMarketingLine()}</span>
+      {showBuy ? (
+        <span className="compose-bar-note-actions">
+          {' · '}
+          <button type="button" className="compose-hero-bar-buy" onClick={onBuy} disabled={buying}>
+            {buying ? 'Opening…' : `${PACK_PRICE_LABEL} for ${PACK_CREDITS}`}
+          </button>
+        </span>
+      ) : null}
+    </span>
   );
 }
 

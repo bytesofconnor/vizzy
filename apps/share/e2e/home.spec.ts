@@ -19,9 +19,10 @@ test('install and share images exist', async ({ request }) => {
 
 test('landing is the chart prompt', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'The perfect chart, for you' })).toBeVisible();
-  await expect(page.getByText(/Writing a post, newsletter, or report/)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Make chart' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Turn a question into a publish-ready chart' })).toBeVisible();
+  await expect(page.getByText(/AI drafts the series/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generate my chart' })).toBeVisible();
+  await expect(page.getByText(/free today, then \$8 for 25/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speak' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Site' })).toBeVisible();
