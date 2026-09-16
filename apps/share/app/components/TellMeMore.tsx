@@ -7,10 +7,12 @@ export function TellMeMore({
   seed,
   presetInsight,
   onInsight,
+  embedded = false,
 }: {
   seed: ChartSeed;
   presetInsight?: string;
   onInsight: (insight: string | null) => void;
+  embedded?: boolean;
 }) {
   const [insight, setInsight] = useState<string | null>(presetInsight ?? null);
   const [busy, setBusy] = useState(false);
@@ -60,7 +62,7 @@ export function TellMeMore({
   }
 
   return (
-    <div className="tell-more">
+    <div className={embedded ? 'tell-more is-embedded' : 'tell-more'}>
       {!open ? (
         <button type="button" className="tell-more-trigger" onClick={() => void load()} disabled={busy}>
           {busy ? 'Reading the chart…' : fail ? 'Try again' : 'Tell me more'}

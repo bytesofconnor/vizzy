@@ -1449,7 +1449,7 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
 
 .paste-menu {
   margin-top: 18px;
-  max-width: 560px;
+  width: 100%;
   padding: 14px 14px 12px;
   border: 1px solid color-mix(in srgb, var(--rule) 82%, transparent);
   border-radius: 14px;
@@ -1457,6 +1457,27 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
   box-shadow: 0 1px 0 color-mix(in srgb, #818891 8%, transparent);
 }
 
+.paste-menu-head {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.paste-menu-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paste-menu-controls .paste-menu-kicker {
+  margin-bottom: 0;
+}
+
+.paste-menu-controls .paste-insight-toggle {
+  margin-top: 2px;
+}
+
+.paste-menu-head + .paste-menu-section,
 .paste-menu-section + .paste-menu-section {
   margin-top: 14px;
   padding-top: 14px;
@@ -1477,6 +1498,12 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
+}
+
+.paste-size-row--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .paste-size-pills {
@@ -1634,6 +1661,18 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
   max-width: 560px;
 }
 
+.tell-more.is-embedded {
+  margin-top: 0;
+  max-width: none;
+}
+
+.tell-more.is-embedded .tell-more-body {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .tell-more-trigger {
   font: inherit;
   font-family: var(--font-mono), ui-monospace, monospace;
@@ -1686,12 +1725,6 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 12px;
   color: var(--mute);
-}
-
-.paste-menu-insight {
-  padding-top: 0;
-  margin-top: 0;
-  border-top: 0;
 }
 
 .paste-insight-toggle {
@@ -1888,6 +1921,30 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
 
   100% {
     transform: scale(1);
+  }
+}
+
+@media (min-width: 720px) {
+  .paste-menu-head {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .paste-menu-head .tell-more {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .paste-menu-controls {
+    flex: 0 0 auto;
+    width: min(100%, 11.5rem);
+    padding-top: 2px;
+  }
+
+  .paste-menu-head.has-context .paste-menu-controls {
+    padding-left: 18px;
+    border-left: 1px solid color-mix(in srgb, var(--rule) 65%, transparent);
   }
 }
 

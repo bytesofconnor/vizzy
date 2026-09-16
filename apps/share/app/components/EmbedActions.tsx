@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { CARD_SIZES, type CardSize } from '../../lib/compose';
-import { DUST } from '../../lib/theme';
 import { htmlEmbed, markdownEmbed, pieceImagePath } from '../../lib/embed';
+import type { ChartSeed } from '../../lib/seed';
+import { DUST } from '../../lib/theme';
+import { TellMeMore } from './TellMeMore';
 
 type Mode = 'image' | 'markdown' | 'html' | null;
 
@@ -48,16 +50,19 @@ export function EmbedActions({
   title,
   note,
   source,
-  insight,
+  seed,
+  presetInsight,
 }: {
   slug: string;
   title: string;
   note: string;
   source?: string;
-  insight?: string | null;
+  seed: ChartSeed;
+  presetInsight?: string;
 }) {
+  const [insight, setInsight] = useState<string | null>(presetInsight ?? null);
   const [size, setSize] = useState<CardSize>('md');
-  const [includeInsight, setIncludeInsight] = useState(Boolean(insight));
+  const [includeInsight, setIncludeInsight] = useState(Boolean(presetInsight));
   const [copied, setCopied] = useState<Mode>(null);
   const [busy, setBusy] = useState<Mode>(null);
   const [fail, setFail] = useState<Mode>(null);
@@ -195,58 +200,63 @@ export function EmbedActions({
 
   return (
     <div className="paste-menu" aria-label="Copy chart">
-      <div className="paste-menu-section">
-        <p className="paste-menu-kicker">Size</p>
-        <div className="paste-size-row">
-          <div
-            className="paste-size-pills"
-            role="radiogroup"
-            aria-label="Export size"
-            onKeyDown={onSizeKeyDown}
-          >
-            {CARD_SIZES.map((option, index) => {
-              const active = size === option;
-              const tone = DUST[index % DUST.length] ?? DUST[0];
-              return (
-                <button
-                  key={option}
-                  ref={(node) => {
-                    sizeRefs.current[index] = node;
-                  }}
-                  type="button"
-                  role="radio"
-                  className={active ? 'paste-size-pill is-active' : 'paste-size-pill'}
-                  aria-checked={active}
-                  tabIndex={active ? 0 : -1}
-                  aria-label={`${SIZE_LABEL[option]}, ${SIZE_HINT[option]}`}
-                  title={SIZE_HINT[option]}
-                  style={({ ['--pill-tone' as string]: tone } as CSSProperties)}
-                  onClick={() => {
-                    setSize(option);
-                    focusSize(index);
-                  }}
-                >
-                  <span className="paste-size-letter">{SIZE_LABEL[option]}</span>
-                </button>
-              );
-            })}
+      <div className={`paste-menu-head${insight ? ' has-context' : ''}`}>
+        <TellMeMore
+          embedded
+          seed={seed}
+          presetInsight={presetInsight}
+          onInsight={setInsight}
+        />
+        <div className="paste-menu-controls">
+          <p className="paste-menu-kicker">Size</p>
+          <div className="paste-size-row paste-size-row--stacked">
+            <div
+              className="paste-size-pills"
+              role="radiogroup"
+              aria-label="Export size"
+              onKeyDown={onSizeKeyDown}
+            >
+              {CARD_SIZES.map((option, index) => {
+                const active = size === option;
+                const tone = DUST[index % DUST.length] ?? DUST[0];
+                return (
+                  <button
+                    key={option}
+                    ref={(node) => {
+                      sizeRefs.current[index] = node;
+                    }}
+                    type="button"
+                    role="radio"
+                    className={active ? 'paste-size-pill is-active' : 'paste-size-pill'}
+                    aria-checked={active}
+                    tabIndex={active ? 0 : -1}
+                    aria-label={`${SIZE_LABEL[option]}, ${SIZE_HINT[option]}`}
+                    title={SIZE_HINT[option]}
+                    style={({ ['--pill-tone' as string]: tone } as CSSProperties)}
+                    onClick={() => {
+                      setSize(option);
+                      focusSize(index);
+                    }}
+                  >
+                    <span className="paste-size-letter">{SIZE_LABEL[option]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="paste-size-hint">{SIZE_HINT[size]}</p>
           </div>
-          <p className="paste-size-hint">{SIZE_HINT[size]}</p>
+          {insight ? (
+            <label className="paste-insight-toggle">
+              <input
+                type="checkbox"
+                checked={includeInsight}
+                onChange={(event) => setIncludeInsight(event.target.checked)}
+              />
+              <span>Include context in exports</span>
+            </label>
+          ) : null}
         </div>
       </div>
-
-      {insight ? (
-        <div className="paste-menu-section paste-menu-insight">
-          <label className="paste-insight-toggle">
-            <input
-              type="checkbox"
-              checked={includeInsight}
-              onChange={(event) => setIncludeInsight(event.target.checked)}
-            />
-            <span>Include context in exports</span>
-          </label>
-        </div>
-      ) : null}
 
       <div className="paste-menu-section">
         <p className="paste-menu-kicker">Copy as</p>
