@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { VizzyChart } from '@vizzy/react';
 import { validateChartConfig, xAxisRoom, type ChartConfig, type DataPoint } from '@vizzy/core';
+
+const LAYOUT_INNER_WIDTH = 560;
 
 export function ChartMount({
   config,
@@ -15,25 +17,25 @@ export function ChartMount({
   label?: string;
   framed?: boolean;
 }) {
+  const [motion, setMotion] = useState(false);
+
+  useEffect(() => {
+    setMotion(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }, []);
+
   const live = useMemo(() => {
     const xLabel = config.axes?.x?.label;
     const yLabel = config.axes?.y?.label;
     const names = [
       ...new Set(data.map((row) => String(row[config.dataMapping.x] ?? ''))),
     ];
-    const roomTight = xAxisRoom(names, {
+    const room = xAxisRoom(names, {
       hasTitle: Boolean(xLabel),
-      innerWidth: 280,
+      innerWidth: LAYOUT_INNER_WIDTH,
     });
-    const roomWide = xAxisRoom(names, {
-      hasTitle: Boolean(xLabel),
-      innerWidth: 640,
-    });
-    const bottom = Math.max(roomTight.bottom, roomWide.bottom, xLabel ? 56 : 36);
+    const bottom = Math.min(Math.max(room.bottom, xLabel ? 48 : 32), 120);
     const title = config.accessibility?.title || label;
     const legendTop = config.legend?.show && config.legend.position === 'top';
-    const motion =
-      typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const baseMargin = config.dimensions?.margin ?? {};
     const next = validateChartConfig({
       ...config,
@@ -70,7 +72,7 @@ export function ChartMount({
       interaction: {
         ...config.interaction,
         hover: true,
-        tooltip: config.interaction?.tooltip !== false,
+        tooltip: true,
       },
       accessibility: {
         ...config.accessibility,
@@ -78,8 +80,8 @@ export function ChartMount({
         ...(title ? { title } : {}),
       },
     });
-    return { config: next, minHeight: 168 + bottom };
-  }, [config, data, label]);
+    return { config: next, minHeight: Math.min(168 + bottom, 280) };
+  }, [config, data, label, motion]);
 
   return (
     <VizzyChart

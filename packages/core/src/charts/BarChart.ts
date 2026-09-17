@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { bindChartTip, formatTipNumber } from '../chart-tip';
+import { bindChartTip, formatTipNumber, seriesTipLabel } from '../chart-tip';
 import { formatDataValue } from '../format';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
@@ -252,6 +252,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .style('stroke', colors.background)
       .style('stroke-width', '3px')
       .style('stroke-linejoin', 'round')
+      .style('pointer-events', 'none')
       .text((d) => formatDataValue(Number(d[dataMapping.y]), domain));
   }
 
@@ -321,7 +322,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       bindChartTip(host, node, () => ({
         title: String(d[dataMapping.x] ?? ''),
         value: formatTipNumber(d[dataMapping.y], domain),
-        series: groupField && d[groupField] != null ? String(d[groupField]) : undefined,
+        series: groupField ? seriesTipLabel(d[groupField]) : undefined,
       }));
     });
   }

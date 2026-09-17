@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ChartConfig, DataPoint } from '@vizzy/core';
 import { getAccount, readWalletToken } from '../../lib/billing';
-import { listRecentCharts, ownerSession } from '../../lib/telemetry';
+import { listPinnedCharts, listRecentCharts, ownerSession } from '../../lib/telemetry';
 import { googleClientId } from '../../lib/google';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import { studioChart } from '../../lib/theme';
 import { AccountBuy } from '../components/AccountBuy';
 import { AccountChartsTable } from '../components/AccountChartsTable';
+import { AccountPinned } from '../components/AccountPinned';
 import { AccountPurchasesTable } from '../components/AccountPurchasesTable';
 import { ChartMount } from '../components/ChartMount';
 import { KickerNav } from '../components/KickerNav';
@@ -48,12 +49,14 @@ const rowTitle = {
 export default async function MePage() {
   let account: Awaited<ReturnType<typeof getAccount>> = null;
   let recent: Awaited<ReturnType<typeof listRecentCharts>> = [];
+  let pinned: Awaited<ReturnType<typeof listPinnedCharts>> = [];
   let owner = false;
   try {
     account = await getAccount();
     const token = await readWalletToken();
     if (token && account) {
       recent = await listRecentCharts(token, 50);
+      pinned = await listPinnedCharts(token, 24);
     }
     owner = await ownerSession();
   } catch (error) {
@@ -96,6 +99,7 @@ export default async function MePage() {
         </p>
       ) : null}
       <AccountBuy more={Boolean(account)} />
+      {account ? <AccountPinned charts={pinned} /> : null}
       {account ? <AccountChartsTable charts={recent} saved={account.saved} /> : null}
       {account && account.used > 0 && !account.unlimited ? (
         <Activity account={account} savedCount={recent.length} />

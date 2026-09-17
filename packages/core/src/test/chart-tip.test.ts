@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartTipText, formatTipNumber, bindChartTip } from '../chart-tip';
+import { chartTipText, formatTipNumber, bindChartTip, seriesTipLabel } from '../chart-tip';
 
 describe('chartTipText', () => {
   it('joins a category and value', () => {
@@ -8,6 +8,13 @@ describe('chartTipText', () => {
 
   it('adds a series when it differs from the category', () => {
     expect(chartTipText({ title: '2019', value: '12', series: 'Starts' })).toBe('2019 · Starts: 12');
+  });
+});
+
+describe('seriesTipLabel', () => {
+  it('drops paint hexes used as a color field', () => {
+    expect(seriesTipLabel('#121211')).toBeUndefined();
+    expect(seriesTipLabel('India')).toBe('India');
   });
 });
 

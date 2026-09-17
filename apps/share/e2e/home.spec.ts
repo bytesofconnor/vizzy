@@ -24,6 +24,8 @@ test('landing is the chart prompt', async ({ page }) => {
   await expect(page.getByText(/AI drafts the series/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Generate my chart' })).toBeVisible();
   await expect(page.getByText(/free today, then \$8 for 25/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy a Vizzy prompt' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pin' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speak' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Site' })).toBeVisible();

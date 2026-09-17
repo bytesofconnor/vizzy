@@ -1,4 +1,5 @@
 import { PIECES, type Piece } from '../../lib/pieces';
+import { AgentPaste } from './AgentPaste';
 import { DustRail } from './DustRail';
 import { HomeCompose } from './HomeCompose';
 import { KickerNav } from './KickerNav';
@@ -37,6 +38,7 @@ export function Studio({
             the chart.
           </p>
           <HomeCompose error={error} askPay={askPay} />
+          <AgentPaste />
         </section>
       )}
       <div id="examples" className={piece ? undefined : 'home-examples'}>

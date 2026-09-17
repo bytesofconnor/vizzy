@@ -24,6 +24,14 @@ export function formatTipNumber(value: unknown, domain: [number, number]): strin
   return formatDataValue(n, domain);
 }
 
+export function seriesTipLabel(value: unknown): string | undefined {
+  const text = String(value ?? '').trim();
+  if (!text || /^#([\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(text)) {
+    return undefined;
+  }
+  return text;
+}
+
 export function bindChartTip(
   container: HTMLElement,
   node: Element,
@@ -53,10 +61,26 @@ export function bindChartTip(
   node.addEventListener('pointerenter', show);
   node.addEventListener('pointermove', show);
   node.addEventListener('pointerleave', hide);
+  node.addEventListener('pointerover', show);
   node.addEventListener('mouseenter', show);
   node.addEventListener('mousemove', show);
   node.addEventListener('mouseleave', hide);
+  node.addEventListener('mouseover', show);
   node.addEventListener('blur', hide);
+}
+
+export function pointHitTarget(node: SVGCircleElement, radius = 14): SVGCircleElement {
+  const parent = node.parentNode;
+  const hit = node.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  hit.setAttribute('class', 'point-hit');
+  hit.setAttribute('cx', node.getAttribute('cx') ?? '0');
+  hit.setAttribute('cy', node.getAttribute('cy') ?? '0');
+  hit.setAttribute('r', String(radius));
+  hit.setAttribute('fill', 'transparent');
+  hit.setAttribute('stroke', 'none');
+  hit.setAttribute('pointer-events', 'all');
+  parent?.insertBefore(hit, node);
+  return hit;
 }
 
 function tipHost(container: HTMLElement): HTMLDivElement {

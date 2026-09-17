@@ -272,6 +272,9 @@ function eventLabel(name: string): string {
     tap_writers: 'Writers link tapped',
     tap_terms: 'Terms link tapped',
     tap_llms: 'llms.txt link tapped',
+    copy_agent_paste: 'ChatGPT prompt copied',
+    tap_pin_chart: 'Chart pinned',
+    tap_unpin_chart: 'Chart unpinned',
   };
   return labels[name] ?? name.replace(/_/g, ' ');
 }

@@ -49,7 +49,11 @@ export default defineSchema({
     title: v.string(),
     route: v.union(v.literal('compose'), v.literal('publish')),
     createdAt: v.number(),
-  }).index('by_wallet', ['walletId', 'createdAt']),
+    pinnedAt: v.optional(v.number()),
+  })
+    .index('by_wallet', ['walletId', 'createdAt'])
+    .index('by_wallet_slug', ['walletId', 'slug'])
+    .index('by_wallet_pinned', ['walletId', 'pinnedAt']),
 
   eventDaily: defineTable({
     name: v.string(),

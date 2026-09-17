@@ -47,8 +47,8 @@ describe('xAxisRoom', () => {
     ];
     const phone = xAxisRoom(names, { hasTitle: true, innerWidth: 280 });
     const desktop = xAxisRoom(names, { hasTitle: true, innerWidth: 720 });
-    expect(Math.max(phone.bottom, desktop.bottom)).toBeGreaterThan(90);
-    expect(phone.bottom).toBeGreaterThanOrEqual(desktop.bottom - 8);
+    expect(phone.bottom).toBeGreaterThan(90);
+    expect(phone.bottom).toBeGreaterThanOrEqual(desktop.bottom);
   });
 
   it('labels a crowded people set by last name', () => {
@@ -75,5 +75,18 @@ describe('xAxisRoom', () => {
     const room = xAxisRoom(names, { hasTitle: true, innerWidth: 720 });
     expect(room.rotate).not.toBe(0);
     expect(room.tickDepth).toBeLessThan(110);
+  });
+
+  it('wraps a short species set on a wide plot instead of reserving a rotate well', () => {
+    const names = [
+      'White rhino',
+      'Black rhino',
+      'Greater one-horned rhino',
+      'Javan rhino',
+      'Sumatran rhino',
+    ];
+    expect(xTickRotate(names, 560)).toBe(0);
+    expect(xAxisRoom(names, { hasTitle: true, innerWidth: 560 }).bottom).toBeLessThan(120);
+    expect(xAxisRoom(names, { hasTitle: true, innerWidth: 280 }).bottom).toBeGreaterThan(140);
   });
 });

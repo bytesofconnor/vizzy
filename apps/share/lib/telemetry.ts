@@ -82,12 +82,56 @@ export async function listRecentCharts(
   walletToken: string,
   limit = 20
 ): Promise<
-  Array<{ slug: string; title: string; route: 'compose' | 'publish'; createdAt: number }>
+  Array<{
+    slug: string;
+    title: string;
+    route: 'compose' | 'publish';
+    createdAt: number;
+    pinned: boolean;
+  }>
 > {
   if (!convexUrl()) {
     return [];
   }
   return await convexCall('query', 'charts:listRecent', { walletToken, limit });
+}
+
+export async function listPinnedCharts(
+  walletToken: string,
+  limit = 12
+): Promise<
+  Array<{
+    slug: string;
+    title: string;
+    route: 'compose' | 'publish';
+    createdAt: number;
+    pinned: boolean;
+  }>
+> {
+  if (!convexUrl()) {
+    return [];
+  }
+  return await convexCall('query', 'charts:listPinned', { walletToken, limit });
+}
+
+export async function chartIsPinned(walletToken: string, slug: string): Promise<boolean> {
+  if (!convexUrl()) {
+    return false;
+  }
+  return await convexCall('query', 'charts:isPinned', { walletToken, slug });
+}
+
+export async function setChartPinned(args: {
+  walletToken: string;
+  slug: string;
+  pinned: boolean;
+  title?: string;
+  route?: 'compose' | 'publish';
+}): Promise<{ pinned: boolean }> {
+  if (!convexUrl()) {
+    return { pinned: false };
+  }
+  return await convexCall('mutation', 'charts:setPinned', args);
 }
 
 export type AdminInsights = {

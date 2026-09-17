@@ -34,4 +34,17 @@ describe('VizzyChart', () => {
       expect(container.querySelector('svg > title')).toBeNull();
     });
   });
+
+  it('shows an HTML tip for a bar', async () => {
+    const { container } = render(<VizzyChart config={config} data={data} showPerformanceMetrics={false} />);
+    const bar = await waitFor(() => {
+      const node = container.querySelector('rect.bar');
+      expect(node).toBeTruthy();
+      return node as SVGRectElement;
+    });
+    bar.dispatchEvent(new MouseEvent('mouseenter', { clientX: 24, clientY: 24, bubbles: true }));
+    const tip = container.querySelector('.vizzy-tip');
+    expect(tip?.textContent).toMatch(/Jan/);
+    expect((tip as HTMLDivElement).hidden).toBe(false);
+  });
 });

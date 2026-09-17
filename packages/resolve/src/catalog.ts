@@ -414,7 +414,7 @@ export const DATASETS: readonly Dataset[] = [
     xLabel: 'Country',
     yLabel: 'Wild tigers',
     topics: ['biology', 'ecology'],
-    aliases: ['tiger', 'tigers'],
+    aliases: ['tiger', 'tigers', 'wild tiger', 'tiger population', 'tigers by country'],
     avoid: ['economy', 'paper'],
   },
   {

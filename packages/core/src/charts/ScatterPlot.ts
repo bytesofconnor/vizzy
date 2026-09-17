@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { bindChartTip, formatTipNumber } from '../chart-tip';
+import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '../chart-tip';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
@@ -295,11 +295,13 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
       if (!node) {
         return;
       }
-      bindChartTip(host, node, () => ({
+      const tip = () => ({
         title: String(d[dataMapping.x] ?? ''),
         value: formatTipNumber(d[dataMapping.y], domain),
-        series: seriesField && d[seriesField] != null ? String(d[seriesField]) : undefined,
-      }));
+        series: seriesField ? seriesTipLabel(d[seriesField]) : undefined,
+      });
+      bindChartTip(host, pointHitTarget(node), tip);
+      bindChartTip(host, node, tip);
     });
   }
 

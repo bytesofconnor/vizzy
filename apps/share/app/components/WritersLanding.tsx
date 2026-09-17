@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { PIECES } from '../../lib/pieces';
 import { DUST, STUDIO } from '../../lib/theme';
+import { AgentPaste } from './AgentPaste';
 import { ComposeBox } from './ComposeBox';
 import { DustRail } from './DustRail';
 import { KickerNav } from './KickerNav';
@@ -58,6 +59,7 @@ export function WritersLanding({
         </p>
         <p className="writers-trust">We won&apos;t invent a source link.</p>
         <ComposeBox error={error} askPay={askPay} variant="hero" />
+        <AgentPaste />
       </section>
       <section className="writers-workflows" aria-labelledby="writers-workflows-title">
         <h2 id="writers-workflows-title" className="writers-section-kicker">

@@ -273,7 +273,7 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
   }
 
   private _chartBox(): { width: number; height: number } {
-    const { width, height: rawHeight } = this._getContainerDimensions();
+    const { width } = this._getContainerDimensions();
     const margin = this.config.dimensions.margin;
     if (this.config.chart.type === 'bar' || this.config.chart.type === 'line') {
       const names = [
@@ -284,15 +284,12 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
         hasTitle: Boolean(this.config.axes.x.label),
         innerWidth: innerGuess,
       });
-      const tight = xAxisRoom(names, {
-        hasTitle: Boolean(this.config.axes.x.label),
-        innerWidth: Math.min(280, innerGuess),
-      });
-      margin.bottom = Math.max(margin.bottom, room.bottom, tight.bottom);
+      margin.bottom = room.bottom;
     }
+    const innerPlot = Math.min(220, Math.max(148, Math.round(width * 0.58)));
     return {
-      width,
-      height: Math.max(rawHeight, margin.top + 132 + margin.bottom),
+      width: Math.max(width, 120),
+      height: margin.top + innerPlot + margin.bottom,
     };
   }
 
@@ -312,14 +309,16 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
       return;
     }
     const shift = axis.transform.baseVal.consolidate()?.matrix;
-    const bottom = Math.ceil((shift?.f ?? 0) + box.y + box.height + 10);
+    const needed = Math.ceil((shift?.f ?? 0) + box.y + box.height + 8);
     const current = Number(svg.getAttribute('height')) || 0;
-    if (bottom <= current) {
+    const width = Number(svg.getAttribute('width')) || 0;
+    const maxHeight = Math.max(current, Math.round(width * 1.15) + 80);
+    const next = Math.min(Math.max(needed, 160), maxHeight);
+    if (!Number.isFinite(next) || Math.abs(next - current) < 6) {
       return;
     }
-    this._svg?.attr('height', bottom).attr('viewBox', `0 0 ${svg.getAttribute('width')} ${bottom}`);
-    this._svg?.select('.vizzy-bg').attr('height', bottom);
-    this.container.style.minHeight = `${bottom}px`;
+    this._svg?.attr('height', next).attr('viewBox', `0 0 ${svg.getAttribute('width')} ${next}`);
+    this._svg?.select('.vizzy-bg').attr('height', next);
   }
 
   private _clearContainer(): void {

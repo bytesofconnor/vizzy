@@ -4,6 +4,7 @@ import type { Piece } from '../../lib/pieces';
 import { ChartExtras } from './ChartExtras';
 import { ChartFrame } from './ChartFrame';
 import { ChartMount } from './ChartMount';
+import { PinButton } from './PinButton';
 import { SourceLine } from './SourceLine';
 
 export function PieceStage({
@@ -42,7 +43,10 @@ export function PieceStage({
         head={
           <>
             {headLead}
-            <p className="chart-kicker">{piece.kicker}</p>
+            <div className="chart-frame-meta">
+              <p className="chart-kicker">{piece.kicker}</p>
+              {extras ? <PinButton slug={piece.slug} title={piece.title} /> : null}
+            </div>
             <TitleTag id={titleId} className="chart-title">
               {titleInner}
             </TitleTag>

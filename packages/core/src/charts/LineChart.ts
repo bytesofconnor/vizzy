@@ -3,7 +3,7 @@ import { ChartConfig, DataPoint, LineChartConfig, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
 import { DataProcessor, ProcessedData } from '../components/DataProcessor';
-import { bindChartTip, formatTipNumber } from '../chart-tip';
+import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '../chart-tip';
 import { forecastStartIndex } from '../forecast';
 import { formatDataValue, linePointLabelPlacement } from '../format';
 
@@ -695,11 +695,13 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       if (!node) {
         return;
       }
-      bindChartTip(host, node, () => ({
+      const tip = () => ({
         title: String(d[dataMapping.x] ?? ''),
         value: formatTipNumber(d[dataMapping.y], domain),
-        series: seriesField && d[seriesField] != null ? String(d[seriesField]) : undefined,
-      }));
+        series: seriesField ? seriesTipLabel(d[seriesField]) : undefined,
+      });
+      bindChartTip(host, pointHitTarget(node), tip);
+      bindChartTip(host, node, tip);
     });
   }
 

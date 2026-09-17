@@ -516,6 +516,40 @@ input {
   max-width: 28rem;
 }
 
+.agent-paste {
+  width: 100%;
+  max-width: 40rem;
+  margin: 14px auto 0;
+  scroll-margin-top: 24px;
+}
+
+.agent-paste-line {
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+  color: var(--mute);
+}
+
+.agent-paste-copy {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  letter-spacing: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+  cursor: pointer;
+}
+
+.agent-paste-copy:hover,
+.agent-paste-copy:focus-visible {
+  color: var(--ink);
+}
+
 .home-hero-dust {
   gap: 3px;
   width: 10rem;
@@ -1741,6 +1775,97 @@ a.compose-hero-submit.is-amber:focus-visible {
   color: var(--mute);
 }
 
+.chart-frame-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pin-control {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.pin-button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+  cursor: pointer;
+}
+
+.pin-button.is-on,
+.pin-button:hover,
+.pin-button:focus-visible {
+  color: var(--ink);
+}
+
+.pin-error {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--mute);
+  max-width: 12rem;
+  text-align: right;
+}
+
+.pin-board {
+  margin-top: 36px;
+  max-width: 720px;
+}
+
+.pin-board-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.pin-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--rule) 82%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 92%, #fff);
+}
+
+.pin-board-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pin-board-thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--paper) 80%, #fff);
+}
+
+.pin-board-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.pin-board-card .pin-button {
+  align-self: flex-start;
+}
+
 .chart-title {
   margin: 4px 0 12px;
   font-weight: 500;
@@ -1801,7 +1926,7 @@ a.compose-hero-submit.is-amber:focus-visible {
 
 .vizzy-tip {
   position: absolute;
-  z-index: 24;
+  z-index: 40;
   max-width: min(16rem, calc(100% - 16px));
   padding: 6px 8px;
   border: 1px solid color-mix(in srgb, var(--ink) 12%, var(--rule));
@@ -2684,8 +2809,8 @@ a.admin-eval-act {
   aspect-ratio: unset;
   width: 100%;
   height: auto;
-  min-height: 220px;
-  max-height: none;
+  min-height: 200px;
+  max-height: min(70dvh, 28rem);
 }
 
 .home-chart-busy .compose-busy-chart,
@@ -3182,7 +3307,7 @@ html:not(.is-inked) .compose-hero-card {
   }
 
   .chart-mount.is-framed {
-    max-height: none;
+    max-height: min(70dvh, 28rem);
   }
 
   .compose-draw-plot {

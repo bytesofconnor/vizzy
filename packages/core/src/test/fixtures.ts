@@ -40,16 +40,18 @@ export function scatterConfig(): ChartConfig {
   });
 }
 
-export function createContainer(): HTMLDivElement {
+export function createContainer(size: { width?: number; height?: number } = {}): HTMLDivElement {
+  const width = size.width ?? 800;
+  const height = size.height ?? 400;
   const el = document.createElement('div');
   Object.defineProperty(el, 'getBoundingClientRect', {
     value: () => ({
-      width: 800,
-      height: 400,
+      width,
+      height,
       top: 0,
       left: 0,
-      right: 800,
-      bottom: 400,
+      right: width,
+      bottom: height,
       x: 0,
       y: 0,
       toJSON: () => ({}),

@@ -79,5 +79,6 @@ npm run test:e2e  # Playwright; reuses local :3456 if it is up
 - **Google** — Sign in is always in the top right. GIS redirect (not a popup — Arc turns popups into blank tabs). Bind is `/api/save/google`. After Checkout, `/pay/thanks` sets `vizzy_paid` and sends you to `/me`.
 - **Account** — `/me` is credits, 14-day usage, purchases. Convex `uses` logs each draw.
 - **Eval** — canned grid in `@vizzy/eval`. Tests on every CI `check`. Publish to Convex `evalRuns` on push to `main` (job `eval`). Latest run on `/admin?view=eval`. Recs regenerate each publish; Working/Park are owner state; GitHub issue is a pre-filled link. Rec ids that disappear on the next run are **cleared**. No cron. Do not auto-merge SYSTEM.
+- **GTM** — Proof-led distribution into writers. Not Product Hunt or BI launch theater. See [gtm.md](gtm.md).
 - **Agents** — `https://vizzy.run/llms.txt`, `https://vizzy.run/agents`, OpenAPI at `/openapi.json`, schema at `/schema/chart-config.v1.json`, JSON index at `/api`. MCP stdio from the repo: `npx tsx apps/mcp/src/cli.ts`. After the free meter, `VIZZY_WALLET_TOKEN` is the `vizzy_wallet` cookie.
 - **Restore** — Terms, checkout email. Resend when configured.

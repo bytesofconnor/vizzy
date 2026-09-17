@@ -115,6 +115,7 @@ export class RenderEngine {
     const axesGroup = svg.select('.axes-group').empty() 
       ? svg.append('g').attr('class', 'axes-group')
       : svg.select('.axes-group');
+    axesGroup.style('pointer-events', 'none');
 
     // X Axis
     if (config.axes.x.show) {
@@ -347,7 +348,9 @@ export class RenderEngine {
         : svg.insert('g', '.vizzy-bg + *').attr('class', 'grid-group');
     }
 
-    gridGroup.attr('transform', `translate(${margin.left}, ${margin.top})`);
+    gridGroup
+      .attr('transform', `translate(${margin.left}, ${margin.top})`)
+      .style('pointer-events', 'none');
 
     // X Grid
     if (config.axes.x.grid) {

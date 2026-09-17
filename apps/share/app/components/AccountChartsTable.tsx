@@ -8,6 +8,7 @@ export type AccountChartRow = {
   title: string;
   route: 'compose' | 'publish';
   createdAt: number;
+  pinned?: boolean;
 };
 
 const PAGE = 12;
@@ -26,7 +27,7 @@ export function AccountChartsTable({
   return (
     <section className="admin-log-section">
       <div className="admin-log-head">
-        <p className="admin-log-kicker">Your charts</p>
+        <p className="admin-log-kicker">Recent</p>
         {charts.length > 0 ? (
           <p className="admin-log-count">{charts.length} saved</p>
         ) : null}
@@ -34,8 +35,8 @@ export function AccountChartsTable({
       {charts.length === 0 ? (
         <p className="admin-log-empty">
           {saved
-            ? 'Charts you make show up here as links you can reopen on any device.'
-            : 'Charts you make on this browser show up here as links you can reopen.'}
+            ? 'Charts you make show up here as links. Pin the keepers above.'
+            : 'Charts you make on this browser show up here. Pin the keepers above.'}
         </p>
       ) : (
         <>
@@ -46,7 +47,7 @@ export function AccountChartsTable({
                   <th scope="col">When</th>
                   <th scope="col">Title</th>
                   <th scope="col">Source</th>
-                  <th scope="col">Slug</th>
+                  <th scope="col">Pin</th>
                 </tr>
               </thead>
               <tbody>
@@ -61,11 +62,7 @@ export function AccountChartsTable({
                         </Link>
                       </td>
                       <td data-label="Source">{routeLabel(chart.route)}</td>
-                      <td data-label="Slug" className="admin-log-mono">
-                        <Link href={`/c/${chart.slug}`} className="admin-log-link admin-log-slug">
-                          {chart.slug}
-                        </Link>
-                      </td>
+                      <td data-label="Pin">{chart.pinned ? 'Pinned' : '—'}</td>
                     </tr>
                   );
                 })}

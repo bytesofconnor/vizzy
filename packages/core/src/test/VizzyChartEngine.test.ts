@@ -142,7 +142,7 @@ describe('VizzyChartEngine', () => {
     const height = Number(svg?.getAttribute('height'));
     const room = xAxisRoom(
       rows.map((row) => row.month),
-      { hasTitle: true, innerWidth: 280 }
+      { hasTitle: true, innerWidth: 480 - 40 - 20 }
     );
     expect(height).toBeGreaterThanOrEqual(132 + room.bottom);
   });
@@ -283,5 +283,47 @@ describe('VizzyChartEngine', () => {
     expect(lines.length).toBeGreaterThan(1);
     expect(lines.join(' ')).toContain('August');
     expect(first?.getAttribute('transform')).toBeFalsy();
+  });
+
+  it('does not park a rotated-label well under wrapped category names', async () => {
+    const rows = [
+      { month: 'White rhino', revenue: 15700 },
+      { month: 'Black rhino', revenue: 6400 },
+      { month: 'Greater one-horned rhino', revenue: 4000 },
+      { month: 'Javan rhino', revenue: 70 },
+      { month: 'Sumatran rhino', revenue: 40 },
+    ];
+    const config = barConfig();
+    config.axes.x.label = 'Species';
+    const chart = engine(config, rows);
+    await chart.render();
+    const title = chart.container.querySelector('.x-axis .axis-label');
+    expect(Number(title?.getAttribute('y'))).toBeLessThan(90);
+    const phone = xAxisRoom(rows.map((row) => row.month), { hasTitle: true, innerWidth: 280 });
+    expect(phone.bottom).toBeGreaterThan(Number(title?.getAttribute('y') ?? 0) + 40);
+  });
+
+  it('shows a chart tip when the pointer is over a bar', async () => {
+    const config = barConfig();
+    config.chart = { ...config.chart, showValues: true };
+    config.interaction = { ...config.interaction, hover: true, tooltip: true };
+    const chart = engine(config);
+    await chart.render();
+    const bar = chart.container.querySelector('rect.bar');
+    expect(bar).toBeTruthy();
+    bar?.dispatchEvent(new MouseEvent('mouseenter', { clientX: 40, clientY: 40, bubbles: true }));
+    const tip = chart.container.querySelector('.vizzy-tip');
+    expect(tip?.textContent).toMatch(/Jan/);
+    expect((tip as HTMLDivElement | null)?.hidden).toBe(false);
+  });
+
+  it('does not stretch the plot to match a tall container', async () => {
+    const el = createContainer({ width: 360, height: 2400 });
+    containers.push(el);
+    const chart = new VizzyChartEngine(el, barConfig(), SAMPLE_REVENUE);
+    await chart.render();
+    const height = Number(chart.container.querySelector('svg')?.getAttribute('height'));
+    expect(height).toBeGreaterThan(180);
+    expect(height).toBeLessThan(420);
   });
 });
