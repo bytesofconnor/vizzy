@@ -34,7 +34,7 @@ export default async function WritersPage({
         data={{
           '@context': 'https://schema.org',
           '@type': 'WebPage',
-          name: 'Vizzy for writers',
+          name: 'vizzy for writers',
           url: `${origin}/for/writers`,
           description:
             'Charts you can paste into newsletters, blog posts, and reports. Get a link and PNG with the source on the chart.',

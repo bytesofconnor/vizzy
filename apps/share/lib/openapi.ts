@@ -50,7 +50,7 @@ export function openApiSpec(origin: string) {
   return {
     openapi: '3.1.0',
     info: {
-      title: 'Vizzy',
+      title: 'vizzy',
       version: '1.0.0',
       summary: 'A chart you can paste.',
       description: `${SITE_DESCRIPTION} Emit ChartConfig v1. Do not invent D3. Three free charts a day, then ${PACK_PRICE_LABEL} for ${PACK_CREDITS}.`,

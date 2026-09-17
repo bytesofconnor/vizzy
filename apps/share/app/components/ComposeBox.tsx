@@ -34,6 +34,8 @@ export function ComposeBox({
   variant = 'default',
   onBusyProgress,
   onMinted,
+  onComposeStart,
+  onPromptIntent,
   children,
   showIdeas = true,
 }: {
@@ -43,6 +45,8 @@ export function ComposeBox({
   variant?: 'default' | 'hero';
   onBusyProgress?: (progress: ComposeProgressEvent | null) => void;
   onMinted?: (piece: ClientPiece, url: string) => void;
+  onComposeStart?: (opts: { fresh: boolean }) => void;
+  onPromptIntent?: (opts: { fresh: boolean }) => void;
   children?: ReactNode;
   showIdeas?: boolean;
 }) {
@@ -62,6 +66,7 @@ export function ComposeBox({
   const [revisionLines, setRevisionLines] = useState<readonly string[]>(() =>
     seed ? heuristicRevisionPrompts(seed) : []
   );
+  const [promptFresh, setPromptFresh] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
   const typeRef = useRef<HTMLDivElement | null>(null);
   const reviseTypeRef = useRef<HTMLDivElement | null>(null);
@@ -194,20 +199,25 @@ export function ComposeBox({
 
   useEffect(() => {
     const onFill = (event: Event) => {
-      const next = (event as CustomEvent<{ prompt?: string }>).detail?.prompt;
+      const detail = (event as CustomEvent<{ prompt?: string; fresh?: boolean }>).detail;
+      const next = detail?.prompt;
       if (typeof next !== 'string' || next.trim().length < 3) {
         return;
       }
+      const fresh = detail?.fresh === true;
+      setPromptFresh(fresh);
+      onPromptIntent?.({ fresh });
       onPickIdea(next.trim());
     };
     window.addEventListener(FILL_COMPOSE_PROMPT, onFill);
     return () => window.removeEventListener(FILL_COMPOSE_PROMPT, onFill);
-  }, [onPickIdea]);
+  }, [onPickIdea, onPromptIntent]);
 
 
   async function submit(fresh = false) {
+    const goFresh = fresh || promptFresh;
     let asked = prompt.trim();
-    const demo = (hero ? typedExample : studio && !fresh ? reviseExample : '').trim();
+    const demo = (hero ? typedExample : studio && !goFresh ? reviseExample : '').trim();
     if (asked.length < 3 && demo.length >= 3) {
       asked = demo;
       setPrompt(asked);
@@ -217,7 +227,9 @@ export function ComposeBox({
       return;
     }
 
-    const useSeed = studio && !fresh;
+    const useSeed = studio && !goFresh;
+    onComposeStart?.({ fresh: goFresh });
+    setPromptFresh(false);
     setBusy(true);
     setFail('');
     setPay(false);
@@ -300,6 +312,7 @@ export function ComposeBox({
       aria-busy={busy}
     >
       <div className={home ? 'compose-hero-inner' : studio ? 'compose-studio-inner' : undefined}>
+        <div className={home ? 'compose-hero-sheet' : undefined}>
         {studio ? (
           <label htmlFor="again-prompt" className="compose-hero-label">
             Revise this chart
@@ -398,7 +411,7 @@ export function ComposeBox({
                       onFocus={() => setHeld(true)}
                       onBlur={() => setHeld(false)}
                       onKeyDown={onKeyDown}
-                      placeholder={promptIdle && !held ? '' : 'Tell Vizzy what to change.'}
+                      placeholder={promptIdle && !held ? '' : 'Tell vizzy what to change.'}
                     />
                   </div>
                 )}
@@ -407,7 +420,7 @@ export function ComposeBox({
                     <>
                       <div className="compose-studio-actions">
                         <button type="submit" className="compose-hero-submit is-primary" disabled={busy}>
-                          Revise
+                          {busy ? 'Revising…' : 'Revise'}
                         </button>
                         <button
                           type="button"
@@ -426,7 +439,7 @@ export function ComposeBox({
                     <>
                       <div className="compose-hero-actions">
                         <button type="submit" className="compose-hero-submit is-amber" disabled={busy}>
-                          Generate my chart
+                          {busy ? 'Drafting…' : 'Generate my chart'}
                         </button>
                       </div>
                       <span className="compose-hero-bar-note">
@@ -442,17 +455,14 @@ export function ComposeBox({
                 </div>
           </div>
         ) : null}
-        {home && showIdeas ? (
-          <div className={busy ? 'hero-examples-dim' : undefined}>
-            <HeroExamples onPick={onPickIdea} disabled={busy} />
-          </div>
-        ) : null}
-        {children}
         {fail && !busy ? (
           <p role="alert" className="compose-fail">
             {fail}
           </p>
         ) : null}
+        </div>
+        {children}
+        {home && showIdeas ? <HeroExamples onPick={onPickIdea} disabled={busy} /> : null}
       </div>
     </form>
   );

@@ -27,7 +27,7 @@ export default async function AgentsPage() {
         data={{
           '@context': 'https://schema.org',
           '@type': 'WebPage',
-          name: 'Vizzy for agents',
+          name: 'vizzy for agents',
           url: `${origin}/agents`,
           description: 'Gather rows. Emit ChartConfig v1. Get a paste URL and a PNG.',
         }}

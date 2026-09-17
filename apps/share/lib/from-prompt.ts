@@ -100,7 +100,7 @@ export async function pieceFromPrompt(
   if (from && isUnsupportedVizOnlyRevision(asked)) {
     return {
       ok: false,
-      error: 'Vizzy draws bar, line, and scatter charts. Ask for one of those, or another change to this series.',
+      error: 'vizzy draws bar, line, and scatter charts. Ask for one of those, or another change to this series.',
       issues: [],
     };
   }
@@ -193,10 +193,11 @@ export async function pieceFromPrompt(
   });
 
   let lastError: unknown;
-  let googleLimited = false;
+  const limitedProviders = new Set<string>();
   const models = composeModelsForRevision(Boolean(from));
   for (const model of models) {
-    if (shouldSkipGoogleModel(model, googleLimited)) {
+    const provider = model.split('/')[0] ?? '';
+    if (limitedProviders.has(provider) || shouldSkipGoogleModel(model, limitedProviders.has('google'))) {
       continue;
     }
     try {
@@ -269,8 +270,8 @@ export async function pieceFromPrompt(
     } catch (error) {
       lastError = error;
       console.error('compose draft failed', model, error);
-      if (isGatewayRateLimited(error) && model.startsWith('google/')) {
-        googleLimited = true;
+      if (isGatewayRateLimited(error) && provider) {
+        limitedProviders.add(provider);
       }
     }
   }

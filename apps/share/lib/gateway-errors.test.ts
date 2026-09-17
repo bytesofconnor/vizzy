@@ -21,10 +21,10 @@ describe('isGatewayRateLimited', () => {
 });
 
 describe('composeModelsForRevision', () => {
-  it('revises on OpenAI so it does not share Flash free-tier RPM', () => {
+  it('starts on OpenAI so generate is not stuck on Google free-tier RPM', () => {
+    expect(composeModelsForRevision(false)[0]).toBe('openai/gpt-4.1-mini');
     expect(composeModelsForRevision(true)[0]).toBe('openai/gpt-4.1-mini');
-    expect(composeModelsForRevision(true).every((model) => model.startsWith('openai/'))).toBe(true);
-    expect(composeModelsForRevision(false)[0]).toBe('google/gemini-2.5-flash');
+    expect(composeModelsForRevision(false)).toContain('anthropic/claude-haiku-4.5');
   });
 });
 

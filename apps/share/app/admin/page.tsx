@@ -21,7 +21,7 @@ import { SiteFoot } from '../components/SiteFoot';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Admin',
+  title: 'admin',
   robots: { index: false, follow: false },
 };
 

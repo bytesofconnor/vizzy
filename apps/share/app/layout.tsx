@@ -33,15 +33,15 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(site),
   title: {
-    default: 'Vizzy',
-    template: '%s · Vizzy',
+    default: 'vizzy',
+    template: '%s · vizzy',
   },
   description,
-  applicationName: 'Vizzy',
+  applicationName: 'vizzy',
   category: 'productivity',
   appleWebApp: {
     capable: true,
-    title: 'Vizzy',
+    title: 'vizzy',
     statusBarStyle: 'black-translucent',
   },
   formatDetection: {
@@ -53,13 +53,13 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: '/',
-    siteName: 'Vizzy',
-    title: 'Vizzy',
+    siteName: 'vizzy',
+    title: 'vizzy',
     description: 'A chart you can paste.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vizzy',
+    title: 'vizzy',
     description: 'A chart you can paste.',
   },
 };

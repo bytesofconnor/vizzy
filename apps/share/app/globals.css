@@ -179,21 +179,41 @@ input:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
   color: var(--mute);
   margin: 0;
-  padding-bottom: 12px;
+  padding-bottom: 8px;
+}
+
+.kicker-nav-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: -8px;
 }
 
 .kicker-nav a {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 10px 12px;
+  border-radius: 12px;
   text-decoration: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease, opacity 0.12s ease;
+}
+
+.kicker-nav a:active,
+.kicker-nav a.is-tap {
+  opacity: 0.55;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
 }
 
 .kicker-brand {
@@ -492,9 +512,25 @@ input {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  width: 100%;
   min-height: 0;
   justify-content: flex-start;
   padding: clamp(8px, 3vh, 32px) 0 clamp(8px, 2vh, 14px);
+}
+
+.home-hero:has(.home-chart-slot) .home-hero-title {
+  font-size: clamp(1.15rem, 3.2vw, 1.45rem);
+  margin-bottom: 8px;
+}
+
+.home-hero:has(.home-chart-slot) .home-hero-lede {
+  max-width: 34rem;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
+
+.page-home .home-examples {
+  transition: opacity 0.35s ease;
 }
 
 .home-hero-title {
@@ -650,7 +686,7 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
 
 .page-home .home-examples,
 #examples {
-  width: min(40rem, 100%);
+  width: 100%;
   margin-inline: auto;
 }
 
@@ -1355,11 +1391,28 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
 
 .compose-hero {
   width: 100%;
-  max-width: 40rem;
+  max-width: none;
 }
 
 .compose-hero-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
+}
+
+.compose-hero-sheet {
+  width: 100%;
+  max-width: 42rem;
+}
+
+.compose-hero .hero-examples,
+.compose-hero .hero-examples-dim {
+  width: 100%;
+}
+
+.compose-hero .home-chart-slot {
+  width: min(52rem, 100%);
 }
 
 .compose-hero-label {
@@ -1540,7 +1593,7 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
 }
 
 .compose-hero-input:disabled {
-  opacity: 0.55;
+  opacity: 0.88;
 }
 
 .compose-hero-bar {
@@ -1790,22 +1843,84 @@ a.compose-hero-submit.is-amber:focus-visible {
 }
 
 .pin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
   padding: 0;
+  width: 40px;
+  height: 40px;
   border: 0;
+  border-radius: 12px;
   background: none;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--mute);
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease, opacity 0.12s ease;
+}
+
+.pin-button:active,
+.pin-button.is-tap {
+  opacity: 0.55;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
 }
 
 .pin-button.is-on,
 .pin-button:hover,
 .pin-button:focus-visible {
   color: var(--ink);
+}
+
+.pin-mark {
+  display: block;
+  overflow: visible;
+}
+
+.pin-shade {
+  fill: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+
+.pin-needle {
+  fill: var(--mute);
+}
+
+.pin-rim,
+.pin-side {
+  fill: color-mix(in srgb, var(--paper) 35%, #d4d0c8);
+  stroke: var(--mute);
+  stroke-width: 1.15;
+  stroke-linejoin: round;
+}
+
+.pin-dome {
+  fill: color-mix(in srgb, var(--paper) 40%, #fff);
+  stroke: var(--mute);
+  stroke-width: 1.2;
+}
+
+.pin-glint {
+  fill: color-mix(in srgb, #fff 78%, var(--paper));
+  pointer-events: none;
+}
+
+.pin-button.is-on .pin-needle,
+.pin-mark.is-on .pin-needle {
+  fill: var(--ink);
+}
+
+.pin-button.is-on .pin-rim,
+.pin-button.is-on .pin-side,
+.pin-mark.is-on .pin-rim,
+.pin-mark.is-on .pin-side {
+  fill: #6f5854;
+  stroke: var(--ink);
+}
+
+.pin-button.is-on .pin-dome,
+.pin-mark.is-on .pin-dome {
+  fill: #a88882;
+  stroke: var(--ink);
 }
 
 .pin-error {
@@ -1951,9 +2066,9 @@ a.compose-hero-submit.is-amber:focus-visible {
   }
 }
 
-.studio-chart {
-  width: min(40rem, 100%);
-  margin-top: 28px;
+.compose-hero .studio-chart {
+  width: min(52rem, 100%);
+  margin-top: 16px;
   margin-inline: auto;
 }
 
@@ -2763,9 +2878,25 @@ a.admin-eval-act {
 }
 
 .home-chart-slot {
-  width: 100%;
-  margin-top: 18px;
+  width: min(52rem, 100%);
+  margin-top: 16px;
   text-align: left;
+  animation: home-desk-in 0.38s ease both;
+}
+
+.home-chart-slot.is-drafting {
+  box-shadow: 0 18px 48px color-mix(in srgb, #818891 10%, transparent);
+}
+
+@keyframes home-desk-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .home-chart-slot .compose-busy-stage.is-hero {
@@ -2887,12 +3018,12 @@ a.admin-eval-act {
 
 .compose-hero-input:disabled,
 .compose-studio-input:disabled {
-  opacity: 0.72;
+  opacity: 0.88;
 }
 
 .compose-hero-submit.is-primary:disabled,
 .compose-hero-submit.is-amber:disabled {
-  opacity: 0.55;
+  opacity: 0.92;
   cursor: wait;
 }
 
@@ -2930,12 +3061,25 @@ a.admin-eval-act {
   border-radius: inherit;
   background: linear-gradient(
     90deg,
-    #918880 0%,
-    #818c88 35%,
-    #868191 68%,
+    #918380 0%,
+    #8f8c80 18%,
+    #818c88 36%,
+    #818891 54%,
+    #868191 72%,
+    #918188 88%,
     #121211 100%
   );
-  transition: width 0.4s ease;
+  background-size: 220% 100%;
+  animation: compose-progress-flow 1.7s linear infinite;
+}
+
+@keyframes compose-progress-flow {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 220% 0;
+  }
 }
 
 .compose-busy-detail {
@@ -2955,6 +3099,44 @@ a.admin-eval-act {
 .hero-examples-dim .hero-ticker,
 .hero-examples-dim .hero-ticker-shuffle {
   pointer-events: none;
+}
+
+.compose-busy-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.compose-busy-line .compose-busy-status {
+  margin: 0;
+  text-align: left;
+}
+
+.compose-ink-spin {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #918380,
+    #8f8c80,
+    #818c88,
+    #818891,
+    #868191,
+    #918188,
+    #918380
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent 58%, #000 61%);
+  mask: radial-gradient(farthest-side, transparent 58%, #000 61%);
+  animation: compose-ink-spin 0.85s linear infinite;
+}
+
+@keyframes compose-ink-spin {
+  to {
+    transform: rotate(1turn);
+  }
 }
 
 .compose-busy-status {
@@ -2980,11 +3162,43 @@ a.admin-eval-act {
   }
 }
 
-.compose-busy-chart {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr);
-  gap: 6px;
-  align-items: stretch;
+.compose-dust-field {
+  display: flex;
+  width: 100%;
+  height: min(42vh, 240px);
+  min-height: 176px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.compose-dust-field i {
+  flex: 1 1 0;
+  min-width: 0;
+  animation: compose-dust-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes compose-dust-breathe {
+  0%,
+  100% {
+    opacity: 0.38;
+    filter: saturate(0.72);
+  }
+  50% {
+    opacity: 1;
+    filter: saturate(1.08);
+  }
+}
+
+.home-chart-slot .compose-dust-field,
+.piece-stage-overlay .compose-dust-field,
+.chart-frame-body .compose-dust-field {
+  height: min(46vh, 260px);
+  min-height: 180px;
+}
+
+.piece-stage-overlay .compose-dust-field {
+  height: 100%;
+  opacity: 0.88;
 }
 
 .compose-busy-chart.is-card {
@@ -3133,6 +3347,14 @@ html:not(.is-inked) .compose-hero-card {
   gap: 36px;
 }
 
+@media (min-width: 900px) {
+  .piece-list {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px 22px;
+    align-items: start;
+  }
+}
+
 .chart-mount {
   width: 100%;
   overflow: visible;
@@ -3194,6 +3416,20 @@ html:not(.is-inked) .compose-hero-card {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .compose-ink-spin {
+    animation: none;
+    opacity: 0.85;
+  }
+
+  .compose-dust-field i,
+  .compose-busy-progress i {
+    animation: none;
+  }
+
+  .home-chart-slot {
+    animation: none;
+  }
+
   .compose-busy-status {
     animation: none !important;
   }

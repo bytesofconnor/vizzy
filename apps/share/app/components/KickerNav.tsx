@@ -19,15 +19,15 @@ export function KickerNav({
   return (
     <nav className="kicker-nav" aria-label="Site">
       <VizzyHomeLink current={here === 'home'} />
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 16 }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center' }} className="kicker-nav-tools">
         {owner ? (
           here === 'admin' ? (
             <HereMark href="/admin" className="kicker-nav-soft">
-              Admin
+              admin
             </HereMark>
           ) : (
             <NavDustLink href="/admin" className="kicker-nav-soft">
-              Admin
+              admin
             </NavDustLink>
           )
         ) : null}

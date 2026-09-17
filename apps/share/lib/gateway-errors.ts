@@ -23,12 +23,8 @@ export function shouldSkipGoogleModel(model: string, googleLimited: boolean): bo
 }
 
 /**
- * Generate can use Flash. A follow-up in the same minute usually cannot —
- * Flash and Flash-Lite share the Gateway free-tier RPM. Revise on OpenAI.
+ * Same stack for generate and revise. Provider 429s are skipped in the compose loop.
  */
-export function composeModelsForRevision(revision: boolean): readonly (typeof COMPOSE_MODELS)[number][] {
-  if (!revision) {
-    return COMPOSE_MODELS;
-  }
-  return COMPOSE_MODELS.filter((model) => model.startsWith('openai/'));
+export function composeModelsForRevision(_revision: boolean): readonly (typeof COMPOSE_MODELS)[number][] {
+  return COMPOSE_MODELS;
 }

@@ -4,17 +4,17 @@ import Link from 'next/link';
 import { KickerDust, useKickerTap } from './KickerDust';
 
 export function VizzyHomeLink({ current = false }: { current?: boolean }) {
-  const { tap, onTap } = useKickerTap();
+  const { tap, onPointerDown } = useKickerTap();
 
   return (
     <Link
       href="/"
       className={['kicker-brand', tap ? 'is-tap' : ''].filter(Boolean).join(' ')}
       aria-current={current ? 'page' : undefined}
-      onClick={onTap}
+      onPointerDown={onPointerDown}
     >
       <span className="kicker-link-label">
-        Vizzy
+        vizzy
         <KickerDust />
       </span>
     </Link>

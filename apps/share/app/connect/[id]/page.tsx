@@ -27,7 +27,7 @@ export default async function ConnectPage({ params }: { params: Promise<{ id: st
           <div style={{ marginTop: 24 }}>
             <p style={{ lineHeight: 1.5 }}>
               Connected. Paste a Google Sheets URL into the home prompt, or share a link like{' '}
-              <code>docs.google.com/spreadsheets/d/…</code> — Vizzy will read the tab you name.
+              <code>docs.google.com/spreadsheets/d/…</code> — vizzy will read the tab you name.
             </p>
             <p style={{ marginTop: 16 }}>
               <Link href="/">Back to chart</Link>

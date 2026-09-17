@@ -29,7 +29,7 @@ export default async function HomePage({
         data={{
           '@context': 'https://schema.org',
           '@type': 'WebApplication',
-          name: 'Vizzy',
+          name: 'vizzy',
           url: origin,
           description: SITE_DESCRIPTION,
           applicationCategory: 'BusinessApplication',

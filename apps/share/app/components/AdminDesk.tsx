@@ -48,7 +48,7 @@ export function AdminDesk({
 
   return (
     <>
-      <nav className="admin-desk-nav" aria-label="Admin sections">
+      <nav className="admin-desk-nav" aria-label="admin sections">
         {ADMIN_VIEWS.map((id) => (
           <button
             key={id}

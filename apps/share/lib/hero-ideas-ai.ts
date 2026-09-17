@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { isAiGatewayConfigured } from './ai-gateway';
 import { HINT_MODEL } from './ai-models';
 import { logAiFromResult } from './ai-usage';
+import { GATEWAY_NO_RETRY } from './gateway-errors';
 import { fallbackHeroIdeas, isHeroIdeaBatch, parseHeroIdeas, type HeroIdea } from './hero-ideas';
 
 const FAMILIES = ['noaa', 'usgs', 'fred', 'worldbank', 'wiki', 'owid'] as const;
@@ -72,6 +73,7 @@ async function aiHeroIdeas(exclude: string[], salt: string, reshuffle: boolean):
       system: SYSTEM,
       prompt: `Invent eight to ten fresh chart prompts.${avoid}${spice}${extra}`,
       maxOutputTokens: 1200,
+      maxRetries: GATEWAY_NO_RETRY,
     });
     await logAiFromResult('hero_ideas', HINT_MODEL, result.usage, result.totalUsage);
     const cleaned = parseHeroIdeas(result.output.ideas);

@@ -70,7 +70,7 @@ export default async function PiecePage({ params }: PageProps) {
             name: piece.title,
             description: piece.note,
             url: `${origin}/c/${slug}`,
-            creator: { '@type': 'Organization', name: 'Vizzy' },
+            creator: { '@type': 'Organization', name: 'vizzy' },
             isAccessibleForFree: true,
             image: {
               '@type': 'ImageObject',

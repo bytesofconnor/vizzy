@@ -17,7 +17,7 @@ export function NavDustLink({
   title?: string;
   ariaLabel?: string;
 }) {
-  const { tap, onTap } = useKickerTap();
+  const { tap, onPointerDown } = useKickerTap();
 
   return (
     <Link
@@ -25,7 +25,7 @@ export function NavDustLink({
       className={['kicker-nav-link', className, tap ? 'is-tap' : ''].filter(Boolean).join(' ')}
       title={title}
       aria-label={ariaLabel}
-      onClick={onTap}
+      onPointerDown={onPointerDown}
     >
       <span className="kicker-link-label">
         {children}

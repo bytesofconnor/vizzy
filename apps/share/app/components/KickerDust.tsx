@@ -53,10 +53,20 @@ export function KickerDust() {
 export function useKickerTap() {
   const [tap, setTap] = useState(false);
 
-  const onTap = useCallback(() => {
+  const onPointerDown = useCallback((event: { pointerType?: string; button?: number }) => {
+    if (event.button && event.button !== 0) {
+      return;
+    }
     setTap(true);
-    window.setTimeout(() => setTap(false), 800);
+    if (event.pointerType && event.pointerType !== 'mouse') {
+      try {
+        navigator.vibrate?.(12);
+      } catch {
+        // desktop / blocked
+      }
+    }
+    window.setTimeout(() => setTap(false), 280);
   }, []);
 
-  return { tap, onTap };
+  return { tap, onPointerDown };
 }

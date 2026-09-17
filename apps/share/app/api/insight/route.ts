@@ -1,4 +1,9 @@
-import { chartInsightForSeed, chartLessonForSeed } from '../../../lib/chart-insight';
+import {
+  chartInsightForSeed,
+  chartLessonForSeed,
+  MAX_LESSON_LAYERS,
+  type LessonPrior,
+} from '../../../lib/chart-insight';
 import { parseChartSeed, type ChartSeed } from '../../../lib/seed';
 
 function parseInsightSeed(value: unknown): ChartSeed | undefined {
@@ -46,6 +51,27 @@ function parseInsightSeed(value: unknown): ChartSeed | undefined {
   };
 }
 
+function parsePrior(value: unknown): LessonPrior[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: LessonPrior[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) {
+      continue;
+    }
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.notice !== 'string' || typeof raw.question !== 'string') {
+      continue;
+    }
+    out.push({
+      notice: raw.notice.slice(0, 240),
+      question: raw.question.slice(0, 280),
+    });
+  }
+  return out.slice(0, MAX_LESSON_LAYERS);
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -66,17 +92,20 @@ export async function POST(request: Request) {
   const payload = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
   if (payload.depth === 'lesson') {
     const already = typeof payload.insight === 'string' ? payload.insight.slice(0, 900) : undefined;
-    const lesson = await chartLessonForSeed(seed, already);
-    if (!lesson) {
-      return Response.json({ ok: false, error: 'Could not go deeper right now' }, { status: 503 });
+    const layerRaw = typeof payload.layer === 'number' ? payload.layer : Number(payload.layer);
+    const layer = Number.isFinite(layerRaw) ? layerRaw : 1;
+    if (layer > MAX_LESSON_LAYERS) {
+      return Response.json({ ok: false, error: 'That is as deep as this goes' }, { status: 400 });
     }
-    return Response.json({ ok: true, lesson });
+    const prior = parsePrior(payload.prior);
+    const lesson = await chartLessonForSeed(seed, already, layer, prior);
+    return Response.json({
+      ok: true,
+      lesson,
+      layer: Math.min(MAX_LESSON_LAYERS, Math.max(1, Math.floor(layer))),
+    });
   }
 
   const insight = await chartInsightForSeed(seed);
-  if (!insight) {
-    return Response.json({ ok: false, error: 'Could not generate insight right now' }, { status: 503 });
-  }
-
   return Response.json({ ok: true, insight });
 }

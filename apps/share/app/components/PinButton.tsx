@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useKickerTap } from './KickerDust';
+import { PinMark } from './PinMark';
 
 export function PinButton({ slug, title }: { slug: string; title: string }) {
   const [pinned, setPinned] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { tap, onPointerDown } = useKickerTap();
 
   useEffect(() => {
     let alive = true;
@@ -57,12 +60,15 @@ export function PinButton({ slug, title }: { slug: string; title: string }) {
     <span className="pin-control">
       <button
         type="button"
-        className={pinned ? 'pin-button is-on' : 'pin-button'}
+        className={['pin-button', pinned ? 'is-on' : '', tap ? 'is-tap' : ''].filter(Boolean).join(' ')}
         aria-pressed={pinned}
+        aria-label={pinned ? 'Unpin this chart' : 'Pin this chart'}
+        title={pinned ? 'Unpin' : 'Pin'}
         disabled={busy}
+        onPointerDown={onPointerDown}
         onClick={() => void toggle()}
       >
-        {pinned ? 'Pinned' : 'Pin'}
+        <PinMark on={pinned} />
       </button>
       {error ? <span className="pin-error">{error}</span> : null}
     </span>

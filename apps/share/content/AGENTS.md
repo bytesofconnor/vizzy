@@ -1,4 +1,4 @@
-# Vizzy for agents
+# vizzy for agents
 
 You gather rows. You call `publish_chart`, or `POST /api/compose` with a text prompt. The human gets a paste URL and a PNG. Humans type on the site; there is no voice API.
 
@@ -19,11 +19,11 @@ You emit a `ChartConfig`. The runtime draws the SVG. Do not invent D3.
 - Do not pick sm/md/lg at compile time. Size is an export. The host offers S/M/L when someone copies the image.
 - Call `publish_chart` to mint a paste URL and PNG. If you have no source, say so — do not invent one.
 - Host with `<VizzyChart config={config} data={data} />` from `@vizzy/react`.
-- After three free charts a day, send the wallet cookie or `Authorization: Bearer` with that token. Compose and publish share the meter. Do not invent a Vizzy API key.
+- After three free charts a day, send the wallet cookie or `Authorization: Bearer` with that token. Compose and publish share the meter. Do not invent a vizzy API key.
 
 ## Do not
 
-- Invent D3, Recharts, or a custom React component for a Vizzy chart.
+- Invent D3, Recharts, or a custom React component for a vizzy chart.
 - Use `generate_chart`, voice input, or collaboration — not in v1.
 - Add pie, heatmap, or other types. They are not in v1.
 

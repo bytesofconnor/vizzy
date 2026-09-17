@@ -10,7 +10,7 @@ test('install and share images exist', async ({ request }) => {
     lang?: string;
     shortcuts?: Array<{ url?: string }>;
   };
-  expect(body.short_name).toBe('Vizzy');
+  expect(body.short_name).toBe('vizzy');
   expect(body.display).toBe('standalone');
   expect(body.lang).toBe('en');
   expect(body.shortcuts?.some((item) => item.url === '/#make-one')).toBeTruthy();
@@ -23,13 +23,15 @@ test('landing is the chart prompt', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Turn a question into a publish-ready chart' })).toBeVisible();
   await expect(page.getByText(/AI drafts the series/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Generate my chart' })).toBeVisible();
+  await expect(page.getByLabel('Example questions')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Shuffle' })).toBeVisible();
   await expect(page.getByText(/free today, then \$8 for 25/)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Copy a Vizzy prompt' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pin' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy a vizzy prompt' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /pin this chart/i }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speak' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Site' })).toBeVisible();
-  await expect(page.locator('nav[aria-label="Site"]')).toContainText(/Sign in|Account/);
+  await expect(page.locator('nav[aria-label="Site"]')).toContainText(/Sign in|account/);
   await expect(page.getByRole('link', { name: 'Agents' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('Keep this pack');
@@ -109,7 +111,7 @@ test('agents page is the repo contract', async ({ page }) => {
   expect(copy).toBe(root);
 
   await page.goto('/agents');
-  await expect(page.getByRole('heading', { name: 'Vizzy for agents' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'vizzy for agents' })).toBeVisible();
   await expect(page.getByText('Do not invent D3')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
 });
@@ -118,6 +120,6 @@ test('terms still restores by checkout email', async ({ page }) => {
   await page.goto('/terms');
   await expect(page.getByRole('heading', { name: 'Terms' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send a restore link' })).toBeVisible();
-  await expect(page.locator('nav[aria-label="Site"]')).toContainText(/Sign in|Account/);
+  await expect(page.locator('nav[aria-label="Site"]')).toContainText(/Sign in|account/);
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
 });

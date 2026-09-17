@@ -20,7 +20,7 @@ export function packLineItem(): Stripe.Checkout.SessionCreateParams.LineItem {
       currency: 'usd',
       unit_amount: PACK_CENTS,
       product_data: {
-        name: `${PACK_CREDITS} Vizzy charts`,
+        name: `${PACK_CREDITS} vizzy charts`,
         description: 'Prompt a chart. Paste the image.',
       },
     },

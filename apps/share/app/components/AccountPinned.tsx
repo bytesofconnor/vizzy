@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { AccountChartRow } from './AccountChartsTable';
+import { PinMark } from './PinMark';
 
 export function AccountPinned({ charts }: { charts: AccountChartRow[] }) {
   const [rows, setRows] = useState(charts);
@@ -45,8 +46,14 @@ export function AccountPinned({ charts }: { charts: AccountChartRow[] }) {
                 />
                 <p className="pin-board-title">{chart.title}</p>
               </Link>
-              <button type="button" className="pin-button is-on" onClick={() => void unpin(chart.slug)}>
-                Unpin
+              <button
+                type="button"
+                className="pin-button is-on"
+                aria-label={`Unpin ${chart.title}`}
+                title="Unpin"
+                onClick={() => void unpin(chart.slug)}
+              >
+                <PinMark on />
               </button>
             </li>
           ))}

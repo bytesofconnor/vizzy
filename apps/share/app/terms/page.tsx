@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Terms',
-  description: 'How Vizzy charts, payments, and restore by checkout email work.',
+  description: 'How vizzy charts, payments, and restore by checkout email work.',
   alternates: { canonical: '/terms' },
 };
 
@@ -72,7 +72,7 @@ export default async function TermsPage() {
         Terms
       </h1>
       <p style={body}>
-        Vizzy generates a chart you can paste. Three free prompts a day. Then {PACK_PRICE_LABEL} for {PACK_CREDITS}{' '}
+        vizzy generates a chart you can paste. Three free prompts a day. Then {PACK_PRICE_LABEL} for {PACK_CREDITS}{' '}
         more. Paid charts stay on the email from your first checkout. Later buys on this browser add to those
         charts, even if Apple Pay uses another address. This browser keeps a cookie. Sign in with Google so the
         charts follow you on other devices. Account and usage live at /me. A new browser can still restore from

@@ -5,11 +5,11 @@ import { z } from 'zod';
 import { isAiGatewayConfigured } from './ai-gateway';
 import { logAiFromResult } from './ai-usage';
 import { heuristicRevisionPrompts } from './revision-heuristics';
-import { revisionYearSpan, yearishRows, type ChartSeed } from './seed';
+import { revisionYearSpan, seedBriefing, yearishRows, type ChartSeed } from './seed';
 
 export { heuristicRevisionPrompts } from './revision-heuristics';
 
-export const REVISION_HINT_MODEL = 'google/gemini-2.5-flash-lite';
+export const REVISION_HINT_MODEL = 'openai/gpt-4.1-mini';
 
 const RevisionSchema = z.object({
   prompts: z

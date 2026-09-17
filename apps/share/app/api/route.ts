@@ -8,7 +8,7 @@ export async function GET() {
   const origin = siteUrl();
   return Response.json({
     ok: true,
-    name: 'Vizzy',
+    name: 'vizzy',
     description:
       'A chart you can paste. Type a prompt or publish rows. Bar, line, or scatter. You get a paste URL and a PNG. Text in; no voice API.',
     docs: `${origin}/llms.txt`,

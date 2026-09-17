@@ -16,7 +16,7 @@ export function HereMark({
   email?: string;
   className?: string;
 }) {
-  const { tap, onTap } = useKickerTap();
+  const { tap, onPointerDown } = useKickerTap();
 
   return (
     <Link
@@ -26,13 +26,13 @@ export function HereMark({
         .join(' ')}
       aria-current="page"
       title={mail ? email ?? children : undefined}
-      aria-label={mail && email ? `Account, ${email}` : undefined}
-      onClick={onTap}
+      aria-label={mail && email ? `account, ${email}` : undefined}
+      onPointerDown={onPointerDown}
     >
       <span className="kicker-link-label">
         {mail ? (
           <>
-            <span className="kicker-mail-short">Account</span>
+            <span className="kicker-mail-short">account</span>
             <span className="kicker-mail-full kicker-mail-text">{children}</span>
           </>
         ) : (

@@ -8,7 +8,7 @@ const STEPS = [
 
 export function HomeBridge() {
   return (
-    <section className="home-bridge" aria-label="How Vizzy works">
+    <section className="home-bridge" aria-label="How vizzy works">
       <ul className="home-bridge-steps">
         {STEPS.map((step) => (
           <li key={step.label} className="home-bridge-step">

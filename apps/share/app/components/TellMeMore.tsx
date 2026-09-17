@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChartSeed } from '../../lib/seed';
 
+const MAX_LESSON_LAYERS = 5;
+
 type ChartLesson = {
   notice: string;
   teach: string;
@@ -10,10 +12,18 @@ type ChartLesson = {
   tryNext: string;
 };
 
+const LAYER_KICKER = [
+  'A closer look',
+  'What it conceals',
+  'Another reading',
+  'What would have to change',
+  'The harder question',
+] as const;
+
 export const FILL_COMPOSE_PROMPT = 'vizzy:fill-prompt';
 
-export function fillComposePrompt(prompt: string) {
-  window.dispatchEvent(new CustomEvent(FILL_COMPOSE_PROMPT, { detail: { prompt } }));
+export function fillComposePrompt(prompt: string, fresh = false) {
+  window.dispatchEvent(new CustomEvent(FILL_COMPOSE_PROMPT, { detail: { prompt, fresh } }));
 }
 
 function seedKey(seed: ChartSeed): string {
@@ -49,6 +59,40 @@ function isLessonBody(body: unknown): body is { ok: true; lesson: ChartLesson } 
   );
 }
 
+async function requestLesson(
+  seed: ChartSeed,
+  insight: string | null,
+  layer: number,
+  prior: ChartLesson[]
+): Promise<ChartLesson | null> {
+  const payload = {
+    seed,
+    insight,
+    depth: 'lesson' as const,
+    layer,
+    prior: prior.map((item) => ({ notice: item.notice, question: item.question })),
+  };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch('/api/insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body: unknown = await response.json();
+      if (isLessonBody(body)) {
+        return body.lesson;
+      }
+    } catch {
+      // try once more
+    }
+    if (attempt === 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    }
+  }
+  return null;
+}
+
 export function TellMeMore({
   seed,
   presetInsight,
@@ -61,7 +105,7 @@ export function TellMeMore({
   embedded?: boolean;
 }) {
   const [insight, setInsight] = useState<string | null>(presetInsight ?? null);
-  const [lesson, setLesson] = useState<ChartLesson | null>(null);
+  const [layers, setLayers] = useState<ChartLesson[]>([]);
   const [busy, setBusy] = useState(!presetInsight);
   const [lessonBusy, setLessonBusy] = useState(false);
   const [fail, setFail] = useState(false);
@@ -71,6 +115,7 @@ export function TellMeMore({
   onInsightRef.current = onInsight;
   seedRef.current = seed;
   const chartKey = seedKey(seed);
+  const canGoDeeper = layers.length < MAX_LESSON_LAYERS;
 
   const loadContext = useCallback(async (signal?: AbortSignal) => {
     const nextSeed = seedRef.current;
@@ -105,7 +150,7 @@ export function TellMeMore({
   }, []);
 
   useEffect(() => {
-    setLesson(null);
+    setLayers([]);
     setLessonFail(false);
     if (presetInsight) {
       setInsight(presetInsight);
@@ -126,20 +171,17 @@ export function TellMeMore({
   }, [chartKey, loadContext, presetInsight]);
 
   async function loadLesson() {
-    if (lesson || lessonBusy) {
+    if (!canGoDeeper || lessonBusy) {
       return;
     }
     setLessonBusy(true);
     setLessonFail(false);
+    const asked = layers.length + 1;
     try {
-      const response = await fetch('/api/insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed: seedRef.current, insight, depth: 'lesson' }),
-      });
-      const body: unknown = await response.json();
-      if (isLessonBody(body)) {
-        setLesson(body.lesson);
+      const lesson = await requestLesson(seedRef.current, insight, asked, layers);
+      if (lesson) {
+        setLayers((current) => [...current, lesson]);
+        setLessonFail(false);
       } else {
         setLessonFail(true);
       }
@@ -164,9 +206,9 @@ export function TellMeMore({
               {paragraph}
             </p>
           ))}
-          {lesson ? (
-            <div className="tell-more-lesson">
-              <p className="tell-more-kicker">A closer look</p>
+          {layers.map((lesson, index) => (
+            <div key={`${index}-${lesson.question.slice(0, 20)}`} className="tell-more-lesson">
+              <p className="tell-more-kicker">{LAYER_KICKER[index] ?? 'Deeper'}</p>
               <p className="tell-more-notice">{lesson.notice}</p>
               {lesson.teach.split(/\n\s*\n/).map((paragraph) => (
                 <p key={paragraph.slice(0, 24)} className="tell-more-text">
@@ -180,22 +222,30 @@ export function TellMeMore({
               <button
                 type="button"
                 className="tell-more-next"
-                onClick={() => fillComposePrompt(lesson.tryNext)}
+                onClick={() => fillComposePrompt(lesson.tryNext, true)}
               >
-                Try this next
+                Keep learning
                 <span>{lesson.tryNext}</span>
               </button>
             </div>
-          ) : (
-            <button
-              type="button"
-              className="tell-more-trigger tell-more-deeper"
-              onClick={() => void loadLesson()}
-              disabled={lessonBusy}
-            >
-              {lessonBusy ? 'Going deeper…' : lessonFail ? 'Try even more again' : 'Tell me even more'}
-            </button>
-          )}
+          ))}
+          {canGoDeeper ? (
+            <>
+              <button
+                type="button"
+                className="tell-more-trigger tell-more-deeper"
+                onClick={() => void loadLesson()}
+                disabled={lessonBusy}
+              >
+                {lessonBusy ? 'Going deeper…' : 'Tell me even more'}
+              </button>
+              {lessonFail && !lessonBusy ? (
+                <p className="tell-more-fail" role="status">
+                  Still working on a deeper cut. Try the button once more.
+                </p>
+              ) : null}
+            </>
+          ) : null}
         </div>
       ) : fail ? (
         <>

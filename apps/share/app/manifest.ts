@@ -4,8 +4,8 @@ import { STUDIO } from '../lib/theme';
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: 'https://vizzy.run/',
-    name: 'Vizzy',
-    short_name: 'Vizzy',
+    name: 'vizzy',
+    short_name: 'vizzy',
     description: 'A chart you can paste.',
     lang: 'en',
     dir: 'ltr',

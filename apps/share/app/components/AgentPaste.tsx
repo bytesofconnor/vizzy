@@ -28,7 +28,7 @@ export function AgentPaste() {
       <p className="agent-paste-line">
         Already in ChatGPT or Claude?{' '}
         <button type="button" className="agent-paste-copy" onClick={() => void copy()}>
-          {copied ? 'Copied' : 'Copy a Vizzy prompt'}
+          {copied ? 'Copied' : 'Copy a vizzy prompt'}
         </button>
       </p>
     </aside>
