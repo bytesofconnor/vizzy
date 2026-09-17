@@ -183,7 +183,7 @@ export async function peekQuota(request: Request): Promise<Quota> {
   };
 }
 
-export async function signedInNav(): Promise<{ email?: string; known?: boolean }> {
+export async function signedInNav(): Promise<{ email?: string; known?: boolean; owner?: boolean }> {
   if (!billingConfigured()) {
     return {};
   }
@@ -193,15 +193,20 @@ export async function signedInNav(): Promise<{ email?: string; known?: boolean }
     return {};
   }
   try {
-    const status = await convexCall<{ saved?: boolean; email?: string }>('query', 'billing:peek', {
-      secret,
-      ipHash: 'nav',
-      day: utcDay(),
-      walletToken: token,
-    });
+    const status = await convexCall<{ saved?: boolean; email?: string; unlimited?: boolean }>(
+      'query',
+      'billing:peek',
+      {
+        secret,
+        ipHash: 'nav',
+        day: utcDay(),
+        walletToken: token,
+      }
+    );
     return {
       known: true,
       email: status.email,
+      owner: Boolean(status.unlimited),
     };
   } catch {
     return { known: true };

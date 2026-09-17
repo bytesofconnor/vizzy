@@ -36,14 +36,27 @@ export default async function MePage() {
   let owner = false;
   try {
     account = await getAccount();
+    owner = Boolean(account?.unlimited);
+    if (!owner) {
+      owner = await ownerSession();
+    }
+  } catch (error) {
+    console.error('account load failed', error);
+    try {
+      owner = await ownerSession();
+    } catch {
+      owner = false;
+    }
+  }
+
+  try {
     const token = await readWalletToken();
     if (token && account) {
       library = await listLibraryCharts(token, { kind: 'all' });
       pinned = await listPinnedCharts(token, 48);
     }
-    owner = await ownerSession();
   } catch (error) {
-    console.error('account load failed', error);
+    console.error('library load failed', error);
   }
 
   const google = Boolean(googleClientId());

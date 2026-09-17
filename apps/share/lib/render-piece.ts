@@ -20,30 +20,42 @@ function fontPath(file: string): string {
   return found;
 }
 
+const NODE_GLOBALS = {
+  window: globalThis.window,
+  document: globalThis.document,
+  HTMLElement: globalThis.HTMLElement,
+  SVGElement: globalThis.SVGElement,
+  Node: globalThis.Node,
+};
+
+let domLock: Promise<void> = Promise.resolve();
+
 function withDom<T>(run: () => Promise<T>): Promise<T> {
-  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
-    pretendToBeVisual: true,
-  });
-  const previous = {
-    window: globalThis.window,
-    document: globalThis.document,
-    HTMLElement: globalThis.HTMLElement,
-    SVGElement: globalThis.SVGElement,
-    Node: globalThis.Node,
+  const exclusive = async () => {
+    const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+      pretendToBeVisual: true,
+      url: 'http://127.0.0.1/',
+    });
+    Object.assign(globalThis, {
+      window: dom.window,
+      document: dom.window.document,
+      HTMLElement: dom.window.HTMLElement,
+      SVGElement: dom.window.SVGElement,
+      Node: dom.window.Node,
+    });
+    try {
+      return await run();
+    } finally {
+      Object.assign(globalThis, NODE_GLOBALS);
+      dom.window.close();
+    }
   };
-
-  Object.assign(globalThis, {
-    window: dom.window,
-    document: dom.window.document,
-    HTMLElement: dom.window.HTMLElement,
-    SVGElement: dom.window.SVGElement,
-    Node: dom.window.Node,
-  });
-
-  return run().finally(() => {
-    Object.assign(globalThis, previous);
-    dom.window.close();
-  });
+  const started = domLock.then(exclusive, exclusive);
+  domLock = started.then(
+    () => undefined,
+    () => undefined
+  );
+  return started;
 }
 
 export async function renderPiecePng(

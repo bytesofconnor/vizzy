@@ -60,7 +60,7 @@ export default async function TermsPage() {
 
   return (
     <main id="content" className="page-main">
-      <KickerNav here="terms" email={nav.email} known={nav.known} />
+      <KickerNav here="terms" email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
       <h1
         style={{
           fontWeight: 500,

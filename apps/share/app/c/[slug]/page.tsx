@@ -80,10 +80,10 @@ export default async function PiecePage({ params }: PageProps) {
             },
           }}
         />
-        <Studio piece={piece} email={nav.email} known={nav.known} />
+        <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
       </>
     );
   }
 
-  return <Studio piece={piece} email={nav.email} known={nav.known} />;
+  return <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />;
 }

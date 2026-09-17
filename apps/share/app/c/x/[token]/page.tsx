@@ -50,5 +50,5 @@ export default async function MintedPage({ params }: PageProps) {
     nav = {};
   }
 
-  return <Studio piece={piece} email={nav.email} known={nav.known} />;
+  return <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />;
 }

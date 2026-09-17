@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { JsonLd } from '../../components/JsonLd';
 import { WritersLanding } from '../../components/WritersLanding';
 import { signedInNav } from '../../../lib/billing';
-import { ownerSession } from '../../../lib/telemetry';
 import { siteUrl } from '../../../lib/site';
 
 export const metadata: Metadata = {
@@ -19,11 +18,9 @@ export default async function WritersPage({
 }) {
   const { error, pay } = await searchParams;
   const origin = siteUrl();
-  let nav: { email?: string; known?: boolean } = {};
-  let owner = false;
+  let nav: { email?: string; known?: boolean; owner?: boolean } = {};
   try {
     nav = await signedInNav();
-    owner = await ownerSession();
   } catch {
     nav = {};
   }
@@ -49,7 +46,7 @@ export default async function WritersPage({
         askPay={pay === '1'}
         email={nav.email}
         known={nav.known}
-        owner={owner}
+        owner={Boolean(nav.owner)}
       />
     </>
   );

@@ -1,5 +1,5 @@
 import type { AccountChartRow, AccountLibraryKind, AccountLibraryPage } from './account-chart';
-import { readWalletToken, walletTokenFromRequest } from './billing';
+import { signedInNav, walletTokenFromRequest } from './billing';
 
 type ConvexResult<T> = { status: 'success'; value: T } | { status: 'error'; errorMessage?: string };
 
@@ -203,12 +203,8 @@ export async function getAdminInsights(walletToken: string): Promise<AdminInsigh
 }
 
 export async function ownerSession(): Promise<boolean> {
-  const token = await readWalletToken();
-  if (!token) {
-    return false;
-  }
-  const insights = await getAdminInsights(token);
-  return insights !== null;
+  const nav = await signedInNav();
+  return Boolean(nav.owner);
 }
 
 export async function recordAfterChart(args: {

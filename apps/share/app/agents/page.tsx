@@ -32,7 +32,7 @@ export default async function AgentsPage() {
           description: 'Gather rows. Emit ChartConfig v1. Get a paste URL and a PNG.',
         }}
       />
-      <KickerNav here="agents" email={nav.email} known={nav.known} />
+      <KickerNav here="agents" email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
       <article className="agents-doc">{renderAgentsMarkdown(markdown)}</article>
       <SiteFoot />
     </main>

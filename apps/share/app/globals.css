@@ -194,6 +194,11 @@ input:focus-visible {
   align-items: center;
   gap: 2px;
   margin-right: -8px;
+  min-width: 0;
+}
+
+.kicker-nav-tools .kicker-nav-soft {
+  flex-shrink: 0;
 }
 
 .kicker-nav a {

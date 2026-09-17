@@ -1,7 +1,6 @@
 import { Studio } from './components/Studio';
 import { JsonLd } from './components/JsonLd';
 import { signedInNav } from '../lib/billing';
-import { ownerSession } from '../lib/telemetry';
 import { SITE_DESCRIPTION, siteUrl } from '../lib/site';
 
 export const metadata = {
@@ -15,11 +14,9 @@ export default async function HomePage({
 }) {
   const { error, pay } = await searchParams;
   const origin = siteUrl();
-  let nav: { email?: string; known?: boolean } = {};
-  let owner = false;
+  let nav: { email?: string; known?: boolean; owner?: boolean } = {};
   try {
     nav = await signedInNav();
-    owner = await ownerSession();
   } catch {
     nav = {};
   }
@@ -42,7 +39,7 @@ export default async function HomePage({
           featureList: ['Bar charts', 'Line charts', 'Scatter plots', 'Paste URL', 'PNG export'],
         }}
       />
-      <Studio error={error} askPay={pay === '1'} email={nav.email} known={nav.known} owner={owner} />
+      <Studio error={error} askPay={pay === '1'} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
     </>
   );
 }
