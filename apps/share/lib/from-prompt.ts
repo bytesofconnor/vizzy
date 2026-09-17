@@ -10,11 +10,20 @@ import {
   followUpNeedsLookup,
   isUnsupportedVizOnlyRevision,
   mintInputFromSeed,
+  revisionLookupQuery,
+  revisionYearSpan,
   seedBriefing,
+  yearishRows,
   type ChartSeed,
 } from './seed';
 import { COMPOSE_MODELS } from './ai-models';
 import { logAiFromResult } from './ai-usage';
+import {
+  composeModelsForRevision,
+  GATEWAY_NO_RETRY,
+  isGatewayRateLimited,
+  shouldSkipGoogleModel,
+} from './gateway-errors';
 import { mostlyGenericPlaceholders, relabelGenericCategories } from './category-labels';
 import { lookupDetail, reportProgress, type ComposeProgressReporter } from './compose-progress';
 import {
@@ -45,13 +54,14 @@ const DraftSchema = z.object({
       })
     )
     .min(2)
-    .max(24),
+    .max(60),
 });
 
 const SYSTEM = `You emit a Vizzy chart draft. Types: bar, line, scatter only. No pie.
 Use the user's numbers when they paste a table.
 If LOOKED-UP NOTES contain a real series, chart those numbers. Do not invent a different table.
 Aim for about 15 rows on a ranking or named-category bar chart. A year by month is 12. A season is the published games so far. Do not pad past the natural series. Only take a top N when the user asked for one.
+If the user asked for decades of a yearly series (last 30 years, past 50 years), emit one row per year and prefer a line. Sequential year series may run up to about 50 points.
 If LOOKED-UP NOTES contain real numbers with a page, chart them and set sourceMethod scraped or official. Attach the page in sourceLabel. Put the page URL in SOURCE CANDIDATES on the chart when you have one.
 If lookup failed and the user pasted no numbers, return sourceMethod estimate only when you must illustrate shape — never pretend it is published data. sourceLabel must name what you tried to find (topic or site), never the single word Estimate. evidence must say lookup failed and that rows are illustrative. Even then, x must be real names from the question (Japan, Brazil, Arsenal) — never Country A, Team B, Item 1, or any letter-or-number placeholder.
 If the asked year is still in progress, chart published months from the notes and mark later months as forecast in the note. sourceMethod estimate only for the unpublished tail. Never attach a URL to purely invented rows.
@@ -62,10 +72,7 @@ If y is a calendar year, keep it as the year. Do not convert it to a count from 
 Keep category names short enough to sit under a bar: August Schell, not August Schell Brewing Company.
 x is the name of each thing (skill, team, city, country). Never Rank 1, #3, Country A, or a place index. A top-10 chart still labels each bar with the name. For a country chart with no lookup, pick diverse real countries the reader recognizes.
 One comparison per chart. Each x value is one thing, once. Never "Claude Code (Rank)" and "Claude Code (usage %)". Pick one metric for y. Rank (lower is better) and a percentage (higher is better) must never share a chart.
-If CURRENT CHART is in the prompt, this is a second pass on that chart. Keep those rows unless the follow-up asks to drop, add, sort, or change numbers. Honor the follow-up. Do not switch subjects. Keep the existing source unless LOOKED-UP NOTES contain a new published series. Never set sourceMethod to estimate just because the user filtered or restyled the current rows.`;
-
-/** Free-tier Gateway models. Full gpt-5.4 is paid-only and fails with a 403. */
-const MODELS = COMPOSE_MODELS;
+If CURRENT CHART is in the prompt, this is a second pass on that chart. Keep those rows unless the follow-up asks to drop, add, sort, change numbers, or widen the time window. Honor the follow-up. If they ask for more years than CURRENT CHART has, use LOOKED-UP NOTES for the longer series — do not keep the short window. Do not switch subjects. Keep the existing source unless LOOKED-UP NOTES contain a new published series. Never set sourceMethod to estimate just because the user filtered or restyled the current rows.`;
 
 export function publicComposeError(error: unknown): string {
   const message = error instanceof Error ? error.message : '';
@@ -129,15 +136,16 @@ export async function pieceFromPrompt(
   }
 
   const lookup = !from || followUpNeedsLookup(asked, from);
+  const lookupAsked = from && lookup ? revisionLookupQuery(asked, from) : asked;
   let gathered = { notes: '', urls: [] as string[] };
   if (lookup) {
     reportProgress(onProgress, {
       stage: 'lookup',
       progress: 18,
-      message: matchPrompt(asked) ? 'Reading an official series…' : 'Searching public sources…',
+      message: matchPrompt(lookupAsked) ? 'Reading an official series…' : 'Searching public sources…',
     });
     try {
-      gathered = await gatherFacts(asked);
+      gathered = await gatherFacts(lookupAsked, { allowTools: !from });
     } catch {
       gathered = { notes: '', urls: [] };
     }
@@ -155,6 +163,19 @@ export async function pieceFromPrompt(
       detail: 'Revising in place',
     });
   }
+
+  if (from) {
+    const span = revisionYearSpan(asked);
+    const haveYears = yearishRows(from.rows).length;
+    if (span !== undefined && haveYears < span && !/\d/.test(gathered.notes)) {
+      return {
+        ok: false,
+        error: `This chart only has ${from.rows.length} point${from.rows.length === 1 ? '' : 's'}. I couldn't find a published ${span}-year series to fill in. Paste a table, or try something I can do here — like make it a line.`,
+        issues: [],
+      };
+    }
+  }
+
   const briefing = [
     from ? seedBriefing(from) : '',
     gathered.notes
@@ -172,7 +193,12 @@ export async function pieceFromPrompt(
   });
 
   let lastError: unknown;
-  for (const model of MODELS) {
+  let googleLimited = false;
+  const models = composeModelsForRevision(Boolean(from));
+  for (const model of models) {
+    if (shouldSkipGoogleModel(model, googleLimited)) {
+      continue;
+    }
     try {
       let output = await draftChart(model, briefing);
       if (!output) {
@@ -243,14 +269,29 @@ export async function pieceFromPrompt(
     } catch (error) {
       lastError = error;
       console.error('compose draft failed', model, error);
-      if (isRateLimited(error)) {
-        break;
+      if (isGatewayRateLimited(error) && model.startsWith('google/')) {
+        googleLimited = true;
       }
     }
   }
 
   if (from) {
+    if (isRateLimited(lastError)) {
+      return {
+        ok: false,
+        error:
+          'Could not reach the drafting model. Try again in a moment. I can still sort this chart, switch to a line, or drop a year that’s already on it without a lookup.',
+        issues: [],
+      };
+    }
     return { ok: false, error: publicComposeError(lastError) || 'Could not revise that', issues: [] };
+  }
+  if (isRateLimited(lastError)) {
+    return {
+      ok: false,
+      error: 'The drafting model is busy. Try again in a moment, or paste a table.',
+      issues: [],
+    };
   }
   return {
     ok: false,
@@ -259,12 +300,13 @@ export async function pieceFromPrompt(
   };
 }
 
-async function draftChart(model: (typeof MODELS)[number], prompt: string) {
+async function draftChart(model: (typeof COMPOSE_MODELS)[number], prompt: string) {
   const result = await generateText({
     model,
     output: Output.object({ schema: DraftSchema }),
     system: SYSTEM,
     prompt,
+    maxRetries: GATEWAY_NO_RETRY,
   });
   await logAiFromResult('compose', model, result.usage, result.totalUsage);
   return result.output;
@@ -393,7 +435,10 @@ function rowProgressMessage(chartType: 'bar' | 'line' | 'scatter', count: number
 }
 
 function isRateLimited(error: unknown): boolean {
-  return /rate limit|429|free tier|credits/i.test(error instanceof Error ? error.message : '');
+  if (isGatewayRateLimited(error)) {
+    return true;
+  }
+  return /free tier|credits/i.test(error instanceof Error ? error.message : '');
 }
 
 const NAMED_METRIC = /^(.+?)\s*\(([^)]+)\)\s*$/;

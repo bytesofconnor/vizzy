@@ -26,11 +26,12 @@ describe('VizzyChart', () => {
     });
   });
 
-  it('exposes an accessible label', async () => {
+  it('exposes an accessible label without a native SVG title tooltip', async () => {
     const { container } = render(<VizzyChart config={config} data={data} showPerformanceMetrics={false} />);
     await waitFor(() => {
-      expect(container.querySelector('[aria-label="Revenue"], [aria-label="Monthly revenue"]')).toBeTruthy();
-      expect(container.querySelector('svg title')?.textContent).toBe('Revenue');
+      expect(container.querySelector('[role="group"]')?.getAttribute('aria-labelledby')).toBeTruthy();
+      expect(container.textContent).toContain('Revenue');
+      expect(container.querySelector('svg > title')).toBeNull();
     });
   });
 });

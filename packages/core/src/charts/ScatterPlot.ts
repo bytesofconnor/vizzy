@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { bindChartTip, formatTipNumber } from '../chart-tip';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
@@ -10,6 +11,7 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
   private _renderEngine!: RenderEngine;
   private _dataProcessor: DataProcessor<TData>;
   private _processedData: ProcessedData<TData> | null = null;
+  private _host: HTMLElement | null = null;
 
   constructor(config: ChartConfig) {
     this._config = config;
@@ -30,6 +32,7 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
     data: TData[]
   ): Promise<void> {
     try {
+      this._host = context.container;
       // Process data
       this._processedData = this._dataProcessor.process(data);
       
@@ -265,37 +268,39 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
   private _addPointInteractions(
     points: d3.Selection<SVGCircleElement, TData, SVGGElement, unknown>
   ): void {
-    const { colors: _colors } = this._config;
-    
+    const { dataMapping, interaction } = this._config;
+    const host = this._host;
+    const scales = this._scaleManager.getScales();
+    const domain = (scales?.y.domain() as [number, number] | undefined) ?? [0, 1];
+    const seriesField = dataMapping.group ?? dataMapping.color;
+
     points
-      .on('mouseenter', function(_event, _d) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr('r', function() {
-            const currentRadius = parseFloat(d3.select(this).attr('r'));
-            return currentRadius * 1.5;
-          })
-          .attr('stroke-width', 2)
-          .attr('opacity', 1);
-        
-        // Show tooltip (would be implemented with a tooltip component)
-        // this._showTooltip(event, d);
+      .style('cursor', 'default')
+      .style('pointer-events', 'all')
+      .on('mouseenter', function () {
+        const current = parseFloat(d3.select(this).attr('r') || '5');
+        d3.select(this).attr('data-r0', String(current)).attr('r', current * 1.25);
       })
-      .on('mouseleave', function(_event, _d) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr('r', function() {
-            const currentRadius = parseFloat(d3.select(this).attr('r'));
-            return currentRadius / 1.5;
-          })
-          .attr('stroke-width', 1)
-          .attr('opacity', 0.7);
-        
-        // Hide tooltip
-        // this._hideTooltip();
+      .on('mouseleave', function () {
+        const original = parseFloat(d3.select(this).attr('data-r0') || d3.select(this).attr('r') || '5');
+        d3.select(this).attr('r', original);
       });
+
+    if (!host || interaction.tooltip === false) {
+      return;
+    }
+
+    points.each((d, index, nodes) => {
+      const node = nodes[index];
+      if (!node) {
+        return;
+      }
+      bindChartTip(host, node, () => ({
+        title: String(d[dataMapping.x] ?? ''),
+        value: formatTipNumber(d[dataMapping.y], domain),
+        series: seriesField && d[seriesField] != null ? String(d[seriesField]) : undefined,
+      }));
+    });
   }
 
   private _addClickInteractions(

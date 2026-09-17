@@ -1,4 +1,4 @@
-import type { ChartSeed } from './seed';
+import { revisionYearSpan, rowYear, yearishRows, type ChartSeed } from './seed';
 
 function yearPattern(): RegExp {
   return /\b((?:19|20)\d{2})\b/g;
@@ -27,6 +27,14 @@ export function tryLocalRevision(
       };
     }
     return { ok: true, seed: withRows(seed, next) };
+  }
+
+  const span = revisionYearSpan(text);
+  if (span !== undefined) {
+    const dated = [...yearishRows(seed.rows)].sort((a, b) => (rowYear(a.x) ?? 0) - (rowYear(b.x) ?? 0));
+    if (dated.length >= span) {
+      return { ok: true, seed: withRows(seed, dated.slice(-span)) };
+    }
   }
 
   let rows = [...seed.rows];

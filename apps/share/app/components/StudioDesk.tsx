@@ -9,7 +9,8 @@ import { ChartFrame } from './ChartFrame';
 import { ChartMount } from './ChartMount';
 import { ChartExtras } from './ChartExtras';
 import { ComposeBox } from './ComposeBox';
-import { ComposeBusyPlot } from './ComposeBusyPlot';
+import { ComposeProgressStrip } from './ComposeBusyPlot';
+import { HomeCompose } from './HomeCompose';
 import { SourceLine } from './SourceLine';
 
 const kicker: CSSProperties = {
@@ -38,17 +39,29 @@ export function StudioDesk({
   askPay?: boolean;
 }) {
   const [progress, setProgress] = useState<ComposeProgressEvent | null>(null);
+  const [fresh, setFresh] = useState(false);
   const onBusyProgress = useCallback((next: ComposeProgressEvent | null) => {
     setProgress(next);
   }, []);
 
+  if (fresh) {
+    return <HomeCompose error={error} askPay={askPay} />;
+  }
+
   return (
     <>
-      <ComposeBox error={error} askPay={askPay} seed={seedFromPiece(piece)} onBusyProgress={onBusyProgress} />
+      <ComposeBox
+        error={error}
+        askPay={askPay}
+        seed={seedFromPiece(piece)}
+        onBusyProgress={onBusyProgress}
+        onNewChart={() => setFresh(true)}
+      />
       <section className="studio-chart" aria-labelledby="chart-title">
         <ChartFrame
           head={
             <>
+              {progress ? <ComposeProgressStrip progress={progress} /> : null}
               <p style={kicker}>{piece.kicker}</p>
               <h1 id="chart-title" style={chartTitle}>
                 {piece.title}
@@ -58,11 +71,6 @@ export function StudioDesk({
         >
           <div className={progress ? 'studio-chart-stage is-busy' : 'studio-chart-stage'}>
             <ChartMount config={piece.config} data={piece.data} label={piece.title} framed />
-            {progress ? (
-              <div className="studio-chart-busy">
-                <ComposeBusyPlot variant="studio" progress={progress} />
-              </div>
-            ) : null}
           </div>
         </ChartFrame>
         {piece.note ? <p className="studio-chart-note">{piece.note}</p> : null}

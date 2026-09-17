@@ -1,9 +1,9 @@
 'use client';
 
-import type { ComposeProgressEvent } from './compose-progress';
+import type { ComposeProgressEvent, ClientPiece } from './compose-progress';
 
 export type ComposeStreamResult =
-  | { ok: true; url: string; png?: string; token?: string }
+  | { ok: true; url: string; png?: string; token?: string; piece?: ClientPiece }
   | { ok: false; error: string; pay?: boolean };
 
 function parseSseChunk(buffer: string): { events: ComposeProgressEvent[]; rest: string } {
@@ -62,6 +62,7 @@ export async function composeWithProgress(
         url: json.url,
         png: 'png' in json && typeof json.png === 'string' ? json.png : undefined,
         token: 'token' in json && typeof json.token === 'string' ? json.token : undefined,
+        piece: 'piece' in json ? (json.piece as ClientPiece) : undefined,
       };
     }
     const error =
@@ -102,6 +103,7 @@ export async function composeWithProgress(
           url: event.url,
           png: event.png,
           token: event.token,
+          piece: event.piece,
         };
       }
       if (event.stage === 'error') {
@@ -119,7 +121,7 @@ export async function composeWithProgress(
     for (const event of parsed.events) {
       onProgress(event);
       if (event.stage === 'done' && event.url) {
-        result = { ok: true, url: event.url, png: event.png, token: event.token };
+        result = { ok: true, url: event.url, png: event.png, token: event.token, piece: event.piece };
       }
       if (event.stage === 'error') {
         result = {

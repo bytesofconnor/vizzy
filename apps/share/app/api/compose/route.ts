@@ -1,5 +1,5 @@
 import { consumeSlot, refundSlot } from '../../../lib/billing';
-import { reportProgress, type ComposeProgressReporter } from '../../../lib/compose-progress';
+import { reportProgress, clientPiece, type ComposeProgressReporter } from '../../../lib/compose-progress';
 import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
 import { pasteHref } from '../../../lib/paste';
 import { payBody, payMessage } from '../../../lib/pay';
@@ -74,6 +74,7 @@ async function runCompose(
     url: paste.url,
     png: paste.png,
     token: minted.token,
+    piece: clientPiece(minted.piece, paste.slug ?? minted.piece.slug),
     barCount: minted.piece.data.length,
   });
 
@@ -214,6 +215,7 @@ export async function POST(request: Request) {
       url: result.paste.url,
       png: result.paste.png,
       token: result.minted.token,
+      piece: clientPiece(result.minted.piece, result.paste.slug ?? result.minted.piece.slug),
     });
   } catch (error) {
     if (slot.via === 'credit' || slot.via === 'free') {

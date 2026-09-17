@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { isAiGatewayConfigured } from './ai-gateway';
 import { logAiFromResult } from './ai-usage';
 import { heuristicRevisionPrompts } from './revision-heuristics';
-import { seedBriefing, type ChartSeed } from './seed';
+import { revisionYearSpan, yearishRows, type ChartSeed } from './seed';
 
 export { heuristicRevisionPrompts } from './revision-heuristics';
 
@@ -23,15 +23,19 @@ Each line is one imperative sentence they would type into a revise box — not a
 Good: "Sort by share. Drop anything under 5%." "Make it a line." "Keep India, Russia, and Nepal only."
 Bad: "Would you like to..." "You could consider..." "Drop 2025 and 2026" when those years are not in ROWS.
 Use real category names and years from the ROWS table. Never mention a year or label that is not an x value.
-Do not ask them to paste new data unless the chart clearly has too few rows to compare.
+Do not ask them to add more years or invent a longer history. If the chart is sparse, suggest looking up more rows or a style change.
 Keep each prompt under 90 characters. Return exactly 4 prompts.`;
 
 function promptFitsSeed(prompt: string, seed: ChartSeed): boolean {
   const years = [...prompt.matchAll(/\b((?:19|20)\d{2})\b/g)].map((match) => match[1] ?? '');
-  if (years.length === 0) {
-    return true;
+  if (years.some((year) => !seed.rows.some((row) => String(row.x).includes(year)))) {
+    return false;
   }
-  return years.every((year) => seed.rows.some((row) => String(row.x).includes(year)));
+  const span = revisionYearSpan(prompt);
+  if (span !== undefined && yearishRows(seed.rows).length < span) {
+    return false;
+  }
+  return true;
 }
 
 function uniquePrompts(prompts: string[]): string[] {
@@ -82,6 +86,7 @@ async function aiRevisionPromptsUncached(seed: ChartSeed): Promise<string[] | nu
       system: SYSTEM,
       prompt: `${briefing}\n\nSuggest four revision prompts tailored to this chart.`,
       maxOutputTokens: 220,
+      maxRetries: 0,
     });
     await logAiFromResult('revision_hints', REVISION_HINT_MODEL, result.usage, result.totalUsage);
     const cleaned = uniquePrompts(result.output.prompts).filter((line) => promptFitsSeed(line, seed));

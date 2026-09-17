@@ -42,7 +42,7 @@ function parseRevisionSeed(value: unknown): ChartSeed | undefined {
     sourceLabel: typeof raw.sourceLabel === 'string' ? raw.sourceLabel.slice(0, 120) : 'Unspecified',
     sourceMethod: 'unknown',
     evidence: '',
-    rows: rows.slice(0, 24),
+    rows: rows.slice(0, 60),
   };
 }
 

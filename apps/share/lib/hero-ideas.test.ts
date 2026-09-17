@@ -5,6 +5,7 @@ import {
   asChipLabel,
   fallbackHeroIdeas,
   isHeroIdeaBatch,
+  mergeSeenPrompts,
   parseHeroIdeas,
 } from './hero-ideas';
 
@@ -83,5 +84,22 @@ describe('fallbackHeroIdeas', () => {
     );
     const overlap = next.filter((idea) => first.some((item) => item.prompt === idea.prompt));
     expect(overlap).toHaveLength(0);
+  });
+
+  it('defaults to a weirder mix than Fed and fertility', () => {
+    const text = DEFAULT_HERO_IDEAS.map((idea) => `${idea.label} ${idea.prompt}`.toLowerCase()).join(' ');
+    expect(text).toMatch(/sea ice|lithium|launch|dollar|wildfire|lng|robot/);
+    expect(text).not.toMatch(/federal funds|fertility rate|unemployment/);
+    expect(DEFAULT_HERO_IDEAS.every((idea) => idea.label.length >= 12)).toBe(true);
+  });
+});
+
+describe('mergeSeenPrompts', () => {
+  it('keeps a rolling memory of labels and prompts', () => {
+    const first = fallbackHeroIdeas([], 'alpha');
+    const seen = mergeSeenPrompts([], first);
+    expect(seen.length).toBeGreaterThanOrEqual(first.length);
+    const again = mergeSeenPrompts(seen, first);
+    expect(again.length).toBe(seen.length);
   });
 });

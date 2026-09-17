@@ -1,4 +1,17 @@
+import type { ChartConfig, DataPoint } from '@vizzy/core';
+import type { Piece } from './pieces';
+
 export type ComposeStage = 'queue' | 'lookup' | 'draft' | 'mint' | 'save' | 'done' | 'error';
+
+export type ClientPiece = {
+  slug: string;
+  kicker: string;
+  title: string;
+  note: string;
+  printGrayscale?: boolean;
+  config: ChartConfig;
+  data: DataPoint[];
+};
 
 export type ComposeProgressEvent = {
   stage: ComposeStage;
@@ -9,11 +22,24 @@ export type ComposeProgressEvent = {
   url?: string;
   png?: string;
   token?: string;
+  piece?: ClientPiece;
   error?: string;
   pay?: boolean;
 };
 
 export type ComposeProgressReporter = (event: ComposeProgressEvent) => void;
+
+export function clientPiece(piece: Piece, slug = piece.slug): ClientPiece {
+  return {
+    slug,
+    kicker: piece.kicker,
+    title: piece.title,
+    note: piece.note,
+    ...(piece.printGrayscale ? { printGrayscale: true } : {}),
+    config: piece.config,
+    data: piece.data,
+  };
+}
 
 export function reportProgress(
   onProgress: ComposeProgressReporter | undefined,

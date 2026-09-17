@@ -212,9 +212,8 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
   }
 
   private async _renderSVG(): Promise<void> {
-    const { width, height } = this._getContainerDimensions();
-    
-    // Create SVG element
+    const { width, height } = this._chartBox();
+
     this._svg = d3.select(this.container)
       .append('svg')
       .attr('id', this.id)
@@ -225,7 +224,7 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
       .attr('preserveAspectRatio', 'xMidYMid meet')
       .style('display', 'block')
       .style('width', '100%')
-      .style('height', '100%')
+      .style('height', 'auto')
       .style('max-width', '100%')
       .style('overflow', 'visible')
       .style('font-family', 'Archivo, Helvetica, sans-serif')
@@ -235,64 +234,92 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
       .attr('class', 'vizzy-bg')
       .attr('width', width)
       .attr('height', height)
-      .attr('fill', this.config.colors.background);
+      .attr('fill', this.config.colors.background)
+      .style('pointer-events', 'none');
 
-    if (this.config.accessibility.enabled && this.config.accessibility.title) {
-      this._svg.append('title').text(this.config.accessibility.title);
-    }
-    
-    // Add accessibility description if provided
     if (this.config.accessibility.enabled && this.config.accessibility.description) {
       this._svg.append('desc')
         .attr('id', `${this.id}-description`)
         .text(this.config.accessibility.description);
     }
-    
-    // Render chart based on type
+
     await this._renderChartContent();
   }
 
   private async _renderChartContent(): Promise<void> {
     if (!this._svg) return;
-    
-    // Import chart factory dynamically to avoid circular dependencies
+
     const { ChartFactory } = await import('../charts/ChartFactory');
-    
-    // Create the appropriate chart renderer
     const chartRenderer = ChartFactory.createChart(this.config);
-    
-    // Create render context
-    const { width, height } = this._getContainerDimensions();
+    const { width, height } = this._chartBox();
     const { margin } = this.config.dimensions;
-    if (this.config.chart.type === 'bar' || this.config.chart.type === 'line') {
-      const names = [
-        ...new Set(this._data.map((row) => String(row[this.config.dataMapping.x] ?? ''))),
-      ];
-      const room = xAxisRoom(names, {
-        hasTitle: Boolean(this.config.axes.x.label),
-        innerWidth: width - margin.left - margin.right,
-      });
-      if (room.bottom > margin.bottom) {
-        margin.bottom = room.bottom;
-      }
-    }
     const dimensions = {
       width,
       height,
       innerWidth: width - margin.left - margin.right,
       innerHeight: height - margin.top - margin.bottom,
     };
-    
+
     const renderContext = {
       svg: this._svg,
       container: this.container,
       dimensions,
-      scales: {} as any, // Will be set by the chart renderer
+      scales: {} as any,
       config: this.config,
     };
-    
-    // Render the chart
+
     await chartRenderer.render(renderContext, this._data);
+    this._fitSvgToDrawnMarks();
+  }
+
+  private _chartBox(): { width: number; height: number } {
+    const { width, height: rawHeight } = this._getContainerDimensions();
+    const margin = this.config.dimensions.margin;
+    if (this.config.chart.type === 'bar' || this.config.chart.type === 'line') {
+      const names = [
+        ...new Set(this._data.map((row) => String(row[this.config.dataMapping.x] ?? ''))),
+      ];
+      const innerGuess = Math.max(120, width - margin.left - margin.right);
+      const room = xAxisRoom(names, {
+        hasTitle: Boolean(this.config.axes.x.label),
+        innerWidth: innerGuess,
+      });
+      const tight = xAxisRoom(names, {
+        hasTitle: Boolean(this.config.axes.x.label),
+        innerWidth: Math.min(280, innerGuess),
+      });
+      margin.bottom = Math.max(margin.bottom, room.bottom, tight.bottom);
+    }
+    return {
+      width,
+      height: Math.max(rawHeight, margin.top + 132 + margin.bottom),
+    };
+  }
+
+  private _fitSvgToDrawnMarks(): void {
+    const svg = this._svg?.node();
+    const axis = svg?.querySelector('.x-axis') as SVGGraphicsElement | null;
+    if (!svg || !axis || typeof axis.getBBox !== 'function') {
+      return;
+    }
+    let box: DOMRect;
+    try {
+      box = axis.getBBox();
+    } catch {
+      return;
+    }
+    if (!Number.isFinite(box.height) || box.height < 2) {
+      return;
+    }
+    const shift = axis.transform.baseVal.consolidate()?.matrix;
+    const bottom = Math.ceil((shift?.f ?? 0) + box.y + box.height + 10);
+    const current = Number(svg.getAttribute('height')) || 0;
+    if (bottom <= current) {
+      return;
+    }
+    this._svg?.attr('height', bottom).attr('viewBox', `0 0 ${svg.getAttribute('width')} ${bottom}`);
+    this._svg?.select('.vizzy-bg').attr('height', bottom);
+    this.container.style.minHeight = `${bottom}px`;
   }
 
   private _clearContainer(): void {

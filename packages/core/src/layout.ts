@@ -48,20 +48,56 @@ export function compactAxisLabel(name: string): string {
   return trimmed;
 }
 
+export function wrapCategoryLines(name: string, maxChars: number): string[] {
+  const limit = Math.max(4, maxChars);
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return [name];
+  }
+
+  const joined = words.join(' ');
+  const target = words.length >= 3
+    ? Math.min(limit, Math.max(12, Math.ceil(joined.length * 0.55)))
+    : limit;
+
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length <= target) {
+      current = next;
+    } else {
+      if (current) {
+        lines.push(current);
+      }
+      current = word;
+    }
+  }
+  if (current) {
+    lines.push(current);
+  }
+  return lines.slice(0, 3);
+}
+
+export function categoryLabelBox(name: string, slot: number): { lines: number; width: number } {
+  const maxChars = Math.max(6, Math.floor(slot / 7));
+  const lines = wrapCategoryLines(name, maxChars);
+  const width = Math.max(...lines.map((line) => Math.max(line.length * 6.6, 10)), 10);
+  return { lines: lines.length, width };
+}
+
 export function xTickRotate(names: string[], innerWidth: number): XTickRotate {
   const labels = shortCategoryNames(names).map(compactAxisLabel);
-  if (looksSequentialX(names)) {
-    return 0;
-  }
-  if (labels.length < 4) {
+  if (looksSequentialX(names) || labels.length === 0) {
     return 0;
   }
   const slot = innerWidth / Math.max(labels.length, 1);
-  const items = labels.map((name, index) => ({
+  const wrapped = labels.map((name) => categoryLabelBox(name, slot));
+  const items = wrapped.map((box, index) => ({
     x: (index + 0.5) * slot,
-    width: Math.max(name.length * 6.6, 10),
+    width: box.width,
   }));
-  if (ticksFit(items, items.map(() => true))) {
+  if (ticksFit(items, items.map(() => true)) && wrapped.every((box) => box.lines <= 3)) {
     return 0;
   }
   return labels.length > 12 || labels.some((name) => name.length > 16) ? -65 : -40;
@@ -117,7 +153,7 @@ export function rotatedTickDepth(longest: number, rotate: XTickRotate): number {
     return 0;
   }
   const radians = Math.abs(rotate) * (Math.PI / 180);
-  return 16 + longest * 6.2 * Math.sin(radians);
+  return 24 + longest * 7.4 * Math.sin(radians) + 18;
 }
 
 export function xAxisRoom(
@@ -128,15 +164,13 @@ export function xAxisRoom(
   const hasTitle = Boolean(options.hasTitle);
   const labels = shortCategoryNames(names).map(compactAxisLabel);
   const rotate = xTickRotate(names, innerWidth);
+  const slot = innerWidth / Math.max(labels.length, 1);
   const longest = labels.reduce((max, name) => Math.max(max, name.length), 1);
-  const wrapLines =
-    rotate === 0 && labels.some((name) => name.includes(' ') && name.length * 7 > innerWidth / Math.max(labels.length, 1) + 10)
-      ? longest > 22
-        ? 3
-        : 2
-      : 1;
+  const wrapLines = rotate === 0
+    ? Math.max(1, ...labels.map((name) => categoryLabelBox(name, slot).lines))
+    : 1;
   const tickDepth = rotate ? rotatedTickDepth(longest, rotate) : 18 + wrapLines * 16;
   const titleY = tickDepth + (hasTitle ? 20 : 0);
-  const bottom = titleY + (hasTitle ? 16 : 10);
+  const bottom = titleY + (hasTitle ? 18 : 12);
   return { rotate, tickDepth, titleY, bottom };
 }

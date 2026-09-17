@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { PIECES, type Piece } from '../../lib/pieces';
 import { DustRail } from './DustRail';
 import { ChartMount } from './ChartMount';
-import { ComposeBox } from './ComposeBox';
+import { HomeCompose } from './HomeCompose';
 import { ChartExtras } from './ChartExtras';
 import { KickerNav } from './KickerNav';
 import { SiteFoot } from './SiteFoot';
@@ -56,7 +56,7 @@ export function Studio({
             AI drafts the series. You get a link and PNG. Add a source when you have one — it shows on
             the chart.
           </p>
-          <ComposeBox error={error} askPay={askPay} variant="hero" />
+          <HomeCompose error={error} askPay={askPay} />
         </section>
       )}
       <div id="examples" className={piece ? undefined : 'home-examples'}>

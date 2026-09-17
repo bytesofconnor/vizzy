@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   DEFAULT_HERO_IDEAS,
+  HERO_IDEAS_SEEN_KEY,
   HERO_IDEAS_STORAGE_KEY,
   isHeroIdeaBatch,
+  mergeSeenPrompts,
   parseHeroIdeas,
   type HeroIdea,
 } from '../../lib/hero-ideas';
@@ -27,6 +29,8 @@ export function HeroExamples({
     setIdeas(next);
     try {
       window.localStorage.setItem(HERO_IDEAS_STORAGE_KEY, JSON.stringify(next));
+      const previous = readSeen();
+      window.localStorage.setItem(HERO_IDEAS_SEEN_KEY, JSON.stringify(mergeSeenPrompts(previous, next)));
     } catch {
       // private mode
     }
@@ -88,16 +92,15 @@ export function HeroExamples({
         const stored = parseHeroIdeas(JSON.parse(raw) as unknown);
         if (isHeroIdeaBatch(stored)) {
           setIdeas(stored);
-          return;
         }
       }
     } catch {
       // first visit
     }
-    void loadIdeas([], false);
+    void loadIdeas(readSeen(), false);
   }, [loadIdeas]);
 
-  const exclude = ideas.flatMap((idea) => [idea.prompt, idea.label]);
+  const exclude = mergeSeenPrompts(readSeen(), ideas);
   const rows = splitRows(ideas);
 
   return (
@@ -156,4 +159,20 @@ function splitRows(ideas: HeroIdea[]): HeroIdea[][] {
   }
   const mid = Math.ceil(ideas.length / 2);
   return [ideas.slice(0, mid), ideas.slice(mid)];
+}
+
+function readSeen(): string[] {
+  try {
+    const raw = window.localStorage.getItem(HERO_IDEAS_SEEN_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((item): item is string => typeof item === 'string').slice(-80);
+  } catch {
+    return [];
+  }
 }

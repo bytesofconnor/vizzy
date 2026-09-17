@@ -143,7 +143,7 @@ export function parseChartSeed(value: unknown): ChartSeed | undefined {
     evidence: typeof raw.evidence === 'string' ? raw.evidence.slice(0, 160) : '',
     sourceUrl: typeof raw.sourceUrl === 'string' && /^https?:\/\//.test(raw.sourceUrl) ? raw.sourceUrl : undefined,
     printGrayscale: raw.printGrayscale === true,
-    rows: rows.slice(0, 24),
+    rows: rows.slice(0, 60),
   };
 }
 
@@ -165,6 +165,40 @@ ROWS:
 ${table}`;
 }
 
+export function revisionYearSpan(asked: string): number | undefined {
+  const match =
+    asked.match(
+      /\b(?:make it|last|past|previous|prior|over|see(?: the)?(?: past| last| previous)?|for(?: the)? last|keep(?: the)? last)\s+(ten|five|\d{1,2})\s+years\b/i
+    ) ?? asked.match(/\b(ten|five|\d{1,2})\s+years\b/i);
+  if (!match) {
+    return undefined;
+  }
+  const raw = (match[1] ?? '').toLowerCase();
+  const n = raw === 'ten' ? 10 : raw === 'five' ? 5 : Number(raw);
+  if (!Number.isFinite(n) || n < 3 || n > 80) {
+    return undefined;
+  }
+  return n;
+}
+
+export function yearishRows(rows: ChartSeed['rows']): ChartSeed['rows'] {
+  return rows.filter((row) => rowYear(row.x) !== undefined);
+}
+
+export function rowYear(x: string | number): number | undefined {
+  const match = String(x).trim().match(/^(?:19|20)\d{2}$/) ?? String(x).match(/\b((?:19|20)\d{2})\b/);
+  if (!match) {
+    return undefined;
+  }
+  const year = Number(match[1] ?? match[0]);
+  return Number.isFinite(year) ? year : undefined;
+}
+
+/** Lookup should search the *chart*, not the short follow-up alone. */
+export function revisionLookupQuery(asked: string, seed: ChartSeed): string {
+  return `${seed.title}. ${seed.yLabel}. ${asked}`.slice(0, 400);
+}
+
 export function followUpNeedsLookup(asked: string, seed?: ChartSeed): boolean {
   if (
     /\b(latest|look ?up|fetch|update the numbers|new data|different data|instead|now chart|start over|this season|extend|forecast|more years|add (?:20)?\d{2})\b/i.test(
@@ -172,6 +206,13 @@ export function followUpNeedsLookup(asked: string, seed?: ChartSeed): boolean {
     )
   ) {
     return true;
+  }
+  const span = revisionYearSpan(asked);
+  if (span !== undefined) {
+    if (!seed) {
+      return true;
+    }
+    return yearishRows(seed.rows).length < span;
   }
   if (!/\b(through|until|out to)\b/i.test(asked)) {
     return false;

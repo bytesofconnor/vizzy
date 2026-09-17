@@ -60,4 +60,12 @@ describe('tryLocalRevision', () => {
       expect(next.seed.rows).toHaveLength(5);
     }
   });
+
+  it('keeps the last N years when they are already on the chart', () => {
+    const next = tryLocalRevision(votes, 'Make it 3 years.');
+    expect(next?.ok).toBe(true);
+    if (next?.ok) {
+      expect(next.seed.rows.map((row) => row.x)).toEqual([2023, 2025, 2026]);
+    }
+  });
 });

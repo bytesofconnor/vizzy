@@ -1,4 +1,4 @@
-import { chartInsightForSeed } from '../../../lib/chart-insight';
+import { chartInsightForSeed, chartLessonForSeed } from '../../../lib/chart-insight';
 import { parseChartSeed, type ChartSeed } from '../../../lib/seed';
 
 function parseInsightSeed(value: unknown): ChartSeed | undefined {
@@ -61,6 +61,16 @@ export async function POST(request: Request) {
 
   if (!seed) {
     return Response.json({ ok: false, error: 'seed is required' }, { status: 400 });
+  }
+
+  const payload = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+  if (payload.depth === 'lesson') {
+    const already = typeof payload.insight === 'string' ? payload.insight.slice(0, 900) : undefined;
+    const lesson = await chartLessonForSeed(seed, already);
+    if (!lesson) {
+      return Response.json({ ok: false, error: 'Could not go deeper right now' }, { status: 503 });
+    }
+    return Response.json({ ok: true, lesson });
   }
 
   const insight = await chartInsightForSeed(seed);

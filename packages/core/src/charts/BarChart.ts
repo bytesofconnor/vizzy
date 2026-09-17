@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { bindChartTip, formatTipNumber } from '../chart-tip';
 import { formatDataValue } from '../format';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
@@ -26,11 +27,14 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     }
   }
 
+  private _host: HTMLElement | null = null;
+
   public async render(
     context: RenderContext,
     data: TData[]
   ): Promise<void> {
     try {
+      this._host = context.container;
       // Process data
       this._processedData = this._dataProcessor.process(data);
       
@@ -289,30 +293,37 @@ export class BarChart<TData extends DataPoint = DataPoint> {
   private _addHoverInteractions(
     bars: d3.Selection<SVGRectElement, TData, SVGGElement, unknown>
   ): void {
-    const { colors } = this._config;
-    
+    const { colors, dataMapping, interaction } = this._config;
+    const host = this._host;
+    const scales = this._scaleManager.getScales();
+    const domain = (scales?.y.domain() as [number, number] | undefined) ?? [0, 1];
+    const groupField = dataMapping.group ?? dataMapping.color;
+
     bars
-      .on('mouseenter', function(this: SVGRectElement, _event: MouseEvent, _d: TData) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr('opacity', 0.8)
-          .attr('stroke', colors.text)
-          .attr('stroke-width', 1);
-        
-        // Show tooltip (would be implemented with a tooltip component)
-        // this._showTooltip(event, d);
+      .style('cursor', 'default')
+      .style('pointer-events', 'all')
+      .on('mouseenter', function (this: SVGRectElement) {
+        d3.select(this).attr('opacity', 0.82).attr('stroke', colors.text).attr('stroke-width', 1);
       })
-      .on('mouseleave', function(this: SVGRectElement, _event: MouseEvent, _d: TData) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr('opacity', 1)
-          .attr('stroke', 'none');
-        
-        // Hide tooltip
-        // this._hideTooltip();
+      .on('mouseleave', function (this: SVGRectElement) {
+        d3.select(this).attr('opacity', 1).attr('stroke', 'none');
       });
+
+    if (!host || interaction.tooltip === false) {
+      return;
+    }
+
+    bars.each((d, index, nodes) => {
+      const node = nodes[index];
+      if (!node) {
+        return;
+      }
+      bindChartTip(host, node, () => ({
+        title: String(d[dataMapping.x] ?? ''),
+        value: formatTipNumber(d[dataMapping.y], domain),
+        series: groupField && d[groupField] != null ? String(d[groupField]) : undefined,
+      }));
+    });
   }
 
   private _addClickInteractions(

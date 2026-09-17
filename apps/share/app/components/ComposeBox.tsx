@@ -1,17 +1,17 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { FREE_PER_DAY, PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import { PROMPT_LINES } from '../../lib/prompt-ideas';
 import { heuristicRevisionPrompts } from '../../lib/revision-heuristics';
 import type { ChartSeed } from '../../lib/seed';
 import { DustRail } from './DustRail';
-import type { ComposeProgressEvent } from '../../lib/compose-progress';
+import type { ClientPiece, ComposeProgressEvent } from '../../lib/compose-progress';
 import { composeWithProgress } from '../../lib/compose-stream';
-import { ComposeBusyPlot } from './ComposeBusyPlot';
 import { HeroExamples } from './HeroExamples';
 import { HeroTypewriter } from './HeroTypewriter';
+import { FILL_COMPOSE_PROMPT } from './TellMeMore';
 import { usePromptTypewriter } from './usePromptTypewriter';
 
 type Quota = {
@@ -33,12 +33,20 @@ export function ComposeBox({
   seed,
   variant = 'default',
   onBusyProgress,
+  onMinted,
+  onNewChart,
+  children,
+  showIdeas = true,
 }: {
   error?: string;
   askPay?: boolean;
   seed?: ChartSeed;
   variant?: 'default' | 'hero';
   onBusyProgress?: (progress: ComposeProgressEvent | null) => void;
+  onMinted?: (piece: ClientPiece, url: string) => void;
+  onNewChart?: () => void;
+  children?: ReactNode;
+  showIdeas?: boolean;
 }) {
   const hero = variant === 'hero' && !seed;
   const studio = Boolean(seed);
@@ -81,7 +89,8 @@ export function ComposeBox({
     }
     field.style.height = 'auto';
     const ghost = typeRef.current ?? reviseTypeRef.current;
-    const floor = ghost?.offsetHeight ?? 0;
+    const ghostActive = Boolean(ghost && !ghost.classList.contains('is-paused'));
+    const floor = ghostActive && ghost ? ghost.offsetHeight : 0;
     field.style.height = `${Math.max(field.scrollHeight, floor)}px`;
   }, []);
 
@@ -108,31 +117,36 @@ export function ComposeBox({
 
   useEffect(() => {
     if (!seed) {
+      setRevisionLines([]);
       return;
     }
+    setRevisionLines(heuristicRevisionPrompts(seed));
     let cancel = false;
-    void fetch('/api/revisions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seed }),
-    })
-      .then((response) => response.json())
-      .then((body: unknown) => {
-        if (cancel || typeof body !== 'object' || body === null || !('prompts' in body)) {
-          return;
-        }
-        const prompts = (body as { prompts: unknown }).prompts;
-        if (!Array.isArray(prompts) || prompts.length < 3) {
-          return;
-        }
-        const next = prompts.filter((line): line is string => typeof line === 'string' && line.trim().length > 0);
-        if (next.length >= 3) {
-          setRevisionLines(next);
-        }
+    const wait = window.setTimeout(() => {
+      void fetch('/api/revisions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seed }),
       })
-      .catch(() => undefined);
+        .then((response) => response.json())
+        .then((body: unknown) => {
+          if (cancel || typeof body !== 'object' || body === null || !('prompts' in body)) {
+            return;
+          }
+          const prompts = (body as { prompts: unknown }).prompts;
+          if (!Array.isArray(prompts) || prompts.length < 3) {
+            return;
+          }
+          const next = prompts.filter((line): line is string => typeof line === 'string' && line.trim().length > 0);
+          if (next.length >= 3) {
+            setRevisionLines(next);
+          }
+        })
+        .catch(() => undefined);
+    }, 8000);
     return () => {
       cancel = true;
+      window.clearTimeout(wait);
     };
   }, [seed]);
 
@@ -141,14 +155,7 @@ export function ComposeBox({
       return;
     }
     const syncFieldHeight = () => {
-      const field = promptRef.current;
-      const ghost = hero ? typeRef.current : reviseTypeRef.current;
-      if (!field) {
-        return;
-      }
-      field.style.height = 'auto';
-      const floor = ghost?.offsetHeight ?? 0;
-      field.style.height = `${Math.max(field.scrollHeight, floor)}px`;
+      fitPromptHeight();
     };
     syncFieldHeight();
     requestAnimationFrame(syncFieldHeight);
@@ -186,11 +193,26 @@ export function ComposeBox({
     onBusyProgress?.(busy ? composeProgress : null);
   }, [busy, composeProgress, onBusyProgress]);
 
+  useEffect(() => {
+    const onFill = (event: Event) => {
+      const next = (event as CustomEvent<{ prompt?: string }>).detail?.prompt;
+      if (typeof next !== 'string' || next.trim().length < 3) {
+        return;
+      }
+      onPickIdea(next.trim());
+    };
+    window.addEventListener(FILL_COMPOSE_PROMPT, onFill);
+    return () => window.removeEventListener(FILL_COMPOSE_PROMPT, onFill);
+  }, [onPickIdea]);
+
 
   async function submit() {
     let asked = prompt.trim();
-    if (asked.length < 3 && hero && typedExample.trim().length >= 3) {
-      asked = typedExample.trim();
+    const demo = (hero ? typedExample : studio ? reviseExample : '').trim();
+    if (asked.length < 3 && demo.length >= 3) {
+      asked = demo;
+      setPrompt(asked);
+      setHeld(true);
     }
     if (busy || asked.length < 3) {
       return;
@@ -211,6 +233,14 @@ export function ComposeBox({
         setComposeProgress
       );
       if (result.ok) {
+        if (onMinted && result.piece) {
+          onMinted(result.piece, result.url);
+          setPrompt('');
+          setHeld(false);
+          setBusy(false);
+          setComposeProgress(null);
+          return;
+        }
         window.location.assign(result.url);
         return;
       }
@@ -264,20 +294,16 @@ export function ComposeBox({
     <form
       id={seed ? 'again' : 'make-one'}
       className={hero ? 'compose-hero' : studio ? 'compose-studio' : undefined}
+      noValidate
       onSubmit={onSubmit}
       style={{ marginTop: hero ? 0 : studio ? 0 : 16 }}
       aria-busy={busy}
     >
       <div className={hero ? 'compose-hero-inner' : studio ? 'compose-studio-inner' : undefined}>
         {studio ? (
-          <div className="compose-studio-head">
-            <label htmlFor="again-prompt" className="compose-studio-label">
-              Revise it
-            </label>
-            <Link href="/#make-one" className="compose-studio-new">
-              New chart
-            </Link>
-          </div>
+          <label htmlFor="again-prompt" className="compose-hero-label">
+            Revise this chart
+          </label>
         ) : (
           <label
             htmlFor="prompt"
@@ -304,6 +330,9 @@ export function ComposeBox({
             <DustRail className="compose-hero-rail dust-rail" />
             {hero ? (
                   <div className={showTypewriter ? 'compose-hero-field is-idle' : 'compose-hero-field'}>
+                    <span className="compose-hero-demo-tag" aria-hidden="true">
+                      {promptIdle && !held ? 'Demo prompt' : 'Your prompt'}
+                    </span>
                     {showTypewriter ? (
                       <HeroTypewriter display={typedDisplay} measureRef={typeRef} paused={ghostPaused} />
                     ) : null}
@@ -314,8 +343,8 @@ export function ComposeBox({
                       className={
                         promptIdle && !held ? 'compose-hero-input is-dormant' : 'compose-hero-input'
                       }
-                      required
-                      minLength={3}
+                      required={prompt.trim().length > 0}
+                      minLength={prompt.trim().length > 0 ? 3 : undefined}
                       maxLength={4000}
                       rows={1}
                       autoFocus={focusHero}
@@ -337,6 +366,9 @@ export function ComposeBox({
                       showReviseTypewriter ? 'compose-hero-field is-idle' : 'compose-hero-field'
                     }
                   >
+                    <span className="compose-hero-demo-tag" aria-hidden="true">
+                      {promptIdle && !held ? 'Demo prompt' : 'Your prompt'}
+                    </span>
                     {showReviseTypewriter ? (
                       <HeroTypewriter
                         display={reviseDisplay}
@@ -353,8 +385,8 @@ export function ComposeBox({
                           ? 'compose-hero-input compose-studio-input is-dormant'
                           : 'compose-hero-input compose-studio-input'
                       }
-                      required
-                      minLength={3}
+                      required={prompt.trim().length > 0}
+                      minLength={prompt.trim().length > 0 ? 3 : undefined}
                       maxLength={4000}
                       rows={1}
                       disabled={busy}
@@ -371,76 +403,59 @@ export function ComposeBox({
                   </div>
                 )}
             <div className="compose-hero-bar">
-                  <div className="compose-hero-actions">
-                    <button type="submit" className="compose-hero-submit is-primary" disabled={busy}>
-                      {studio ? 'Update chart' : 'Generate my chart'}
-                    </button>
-                    {hero ? (
-                      <button
-                        type="button"
-                        className={promptIdle ? 'compose-hero-use' : 'compose-hero-use is-reserved'}
-                        tabIndex={promptIdle ? 0 : -1}
-                        aria-hidden={!promptIdle}
-                        disabled={!promptIdle || busy}
-                        onClick={() => onPickIdea(typedExample)}
-                      >
-                        Use this example
-                      </button>
-                    ) : null}
-                    {studio ? (
-                      <>
-                        <button
-                          type="button"
-                          className={promptIdle ? 'compose-hero-use' : 'compose-hero-use is-reserved'}
-                          tabIndex={promptIdle ? 0 : -1}
-                          aria-hidden={!promptIdle}
-                          disabled={!promptIdle || busy}
-                          onClick={() => onPickIdea(reviseExample)}
-                        >
-                          Use suggestion
+                  {studio ? (
+                    <>
+                      <div className="compose-studio-actions">
+                        <button type="submit" className="compose-hero-submit is-primary" disabled={busy}>
+                          Revise
                         </button>
-                        <Link href="/#make-one" className="compose-hero-new">
-                          Start a new chart
-                        </Link>
-                      </>
-                    ) : null}
-                  </div>
-                  <span className="compose-hero-bar-note">
-                    {hero ? (
-                      <HeroPricingNote
-                        quota={quota}
-                        pay={pay}
-                        buying={buying}
-                        onBuy={() => void buy()}
-                      />
-                    ) : (
-                      <StudioBarNote quota={quota} pay={pay} buying={buying} onBuy={() => void buy()} />
-                    )}
-                  </span>
+                        {onNewChart ? (
+                          <button
+                            type="button"
+                            className="compose-hero-submit is-amber"
+                            onClick={() => {
+                              setPrompt('');
+                              setHeld(false);
+                              setFail('');
+                              onNewChart();
+                            }}
+                          >
+                            New chart
+                          </button>
+                        ) : null}
+                      </div>
+                      <span className="compose-hero-bar-note">
+                        <StudioBarNote quota={quota} pay={pay} buying={buying} onBuy={() => void buy()} />
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="compose-hero-actions">
+                        <button type="submit" className="compose-hero-submit is-primary" disabled={busy}>
+                          Generate my chart
+                        </button>
+                      </div>
+                      <span className="compose-hero-bar-note">
+                        <HeroPricingNote
+                          quota={quota}
+                          pay={pay}
+                          buying={buying}
+                          onBuy={() => void buy()}
+                        />
+                      </span>
+                    </>
+                  )}
                 </div>
           </div>
         ) : null}
-        {hero && busy ? (
-          <ComposeBusyPlot variant="hero" progress={composeProgress} />
-        ) : null}
-        {hero ? (
-          <>
-            <div className={busy ? 'hero-examples-dim' : undefined}>
-              <HeroExamples onPick={onPickIdea} disabled={busy} />
-            </div>
-          </>
+        {children}
+        {hero && showIdeas ? (
+          <div className={busy ? 'hero-examples-dim' : undefined}>
+            <HeroExamples onPick={onPickIdea} disabled={busy} />
+          </div>
         ) : null}
         {fail && !busy ? (
-          <p
-            role="alert"
-            className={hero ? 'compose-hero-alert' : undefined}
-            style={{
-              fontFamily: 'var(--font-mono), ui-monospace, monospace',
-              fontSize: 12,
-              color: 'var(--mute)',
-              margin: '10px 0 0',
-            }}
-          >
+          <p role="alert" className="compose-fail">
             {fail}
           </p>
         ) : null}
@@ -562,6 +577,7 @@ function StudioBarNote({
     <span className="compose-bar-note">
       <span className="compose-bar-note-status">{status}</span>
       <span className="compose-bar-note-actions">
+        <span aria-hidden="true"> · </span>
         <Link href="/me" className="compose-hero-bar-link">
           See usage
         </Link>

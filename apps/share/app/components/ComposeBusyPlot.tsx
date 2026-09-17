@@ -29,31 +29,38 @@ export function ComposeProgressStrip({ progress }: { progress: ComposeProgressEv
 export function ComposeBusyPlot({
   variant = 'hero',
   progress = null,
+  chrome = 'full',
 }: {
   variant?: 'hero' | 'studio';
   prompt?: string;
   progress?: ComposeProgressEvent | null;
+  chrome?: 'full' | 'plot';
 }) {
-  const barCount = DUST.length;
+  const barCount = Math.max(3, progress?.barCount ?? DUST.length);
   const heights = busyBarHeights(barCount);
   const percent = progress?.progress ?? 8;
   const status = progress?.message ?? 'Starting…';
   const detail = progress?.detail;
+  const plotOnly = chrome === 'plot';
 
   return (
     <div
       className={variant === 'studio' ? 'compose-busy-stage is-studio' : 'compose-busy-stage is-hero'}
-      aria-live="polite"
+      aria-live={plotOnly ? 'off' : 'polite'}
     >
-      <ProgressBar percent={percent} />
-      <p key={status} className="compose-busy-status">
-        {status}
-      </p>
-      {detail ? (
-        <p className="compose-busy-detail" title={detail}>
-          {detail}
-        </p>
-      ) : null}
+      {plotOnly ? null : (
+        <>
+          <ProgressBar percent={percent} />
+          <p key={status} className="compose-busy-status">
+            {status}
+          </p>
+          {detail ? (
+            <p className="compose-busy-detail" title={detail}>
+              {detail}
+            </p>
+          ) : null}
+        </>
+      )}
       <div className="compose-busy-chart is-card">
         <div className="compose-busy-y" aria-hidden="true">
           <span />

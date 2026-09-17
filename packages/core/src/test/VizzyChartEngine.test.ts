@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { VizzyChartEngine } from '../engine/VizzyChartEngine';
+import { xAxisRoom } from '../layout';
 import {
   SAMPLE_REVENUE,
   barConfig,
@@ -121,6 +122,29 @@ describe('VizzyChartEngine', () => {
     expect(rotated).toBe(true);
     expect(title?.textContent).toMatch(/Coding/);
     expect(Number(title?.getAttribute('y'))).toBeGreaterThan(100);
+  });
+
+  it('grows the svg so long x labels stay inside the viewBox', async () => {
+    const rows = [
+      { month: '(1979-2025) NOAA', revenue: 76 },
+      { month: '(1979-2025) NSIDC', revenue: 77 },
+      { month: '(since 1979) EEA', revenue: 71 },
+      { month: '(since 1979) NIPR', revenue: 84 },
+    ];
+    const config = {
+      ...barConfig(),
+      dimensions: { ...barConfig().dimensions, width: 480, height: 240 },
+    };
+    config.axes.x.label = 'Source';
+    const chart = engine(config, rows);
+    await chart.render();
+    const svg = chart.container.querySelector('svg');
+    const height = Number(svg?.getAttribute('height'));
+    const room = xAxisRoom(
+      rows.map((row) => row.month),
+      { hasTitle: true, innerWidth: 280 }
+    );
+    expect(height).toBeGreaterThanOrEqual(132 + room.bottom);
   });
 
   it('thins overlapping x labels and keeps the ends', async () => {

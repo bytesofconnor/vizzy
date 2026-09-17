@@ -21,20 +21,21 @@ export function ChartMount({
     const names = [
       ...new Set(data.map((row) => String(row[config.dataMapping.x] ?? ''))),
     ];
-    const bar = config.chart?.type === 'bar';
-    const narrowInner = 340;
-    const wideInner = 720;
-    const room = xAxisRoom(names, {
+    const roomTight = xAxisRoom(names, {
       hasTitle: Boolean(xLabel),
-      innerWidth: bar ? wideInner : narrowInner,
+      innerWidth: 280,
     });
-    const bottom = Math.max(bar ? room.bottom : xLabel ? 48 : 32, room.bottom);
+    const roomWide = xAxisRoom(names, {
+      hasTitle: Boolean(xLabel),
+      innerWidth: 640,
+    });
+    const bottom = Math.max(roomTight.bottom, roomWide.bottom, xLabel ? 56 : 36);
     const title = config.accessibility?.title || label;
     const legendTop = config.legend?.show && config.legend.position === 'top';
     const motion =
       typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const baseMargin = config.dimensions?.margin ?? {};
-    return validateChartConfig({
+    const next = validateChartConfig({
       ...config,
       colors: {
         ...config.colors,
@@ -66,21 +67,27 @@ export function ChartMount({
         easing: 'ease-out',
         stagger: 32,
       },
+      interaction: {
+        ...config.interaction,
+        hover: true,
+        tooltip: config.interaction?.tooltip !== false,
+      },
       accessibility: {
         ...config.accessibility,
         enabled: true,
         ...(title ? { title } : {}),
       },
     });
+    return { config: next, minHeight: 168 + bottom };
   }, [config, data, label]);
 
   return (
     <VizzyChart
       className={framed ? 'chart-mount is-framed' : 'chart-mount'}
-      config={live}
+      config={live.config}
       data={data}
       showPerformanceMetrics={false}
-      style={{ width: '100%', height: 'auto' }}
+      style={{ width: '100%', height: 'auto', minHeight: live.minHeight }}
     />
   );
 }

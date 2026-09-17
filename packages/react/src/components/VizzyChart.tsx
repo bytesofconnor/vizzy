@@ -156,26 +156,36 @@ export const VizzyChart = forwardRef<VizzyChartRef, VizzyChartProps>(({
   };
 
   const describedById = useId();
+  const titleId = useId();
+  const title = config.accessibility?.title;
 
   return (
     <div
       className={`vizzy-chart-container ${className || ''}`}
       style={containerStyle}
-      role="img"
-      aria-label={config.accessibility?.title || 'Data visualization chart'}
+      role="group"
+      aria-labelledby={title ? titleId : undefined}
       aria-describedby={config.accessibility?.description ? describedById : undefined}
       tabIndex={config.accessibility?.keyboardNavigation ? 0 : undefined}
     >
+      {title ? (
+        <div
+          id={titleId}
+          style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)' }}
+        >
+          {title}
+        </div>
+      ) : null}
       {config.accessibility?.description && (
         <div
           id={describedById}
-          style={{ position: 'absolute', left: '-10000px' }}
+          style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)' }}
         >
           {config.accessibility.description}
         </div>
       )}
 
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      <div ref={containerRef} style={{ width: '100%', height: 'auto', minHeight: '100%' }} />
 
       {isLoading && loadingComponent}
 

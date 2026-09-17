@@ -8,38 +8,23 @@ export type HeroIdea = {
   tone: string;
 };
 
-export const HERO_IDEAS_STORAGE_KEY = 'vizzy.hero-ideas.v4';
+export const HERO_IDEAS_STORAGE_KEY = 'vizzy.hero-ideas.v5';
+export const HERO_IDEAS_SEEN_KEY = 'vizzy.hero-ideas-seen.v1';
 export const HERO_IDEA_MIN = 8;
 export const HERO_IDEA_MAX = 10;
+export const HERO_SEEN_MAX = 80;
 
-const HERO_FALLBACK_IDS = [
-  'chips',
-  'refugees',
-  'un-votes',
-  'solar',
-  'life-expectancy',
-  'smartphones',
-  'co2',
-  'languages',
-  'unemployment',
-  'inflation',
-  'fed-funds',
-  'fertility',
-  'gdp-capita',
-  'electricity',
-  'ozone',
-  'quakes',
-] as const;
+const HERO_TOPICS = new Set(['nature', 'earth', 'world', 'science', 'tech']);
 
 export const DEFAULT_HERO_IDEAS: HeroIdea[] = fallbackFromIds([
-  'chips',
-  'refugees',
-  'fed-funds',
-  'fertility',
-  'un-votes',
-  'solar',
-  'gdp-capita',
-  'smartphones',
+  'sea-ice',
+  'lithium',
+  'launches',
+  'dollar',
+  'wildfire',
+  'aging',
+  'lng',
+  'robots',
 ]);
 
 export function parseHeroIdeas(value: unknown): HeroIdea[] {
@@ -78,30 +63,63 @@ export function isHeroIdeaBatch(ideas: readonly HeroIdea[]): boolean {
 }
 
 export function fallbackHeroIdeas(exclude: readonly string[] = [], salt = 'vizzy'): HeroIdea[] {
-  const blocked = new Set(exclude.map((item) => item.trim().toLowerCase()));
-  const pool = HERO_FALLBACK_IDS.map((id) => PROMPT_IDEAS.find((idea) => idea.id === id)).filter(
-    (idea): idea is PromptIdea => Boolean(idea)
+  const blocked = new Set(exclude.map((item) => item.trim().toLowerCase()).filter(Boolean));
+  const pool = PROMPT_IDEAS.filter((idea) => HERO_TOPICS.has(idea.topic));
+  const shuffled = shuffle(pool, salt);
+  const unseen = shuffled.filter((idea) => !isBlocked(idea, blocked));
+  const seen = shuffled.filter((idea) => isBlocked(idea, blocked));
+  const picked = [...unseen, ...seen].slice(0, HERO_IDEA_MIN);
+  return picked.map((idea, index) => toHeroIdea(idea, index));
+}
+
+export function mergeSeenPrompts(previous: readonly string[], batch: readonly HeroIdea[]): string[] {
+  const next: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: string) => {
+    const key = value.trim();
+    if (key.length < 8) {
+      return;
+    }
+    const folded = key.toLowerCase();
+    if (seen.has(folded)) {
+      return;
+    }
+    seen.add(folded);
+    next.push(key);
+  };
+  for (const item of previous) {
+    push(item);
+  }
+  for (const idea of batch) {
+    push(idea.prompt);
+    push(idea.label);
+    push(idea.id);
+  }
+  return next.slice(-HERO_SEEN_MAX);
+}
+
+function isBlocked(idea: PromptIdea, blocked: ReadonlySet<string>): boolean {
+  return (
+    blocked.has(idea.id.toLowerCase()) ||
+    blocked.has(idea.prompt.toLowerCase()) ||
+    blocked.has(chipLabel(idea).toLowerCase())
   );
-  const shuffled = shuffle(pool, salt).filter((idea) => !blocked.has(idea.prompt.toLowerCase()));
-  const picked = (shuffled.length >= HERO_IDEA_MIN ? shuffled : pool).slice(0, HERO_IDEA_MIN);
-  return picked.map((idea, index) => ({
+}
+
+function toHeroIdea(idea: PromptIdea, index: number): HeroIdea {
+  return {
     id: idea.id,
     label: chipLabel(idea),
     prompt: idea.prompt,
     tone: idea.tone || DUST[index % DUST.length],
-  }));
+  };
 }
 
 function fallbackFromIds(ids: readonly string[]): HeroIdea[] {
   return ids
     .map((id) => PROMPT_IDEAS.find((idea) => idea.id === id))
     .filter((idea): idea is PromptIdea => Boolean(idea))
-    .map((idea, index) => ({
-      id: idea.id,
-      label: chipLabel(idea),
-      prompt: idea.prompt,
-      tone: idea.tone || DUST[index % DUST.length],
-    }));
+    .map((idea, index) => toHeroIdea(idea, index));
 }
 
 function chipLabel(idea: PromptIdea): string {
@@ -122,6 +140,30 @@ function chipLabel(idea: PromptIdea): string {
     fertility: 'Who stopped having enough children',
     'gdp-capita': 'Who pulled away on GDP per person',
     electricity: 'Who closed the last electricity gaps',
+    'sea-ice': 'When Arctic summer ice fell off',
+    lithium: 'Who actually mines the lithium',
+    'rare-earths': 'Who controls the rare earths',
+    datacenters: 'How much power data centers eat',
+    lng: 'Who ships the most LNG',
+    gold: 'Who sits on the gold',
+    passports: 'Which passports open the most doors',
+    'youth-jobs': 'Where young people cannot find work',
+    'housing-starts': 'Did US housing ever start again',
+    aging: 'Which countries got old first',
+    military: 'Who spends the most on arms',
+    oil: 'Who still pumps the most oil',
+    ev: 'Where new cars went electric',
+    reactors: 'Who is still building reactors',
+    wildfire: 'Are US fire seasons getting larger',
+    warming: 'How much the planet actually warmed',
+    treasuries: 'Who holds America’s treasuries',
+    patents: 'Who files the patents now',
+    remittances: 'Which countries live on remittances',
+    grain: 'Who ships the world’s grain',
+    water: 'Which countries are most water-stressed',
+    launches: 'Who is launching the satellites',
+    dollar: 'Is the dollar share slipping',
+    robots: 'Where the robots actually work',
   };
   return named[idea.id] ?? asChipLabel(idea.id.replace(/-/g, ' '));
 }
@@ -150,6 +192,7 @@ const CHIP_WORDS: Record<string, string> = {
   us: 'US',
   'u.s.': 'U.S.',
   gdp: 'GDP',
+  lng: 'LNG',
   un: 'UN',
   cpi: 'CPI',
   mauna: 'Mauna',

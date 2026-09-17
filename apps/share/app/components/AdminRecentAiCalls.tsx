@@ -87,6 +87,7 @@ function aiRouteLabel(route: string): string {
     revision_hints: 'Revision hints',
     hero_ideas: 'Home ideas',
     chart_insight: 'Chart insight',
+    chart_lesson: 'Chart lesson',
   };
   return labels[route] ?? route.replace(/_/g, ' ');
 }

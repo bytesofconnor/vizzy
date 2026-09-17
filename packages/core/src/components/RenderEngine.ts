@@ -5,7 +5,8 @@ import {
   looksSequentialX,
   rotatedTickDepth,
   shortCategoryNames,
-  ticksFit,
+  wrapCategoryLines,
+  xTickRotate,
   type XTickRotate,
 } from '../layout';
 import { ChartConfig, RenderStrategy, VizzyError } from '../types';
@@ -30,37 +31,6 @@ export interface RenderOptions {
 /** Resvg drops regular spaces in SVG text. Keep labels readable on the PNG. */
 function paintAxisLabel(label: string): string {
   return label.replace(/ /g, '\u00A0');
-}
-
-function wrapBandName(name: string, maxChars: number): string[] {
-  const limit = Math.max(4, maxChars);
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) {
-    return [name];
-  }
-
-  const joined = words.join(' ');
-  const target = words.length >= 3
-    ? Math.min(limit, Math.max(12, Math.ceil(joined.length * 0.55)))
-    : limit;
-
-  const lines: string[] = [];
-  let current = '';
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length <= target) {
-      current = next;
-    } else {
-      if (current) {
-        lines.push(current);
-      }
-      current = word;
-    }
-  }
-  if (current) {
-    lines.push(current);
-  }
-  return lines.slice(0, 3);
 }
 
 export class RenderEngine {
@@ -640,19 +610,11 @@ export class RenderEngine {
       }
     }
 
-    const slot = 'bandwidth' in scale ? scale.bandwidth() + 10 : 80;
-    const visibleItems = items.filter((_, index) => keep[index]);
-    let rotate: XTickRotate = 0;
-    if (!sequential && items.length >= 4 && !ticksFit(items, keep)) {
-      rotate = items.length > 12 || items.some((item) => item.label.length > 16) ? -65 : -40;
-    }
-    if (
-      rotate === 0 &&
-      visibleItems.length >= 4 &&
-      !ticksFit(visibleItems, visibleItems.map(() => true))
-    ) {
-      rotate = visibleItems.length > 8 ? -65 : -40;
-    }
+    const range = scale.range();
+    const innerWidth = Math.abs((range[1] ?? 0) - (range[0] ?? 0));
+    const slot = 'bandwidth' in scale ? scale.bandwidth() + 10 : innerWidth / Math.max(items.length, 1);
+    const visibleNames = items.filter((_, index) => keep[index]).map((item) => item.name);
+    const rotate: XTickRotate = sequential ? 0 : xTickRotate(visibleNames, innerWidth);
 
     let tallest = 1;
     const longest = items.reduce((max, item) => Math.max(max, item.label.length), 0);
@@ -672,7 +634,7 @@ export class RenderEngine {
       }
       const text = tick.select('text');
       const wrap = rotate === 0 && item.label.includes(' ') && item.label.length * 7 > slot;
-      const lines = wrap ? wrapBandName(item.label, Math.max(6, Math.floor(slot / 7))) : [item.label];
+      const lines = wrap ? wrapCategoryLines(item.label, Math.max(6, Math.floor(slot / 7))) : [item.label];
       tallest = Math.max(tallest, lines.length);
       text
         .text(null)

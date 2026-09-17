@@ -17,7 +17,6 @@ export function HeroTypewriter({
       className={paused ? 'compose-hero-type is-paused' : 'compose-hero-type'}
       aria-hidden="true"
     >
-      <span className="compose-hero-demo-tag">Demo prompt</span>
       <p className="compose-hero-type-line">
         <span className="compose-hero-type-text">{display || '\u00a0'}</span>
         <span className="compose-hero-cursor" />

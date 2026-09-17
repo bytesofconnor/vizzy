@@ -1,7 +1,7 @@
 import type { SeriesRow } from '../types';
 
 const SKIP_NAME =
-  /\b(world|income|ida |ibRD|oecd|euro area|european union|north america|south asia|sub-saharan|latin america|arab world|small states|fragile|dividend|classification|excluding)\b/i;
+  /\b(world|income|ida |ibrd|oecd|euro area|european union|north america|south asia|sub-saharan|latin america|arab world|small states|fragile|dividend|classification|excluding|baltics|central europe|high income|low income|middle income|ida only|oecd members)\b/i;
 
 type BankRow = {
   country?: { value?: string; id?: string };
@@ -9,7 +9,7 @@ type BankRow = {
   value?: number | null;
 };
 
-export function parseWorldBank(text: string): SeriesRow[] {
+export function parseWorldBank(text: string, take: 'high' | 'low' = 'high'): SeriesRow[] {
   let body: unknown;
   try {
     body = JSON.parse(text);
@@ -29,9 +29,9 @@ export function parseWorldBank(text: string): SeriesRow[] {
     if (name.length > 40) {
       continue;
     }
-    rows.push({ x: name, y });
+    rows.push({ x: name, y: y >= 1000 ? Math.round(y) : Math.round(y * 1000) / 1000 });
   }
-  rows.sort((a, b) => b.y - a.y);
+  rows.sort((a, b) => (take === 'low' ? a.y - b.y : b.y - a.y));
   return rows.slice(0, 15);
 }
 

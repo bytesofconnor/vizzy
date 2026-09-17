@@ -3,6 +3,7 @@ import { ChartConfig, DataPoint, LineChartConfig, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
 import { DataProcessor, ProcessedData } from '../components/DataProcessor';
+import { bindChartTip, formatTipNumber } from '../chart-tip';
 import { forecastStartIndex } from '../forecast';
 import { formatDataValue, linePointLabelPlacement } from '../format';
 
@@ -19,6 +20,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   private _renderEngine!: RenderEngine;
   private _dataProcessor: DataProcessor<TData>;
   private _processedData: ProcessedData<TData> | null = null;
+  private _host: HTMLElement | null = null;
 
   constructor(config: ChartConfig) {
     this._config = config;
@@ -39,6 +41,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     data: TData[]
   ): Promise<void> {
     try {
+      this._host = context.container;
       // Process data
       this._processedData = this._dataProcessor.process(data);
       
@@ -667,21 +670,37 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   private _addPointInteractions(
     points: d3.Selection<SVGCircleElement, TData, SVGGElement, unknown>
   ): void {
+    const { dataMapping, interaction } = this._config;
+    const host = this._host;
+    const scales = this._scaleManager.getScales();
+    const domain = (scales?.y.domain() as [number, number] | undefined) ?? [0, 1];
+    const seriesField = dataMapping.group ?? dataMapping.color;
+
     points
-      .on('mouseenter', function(_event, _d) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr('r', 6)
-          .attr('stroke-width', 3);
+      .style('cursor', 'default')
+      .style('pointer-events', 'all')
+      .on('mouseenter', function () {
+        d3.select(this).attr('r', 6);
       })
-      .on('mouseleave', function(_event, _d) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr('r', 4)
-          .attr('stroke-width', 2);
+      .on('mouseleave', function () {
+        d3.select(this).attr('r', 4);
       });
+
+    if (!host || interaction.tooltip === false) {
+      return;
+    }
+
+    points.each((d, index, nodes) => {
+      const node = nodes[index];
+      if (!node) {
+        return;
+      }
+      bindChartTip(host, node, () => ({
+        title: String(d[dataMapping.x] ?? ''),
+        value: formatTipNumber(d[dataMapping.y], domain),
+        series: seriesField && d[seriesField] != null ? String(d[seriesField]) : undefined,
+      }));
+    });
   }
 
   private _addLineAccessibility(

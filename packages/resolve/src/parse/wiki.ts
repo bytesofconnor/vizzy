@@ -12,7 +12,10 @@ function stripTags(html: string): string {
     .replace(/<sup\b[\s\S]*?<\/sup>/gi, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
+    .replace(/&#160;/g, ' ')
     .replace(/&amp;/gi, '&')
+    .replace(/&#91;/g, '[')
+    .replace(/&#93;/g, ']')
     .replace(/\[\d+\]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -41,32 +44,44 @@ function tableChunks(html: string): string[] {
   return out;
 }
 
-function headerRow(tableHtml: string): { names: string[]; body: string } | null {
-  const tr = tableHtml.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/i);
-  if (!tr) {
-    return null;
+function eachRow(html: string): { cells: string[]; after: number; html: string }[] {
+  const out: { cells: string[]; after: number; html: string }[] = [];
+  const trRe = /<tr\b[^>]*>[\s\S]*?<\/tr>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = trRe.exec(html))) {
+    out.push({
+      cells: cells(match[0]),
+      after: match.index + match[0].length,
+      html: match[0],
+    });
   }
-  return { names: cells(tr[0]), body: tableHtml.slice((tr.index ?? 0) + tr[0].length) };
+  return out;
 }
 
 export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] {
   for (const table of tableChunks(html)) {
-    const header = headerRow(table);
-    if (!header) {
-      continue;
+    const rowsHtml = eachRow(table);
+    let nameCol = -1;
+    let valueCol = -1;
+    let start = 0;
+    for (let i = 0; i < rowsHtml.length; i += 1) {
+      const names = rowsHtml[i]?.cells ?? [];
+      const nextName = names.findIndex((name) => spec.nameHeader.test(name));
+      const nextValue = names.findIndex((name) => spec.valueHeader.test(name));
+      if (nextName >= 0 && nextValue >= 0) {
+        nameCol = nextName;
+        valueCol = nextValue;
+        start = i + 1;
+        break;
+      }
     }
-    const nameCol = header.names.findIndex((name) => spec.nameHeader.test(name));
-    const valueCol = header.names.findIndex((name) => spec.valueHeader.test(name));
     if (nameCol < 0 || valueCol < 0) {
       continue;
     }
     const rows: SeriesRow[] = [];
-    const trRe = /<tr\b[^>]*>[\s\S]*?<\/tr>/gi;
-    let match: RegExpExecArray | null;
-    while ((match = trRe.exec(header.body))) {
-      const cols = cells(match[0]);
-      const name = cols[nameCol];
-      const value = cols[valueCol];
+    for (const row of rowsHtml.slice(start)) {
+      const name = row.cells[nameCol];
+      const value = row.cells[valueCol];
       if (!name || !value) {
         continue;
       }
@@ -74,30 +89,75 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
       if (y === undefined) {
         continue;
       }
-      if (/^rank$|^#|^total$/i.test(name)) {
+      if (/^rank$|^#|^total$|^world$|^european union$/i.test(name)) {
         continue;
       }
       rows.push({ x: name.slice(0, 40), y });
-      if (rows.length >= 15) {
-        break;
-      }
     }
     if (rows.length >= 3) {
-      return rows;
+      rows.sort((a, b) => b.y - a.y);
+      return rows.slice(0, 15);
     }
   }
   return [];
 }
 
-export function parseWikiApi(jsonText: string, spec: WikiTableSpec): SeriesRow[] {
+export function parseWikiUnVotes(source: string): SeriesRow[] {
+  const html = source.trimStart().startsWith('{') ? wikiHtml(source) : source;
+  if (!html) {
+    return [];
+  }
+  const rows: SeriesRow[] = [];
+  let index = 0;
+  for (const table of tableChunks(html)) {
+    const parsed = eachRow(table);
+    let voteCol = -1;
+    let tallyCol = -1;
+    let start = 0;
+    for (let i = 0; i < parsed.length; i += 1) {
+      const names = parsed[i]?.cells ?? [];
+      const nextVote = names.findIndex((name) => /^vote$/i.test(name.trim()));
+      const nextTally = names.findIndex((name) => /tally/i.test(name));
+      if (nextVote >= 0 && nextTally >= 0) {
+        voteCol = nextVote;
+        tallyCol = nextTally;
+        start = i + 1;
+        break;
+      }
+    }
+    if (voteCol < 0 || tallyCol < 0) {
+      continue;
+    }
+    for (const row of parsed.slice(start)) {
+      const vote = row.cells[voteCol] ?? '';
+      if (!/in favour|yes/i.test(vote)) {
+        continue;
+      }
+      const y = parseNumber(row.cells[tallyCol] ?? '');
+      if (y === undefined) {
+        continue;
+      }
+      index += 1;
+      rows.push({ x: `ES-11/${index}`, y });
+      break;
+    }
+  }
+  return rows;
+}
+
+function wikiHtml(jsonText: string): string {
   let body: { parse?: { text?: { ['*']?: string } | string } };
   try {
     body = JSON.parse(jsonText) as { parse?: { text?: { ['*']?: string } | string } };
   } catch {
-    return [];
+    return '';
   }
   const text = body.parse?.text;
-  const html = typeof text === 'string' ? text : text?.['*'];
+  return typeof text === 'string' ? text : text?.['*'] ?? '';
+}
+
+export function parseWikiApi(jsonText: string, spec: WikiTableSpec): SeriesRow[] {
+  const html = wikiHtml(jsonText);
   if (!html) {
     return [];
   }
@@ -115,14 +175,24 @@ export const WIKI_SPEC: Record<string, WikiTableSpec> = {
     nameHeader: /language/i,
     valueHeader: /native/i,
   },
-  eurovision_wins: {
-    page: 'Eurovision_Song_Contest',
-    nameHeader: /country/i,
-    valueHeader: /^wins$|number of wins/i,
+  refugees_hosted: {
+    page: 'List_of_sovereign_states_by_refugee_population',
+    nameHeader: /country|territory of asylum/i,
+    valueHeader: /2024/,
   },
-  olympic_100m_men: {
-    page: '100_metres_at_the_Olympics',
-    nameHeader: /games|year/i,
-    valueHeader: /time/i,
+  un_votes_ukraine: {
+    page: 'Eleventh_emergency_special_session_of_the_United_Nations_General_Assembly',
+    nameHeader: /^vote$/i,
+    valueHeader: /tally/i,
+  },
+  foundry_revenue: {
+    page: 'Foundry_model',
+    nameHeader: /^company$/i,
+    valueHeader: /revenue/i,
+  },
+  solar_share: {
+    page: 'Solar_power_by_country',
+    nameHeader: /^country$/i,
+    valueHeader: /%\s*gen/i,
   },
 };

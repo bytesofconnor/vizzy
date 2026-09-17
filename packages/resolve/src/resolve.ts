@@ -3,8 +3,9 @@ import { defaultGet } from './http';
 import { sinceYearFromAsked } from './normalize';
 import { parseFredCsv, fredCsvUrl } from './parse/fred';
 import { parseNoaaCo2, NOAA_CO2_URL } from './parse/noaa';
+import { parseOwidOzone, OWID_OZONE_URL } from './parse/owid';
 import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
-import { parseWikiApi, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
+import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
 import type { HttpGet, Recipe, ResolvedSeries, SeriesRow } from './types';
 import { downsample, windowSince } from './window';
@@ -17,19 +18,26 @@ export async function fetchRecipe(
     return parseFredCsv(await get(fredCsvUrl(recipe.seriesId)));
   }
   if (recipe.family === 'noaa') {
+    if (recipe.seriesId === 'ozone_hole_area') {
+      return parseOwidOzone(await get(OWID_OZONE_URL));
+    }
     return parseNoaaCo2(await get(NOAA_CO2_URL));
   }
   if (recipe.family === 'usgs') {
     return parseUsgsGeojson(await get(USGS_M8_URL));
   }
   if (recipe.family === 'worldbank') {
-    return parseWorldBank(await get(worldBankUrl(recipe.seriesId)));
+    return parseWorldBank(await get(worldBankUrl(recipe.seriesId)), recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high');
   }
   const spec = WIKI_SPEC[recipe.seriesId];
   if (!spec) {
     return [];
   }
-  return parseWikiApi(await get(wikiParseUrl(spec.page)), spec);
+  const body = await get(wikiParseUrl(spec.page));
+  if (recipe.seriesId === 'un_votes_ukraine') {
+    return parseWikiUnVotes(body);
+  }
+  return parseWikiApi(body, spec);
 }
 
 export async function resolvePrompt(

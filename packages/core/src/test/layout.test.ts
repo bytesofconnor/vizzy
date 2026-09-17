@@ -18,8 +18,8 @@ describe('xAxisRoom', () => {
       'OpenCode',
       'Google Antigravity',
     ];
-    const room = xAxisRoom(names, { hasTitle: true, innerWidth: 640 });
-    expect(xTickRotate(names, 640)).toBe(-65);
+    const room = xAxisRoom(names, { hasTitle: true, innerWidth: 360 });
+    expect(xTickRotate(names, 360)).toBe(-65);
     expect(room.titleY).toBeGreaterThan(room.tickDepth);
     expect(room.bottom).toBeGreaterThan(room.titleY);
     expect(room.tickDepth).toBeGreaterThan(100);
@@ -36,6 +36,19 @@ describe('xAxisRoom', () => {
     const names = ['August Schell', 'Summit', 'Surly'];
     expect(xTickRotate(names, 420)).toBe(0);
     expect(xAxisRoom(names, { hasTitle: true, innerWidth: 420 }).rotate).toBe(0);
+  });
+
+  it('keeps long source labels inside the plot at phone and desktop widths', () => {
+    const names = [
+      '(1979-2025) NOAA',
+      '(1979-2025) NSIDC',
+      '(since 1979) EEA',
+      '(since 1979) NIPR',
+    ];
+    const phone = xAxisRoom(names, { hasTitle: true, innerWidth: 280 });
+    const desktop = xAxisRoom(names, { hasTitle: true, innerWidth: 720 });
+    expect(Math.max(phone.bottom, desktop.bottom)).toBeGreaterThan(90);
+    expect(phone.bottom).toBeGreaterThanOrEqual(desktop.bottom - 8);
   });
 
   it('labels a crowded people set by last name', () => {
@@ -61,6 +74,6 @@ describe('xAxisRoom', () => {
     expect(shortCategoryNames(names)).not.toContain('Alan Shearer');
     const room = xAxisRoom(names, { hasTitle: true, innerWidth: 720 });
     expect(room.rotate).not.toBe(0);
-    expect(room.tickDepth).toBeLessThan(90);
+    expect(room.tickDepth).toBeLessThan(110);
   });
 });

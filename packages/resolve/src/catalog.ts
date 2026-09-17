@@ -19,6 +19,18 @@ export const RECIPES: readonly Recipe[] = [
     },
   },
   {
+    family: 'noaa',
+    seriesId: 'ozone_hole_area',
+    sourceLabel: 'Our World in Data — Antarctic ozone hole (NASA Ozone Watch)',
+    sourceUrl: 'https://ourworldindata.org/grapher/antarctic-ozone-hole-area',
+    xLabel: 'Year',
+    yLabel: 'Peak hole (million km²)',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'ozone') && has(q, 'hole', 'montreal', 'antarctic');
+    },
+  },
+  {
     family: 'usgs',
     seriesId: 'm8_since_2000',
     sourceLabel: 'USGS earthquake catalog — magnitude 8+',
@@ -47,26 +59,53 @@ export const RECIPES: readonly Recipe[] = [
   },
   {
     family: 'wiki',
-    seriesId: 'eurovision_wins',
-    sourceLabel: 'Wikipedia — Eurovision wins by country',
-    sourceUrl: 'https://en.wikipedia.org/wiki/Eurovision_Song_Contest',
+    seriesId: 'refugees_hosted',
+    sourceLabel: 'Wikipedia — refugees by country of asylum',
+    sourceUrl: 'https://en.wikipedia.org/wiki/List_of_sovereign_states_by_refugee_population',
     xLabel: 'Country',
-    yLabel: 'Wins',
+    yLabel: 'Refugees hosted',
     match: (asked) => {
       const q = foldAsked(asked);
-      return has(q, 'eurovision');
+      return has(q, 'refugee', 'refugees');
     },
   },
   {
     family: 'wiki',
-    seriesId: 'olympic_100m_men',
-    sourceLabel: 'Wikipedia — men\'s Olympic 100 metres',
-    sourceUrl: 'https://en.wikipedia.org/wiki/100_metres_at_the_Olympics',
-    xLabel: 'Games',
-    yLabel: 'Winning time (s)',
+    seriesId: 'un_votes_ukraine',
+    sourceLabel: 'Wikipedia — UNGA ES-11 votes on Ukraine',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Eleventh_emergency_special_session_of_the_United_Nations_General_Assembly',
+    xLabel: 'Resolution',
+    yLabel: 'Yes votes',
     match: (asked) => {
       const q = foldAsked(asked);
-      return (has(q, '100m', '100 m', '100 metres', '100 meters') && has(q, 'olympic')) || has(q, 'olympic 100');
+      return has(q, 'ukraine') && has(q, 'vote', 'votes', 'assembly') && has(q, 'un', 'unga', 'united nations');
+    },
+  },
+  {
+    family: 'wiki',
+    seriesId: 'foundry_revenue',
+    sourceLabel: 'Wikipedia — semiconductor foundry revenue',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Foundry_model',
+    xLabel: 'Foundry',
+    yLabel: 'Revenue ($m)',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return (
+        (has(q, 'chip', 'chips', 'semiconductor') && has(q, 'taiwan', 'tsmc')) ||
+        (has(q, 'foundry') && has(q, 'revenue', 'semiconductor', 'chip', 'chips', 'taiwan'))
+      );
+    },
+  },
+  {
+    family: 'wiki',
+    seriesId: 'solar_share',
+    sourceLabel: 'Wikipedia — solar power by country',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Solar_power_by_country',
+    xLabel: 'Country',
+    yLabel: 'Solar share of generation %',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'solar') && has(q, 'electricity', 'generation', '10%', 'share');
     },
   },
   {
@@ -79,6 +118,45 @@ export const RECIPES: readonly Recipe[] = [
     match: (asked) => {
       const q = foldAsked(asked);
       return has(q, 'life expectancy');
+    },
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'SP.DYN.TFRT.IN',
+    sourceLabel: 'World Bank — fertility rate',
+    sourceUrl: 'https://data.worldbank.org/indicator/SP.DYN.TFRT.IN',
+    xLabel: 'Country',
+    yLabel: 'Births per woman',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'fertility') || (has(q, 'children') && has(q, 'enough', 'replacement', 'birth'));
+    },
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'NY.GDP.PCAP.CD',
+    sourceLabel: 'World Bank — GDP per capita',
+    sourceUrl: 'https://data.worldbank.org/indicator/NY.GDP.PCAP.CD',
+    xLabel: 'Country',
+    yLabel: 'USD per person',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return (
+        has(q, 'gdp per capita', 'gdp per person') ||
+        (has(q, 'gdp') && has(q, 'per capita', 'per person', 'pulled away'))
+      );
+    },
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'EG.ELC.ACCS.ZS',
+    sourceLabel: 'World Bank — access to electricity',
+    sourceUrl: 'https://data.worldbank.org/indicator/EG.ELC.ACCS.ZS',
+    xLabel: 'Country',
+    yLabel: 'Access %',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'electricity') && has(q, 'access', 'gaps', 'people with') && !has(q, 'solar');
     },
   },
   {
@@ -114,7 +192,7 @@ export const RECIPES: readonly Recipe[] = [
     yLabel: 'Rate %',
     match: (asked) => {
       const q = foldAsked(asked);
-      return has(q, 'fed funds', 'federal funds rate', 'fed fund');
+      return has(q, 'fed funds', 'federal funds rate', 'fed fund', 'fed hiking');
     },
   },
 ];
