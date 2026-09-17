@@ -10,7 +10,17 @@ export type OwidSpec = {
 };
 
 const SKIP_ENTITY =
-  /^(world|africa|asia|europe|european union|north america|south america|oceania|high-income|low-income|upper-middle|lower-middle|eu \(27\))/i;
+  /^(world|africa|asia|europe|european union|north america|south america|oceania|latin america|caribbean|middle east|americas|antarctica|high-income|low-income|upper-middle|lower-middle|eu \(27\))/i;
+
+function skipEntity(entity: string): boolean {
+  return (
+    SKIP_ENTITY.test(entity) ||
+    /\((fao|un m49|who|wb)\)/i.test(entity) ||
+    /^all /i.test(entity) ||
+    /^\(/i.test(entity) ||
+    /population-weighted/i.test(entity)
+  );
+}
 
 export const OWID_SPEC: Record<string, OwidSpec> = {
   temperature_anomaly: {
@@ -41,6 +51,121 @@ export const OWID_SPEC: Record<string, OwidSpec> = {
   oil_production: {
     slug: 'oil-production-by-country',
     value: /^Oil$/i,
+    rank: true,
+  },
+  forest_share: {
+    slug: 'forest-area-as-share-of-land-area',
+    value: /^Share of land covered by forest$/i,
+    rank: true,
+  },
+  deforestation: {
+    slug: 'annual-deforestation',
+    value: /^Deforestation$/i,
+    rank: true,
+  },
+  tree_cover_loss: {
+    slug: 'tree-cover-loss',
+    value: /^Total$/i,
+    rank: true,
+  },
+  terrestrial_protected: {
+    slug: 'terrestrial-protected-areas',
+    value: /Terrestrial protected areas/i,
+    rank: true,
+  },
+  marine_protected: {
+    slug: 'marine-protected-areas',
+    value: /Marine protected areas/i,
+    rank: true,
+  },
+  living_planet_index: {
+    slug: 'living-planet-index-by-region',
+    value: /^Living Planet Index$/i,
+    entity: 'World',
+  },
+  fish_overexploited: {
+    slug: 'fish-stocks-within-sustainable-levels',
+    value: /^Overexploited$/i,
+    entity: 'World',
+  },
+  population_density: {
+    slug: 'population-density',
+    value: /^Population density$/i,
+    rank: true,
+  },
+  plastic_ocean: {
+    slug: 'plastic-waste-emitted-to-the-ocean',
+    value: /Plastic waste emitted to the ocean/i,
+    rank: true,
+  },
+  world_population: {
+    slug: 'population',
+    value: /^Population$/i,
+    entity: 'World',
+  },
+  conflict_deaths: {
+    slug: 'deaths-in-state-based-conflicts',
+    value: /^Best estimate$/i,
+    entity: 'World',
+  },
+  child_mortality: {
+    slug: 'child-mortality',
+    value: /Under-five mortality/i,
+    entity: 'World',
+  },
+  extreme_poverty: {
+    slug: 'share-of-population-in-extreme-poverty',
+    value: /Share of population in poverty/i,
+    entity: 'World',
+  },
+  literacy_rate: {
+    slug: 'cross-country-literacy-rates',
+    value: /^Literacy rate$/i,
+    entity: 'World',
+  },
+  democracy_index: {
+    slug: 'electoral-democracy-index',
+    value: /^Electoral democracy index$/i,
+    entity: 'World',
+  },
+  countries_count: {
+    slug: 'number-of-countries',
+    value: /Gleditsch and Ward/i,
+    entity: 'World',
+  },
+  urban_share: {
+    slug: 'share-of-population-urban',
+    value: /^Urban$/i,
+    entity: 'World',
+  },
+  world_gdp: {
+    slug: 'global-gdp-over-the-long-run',
+    value: /^GDP$/i,
+    entity: 'World',
+  },
+  nuclear_warheads: {
+    slug: 'nuclear-warhead-inventories',
+    value: /Deployed strategic warheads/i,
+    rank: true,
+  },
+  transistors: {
+    slug: 'transistors-per-microprocessor',
+    value: /Transistors per microprocessor/i,
+    entity: 'World',
+  },
+  nitrogen_fertilizer: {
+    slug: 'fertilizer-production-by-nutrient-type-npk',
+    value: /^Nitrogen$/i,
+    entity: 'World',
+  },
+  tuberculosis_deaths: {
+    slug: 'tuberculosis-death-rate',
+    value: /tuberculosis/i,
+    entity: 'World',
+  },
+  described_species: {
+    slug: 'number-of-described-species',
+    value: /Number of described species/i,
     rank: true,
   },
 };
@@ -81,7 +206,7 @@ export function parseOwidCsv(csv: string, spec: OwidSpec): SeriesRow[] {
   const years = [...new Set(parsed.map((row) => row.year))].sort((a, b) => b - a);
   for (const year of years) {
     const rows = parsed
-      .filter((row) => row.year === year && !SKIP_ENTITY.test(row.entity) && row.entity.length <= 40)
+      .filter((row) => row.year === year && !skipEntity(row.entity) && row.entity.length <= 40)
       .map((row) => ({ x: row.entity.slice(0, 40), y: roundY(row.y) }))
       .sort((a, b) => b.y - a.y)
       .slice(0, 15);

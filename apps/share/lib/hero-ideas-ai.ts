@@ -5,7 +5,7 @@ import { HINT_MODEL } from './ai-models';
 import { logAiFromResult } from './ai-usage';
 import { fallbackHeroIdeas, isHeroIdeaBatch, parseHeroIdeas, type HeroIdea } from './hero-ideas';
 
-const FAMILIES = ['noaa', 'usgs', 'fred', 'worldbank', 'wiki'] as const;
+const FAMILIES = ['noaa', 'usgs', 'fred', 'worldbank', 'wiki', 'owid'] as const;
 
 const IdeaSchema = z.object({
   ideas: z
@@ -22,12 +22,12 @@ const IdeaSchema = z.object({
 
 const SYSTEM = `You invent 8 to 10 chart prompts for Vizzy. Vizzy draws bar, line, or scatter from a public series. Humans type these; there is no voice API.
 
-Stay in geography, geopolitics, economics, technology, energy, and climate-as-power. The reader should feel smarter after one glance.
+Stay in history, geography, biodiversity, ecology, biology, chemistry, physics, geopolitics, economics, technology, energy, and climate-as-power. The reader should feel smarter after one glance.
 
-Each chip must be a different SUBJECT. Do not put two ice, quake, grain, water, unemployment, inflation, fertility, GDP, chip, refugee, or UN-vote ideas in the same batch. Mix countries. Mix decades.
+Each chip must be a different SUBJECT. Do not put two ice, quake, grain, water, forest, unemployment, inflation, fertility, GDP, chip, refugee, or UN-vote ideas in the same batch. Mix countries. Mix centuries.
 
 Prefer official families Vizzy can resolve, but do not default to the same five series every time. Cover at least four families, and include at least five of these less-worn numbers:
-rare earths, lithium, LNG, gold reserves, dollar FX share, US Treasuries held abroad, data-center power, orbital launches, robot density, EV sales, nuclear reactors under construction, wildfire acres, Arctic sea ice, global temperature, water stress, grain exporters, aging 65+, military spending, oil production, patents, remittances, passports, youth unemployment, housing starts.
+world population, conflict deaths, deadliest wars, child mortality, extreme poverty, literacy, democracy, number of countries, urbanization, global GDP long run, nuclear warheads, transistors / Moore's law, nitrogen fertilizer, tuberculosis, described species, atmospheric methane, forest cover, Living Planet Index, plastic to ocean, wild tigers, water stress.
 
 Canonical series (Mauna Loa CO₂, ozone, Fed funds, CPI, unemployment, fertility, GDP per capita, Taiwan chips, refugees, UN votes) are allowed at most TWO chips total in a batch.
 

@@ -1,11 +1,7 @@
 import { foldAsked } from './normalize';
-import type { Recipe } from './types';
+import type { Dataset, DatasetTopic, Recipe } from './types';
 
-function has(asked: string, ...needles: string[]): boolean {
-  return needles.some((needle) => asked.includes(needle));
-}
-
-export const RECIPES: readonly Recipe[] = [
+export const DATASETS: readonly Dataset[] = [
   {
     family: 'noaa',
     seriesId: 'co2_annmean_mlo',
@@ -13,10 +9,18 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://gml.noaa.gov/ccgg/trends/data.html',
     xLabel: 'Year',
     yLabel: 'CO₂ ppm',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'mauna loa') || (has(q, 'co2', 'co₂', 'carbon dioxide') && has(q, 'atmosphere', 'atmospheric', 'keeling'));
-    },
+    topics: ['climate', 'chemistry'],
+    aliases: ['mauna loa', 'keeling', 'atmospheric co2', 'atmospheric carbon dioxide', 'co2 ppm'],
+  },
+  {
+    family: 'noaa',
+    seriesId: 'ch4_annmean_gl',
+    sourceLabel: 'NOAA GML — global atmospheric methane annual mean',
+    sourceUrl: 'https://gml.noaa.gov/ccgg/trends_ch4/',
+    xLabel: 'Year',
+    yLabel: 'CH₄ ppb',
+    topics: ['climate', 'chemistry'],
+    aliases: ['atmospheric methane', 'methane concentration', 'ch4 ppb', 'ch₄', 'global methane'],
   },
   {
     family: 'noaa',
@@ -25,10 +29,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://ourworldindata.org/grapher/antarctic-ozone-hole-area',
     xLabel: 'Year',
     yLabel: 'Peak hole (million km²)',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'ozone') && has(q, 'hole', 'montreal', 'antarctic');
-    },
+    topics: ['climate', 'chemistry'],
+    aliases: ['ozone hole', 'antarctic ozone', 'montreal protocol'],
   },
   {
     family: 'usgs',
@@ -37,13 +39,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://earthquake.usgs.gov/earthquakes/search/',
     xLabel: 'Place',
     yLabel: 'Magnitude',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return (
-        has(q, 'earthquake', 'earthquakes', 'quakes') &&
-        (has(q, 'magnitude') || has(q, 'strongest') || has(q, 'since 2000'))
-      );
-    },
+    topics: ['geography', 'physics'],
+    aliases: ['earthquake', 'earthquakes', 'quakes', 'magnitude 8'],
   },
   {
     family: 'wiki',
@@ -52,10 +49,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://en.wikipedia.org/wiki/List_of_languages_by_number_of_native_speakers',
     xLabel: 'Language',
     yLabel: 'Native speakers (millions)',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'language', 'languages') && has(q, 'speaker', 'speakers', 'mandarin');
-    },
+    topics: ['demography', 'geopolitics'],
+    aliases: ['native speakers', 'languages by', 'mandarin'],
   },
   {
     family: 'wiki',
@@ -64,10 +59,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://en.wikipedia.org/wiki/List_of_sovereign_states_by_refugee_population',
     xLabel: 'Country',
     yLabel: 'Refugees hosted',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'refugee', 'refugees');
-    },
+    topics: ['geopolitics', 'demography'],
+    aliases: ['refugee', 'refugees'],
   },
   {
     family: 'wiki',
@@ -76,10 +69,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://en.wikipedia.org/wiki/Eleventh_emergency_special_session_of_the_United_Nations_General_Assembly',
     xLabel: 'Resolution',
     yLabel: 'Yes votes',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'ukraine') && has(q, 'vote', 'votes', 'assembly') && has(q, 'un', 'unga', 'united nations');
-    },
+    topics: ['geopolitics'],
+    aliases: ['un votes', 'general assembly votes', 'unga', 'votes on ukraine'],
   },
   {
     family: 'wiki',
@@ -88,13 +79,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://en.wikipedia.org/wiki/Foundry_model',
     xLabel: 'Foundry',
     yLabel: 'Revenue ($m)',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return (
-        (has(q, 'chip', 'chips', 'semiconductor') && has(q, 'taiwan', 'tsmc')) ||
-        (has(q, 'foundry') && has(q, 'revenue', 'semiconductor', 'chip', 'chips', 'taiwan'))
-      );
-    },
+    topics: ['tech', 'economy'],
+    aliases: ['foundry', 'tsmc', 'taiwan chips', 'advanced chips', 'semiconductor foundry'],
   },
   {
     family: 'wiki',
@@ -103,10 +89,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://en.wikipedia.org/wiki/Solar_power_by_country',
     xLabel: 'Country',
     yLabel: 'Solar share of generation %',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'solar') && has(q, 'electricity', 'generation', '10%', 'share');
-    },
+    topics: ['energy', 'climate'],
+    aliases: ['solar electricity', 'solar generation', 'solar share', 'solar power'],
   },
   {
     family: 'worldbank',
@@ -115,10 +99,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://data.worldbank.org/indicator/SP.DYN.LE00.IN',
     xLabel: 'Country',
     yLabel: 'Years',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'life expectancy');
-    },
+    topics: ['demography', 'biology'],
+    aliases: ['life expectancy'],
   },
   {
     family: 'worldbank',
@@ -127,10 +109,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://data.worldbank.org/indicator/SP.DYN.TFRT.IN',
     xLabel: 'Country',
     yLabel: 'Births per woman',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'fertility') || (has(q, 'children') && has(q, 'enough', 'replacement', 'birth'));
-    },
+    topics: ['demography'],
+    aliases: ['fertility', 'replacement', 'births per woman'],
   },
   {
     family: 'worldbank',
@@ -139,13 +119,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://data.worldbank.org/indicator/NY.GDP.PCAP.CD',
     xLabel: 'Country',
     yLabel: 'USD per person',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return (
-        has(q, 'gdp per capita', 'gdp per person') ||
-        (has(q, 'gdp') && has(q, 'per capita', 'per person', 'pulled away'))
-      );
-    },
+    topics: ['economy'],
+    aliases: ['gdp per capita', 'gdp per person'],
   },
   {
     family: 'worldbank',
@@ -154,10 +129,9 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://data.worldbank.org/indicator/EG.ELC.ACCS.ZS',
     xLabel: 'Country',
     yLabel: 'Access %',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'electricity') && has(q, 'access', 'gaps', 'people with') && !has(q, 'solar');
-    },
+    topics: ['energy', 'economy'],
+    aliases: ['electricity access', 'access to electricity', 'people with electricity'],
+    avoid: ['solar'],
   },
   {
     family: 'worldbank',
@@ -166,10 +140,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://data.worldbank.org/indicator/SL.UEM.1524.ZS',
     xLabel: 'Country',
     yLabel: 'Youth unemployment %',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'youth') && has(q, 'unemployment', 'jobless');
-    },
+    topics: ['economy', 'demography'],
+    aliases: ['youth unemployment', 'youth jobless'],
   },
   {
     family: 'worldbank',
@@ -178,10 +150,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://data.worldbank.org/indicator/SP.POP.65UP.TO.ZS',
     xLabel: 'Country',
     yLabel: 'Share aged 65+ %',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, '65') && has(q, 'population', 'aged', 'aging', 'ageing', 'crossed');
-    },
+    topics: ['demography'],
+    aliases: ['aged 65', '65+', 'population aged', 'got old'],
   },
   {
     family: 'worldbank',
@@ -190,10 +160,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://data.worldbank.org/indicator/MS.MIL.XPND.GD.ZS',
     xLabel: 'Country',
     yLabel: 'Military % of GDP',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'military') && has(q, 'spending', 'expenditure', 'gdp', 'war footing');
-    },
+    topics: ['geopolitics', 'economy'],
+    aliases: ['military spending', 'military expenditure', 'war footing'],
   },
   {
     family: 'worldbank',
@@ -202,10 +170,28 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://data.worldbank.org/indicator/BX.TRF.PWKR.DT.GD.ZS',
     xLabel: 'Country',
     yLabel: 'Remittances % of GDP',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'remittance', 'remittances');
-    },
+    topics: ['economy', 'geopolitics'],
+    aliases: ['remittance', 'remittances'],
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'ER.H2O.FWTL.ZS',
+    sourceLabel: 'World Bank — freshwater withdrawals (% of internal resources)',
+    sourceUrl: 'https://data.worldbank.org/indicator/ER.H2O.FWTL.ZS',
+    xLabel: 'Country',
+    yLabel: 'Withdrawals % of renewable water',
+    topics: ['geography', 'ecology'],
+    aliases: ['water stress', 'water-stress', 'freshwater withdrawal', 'overdrawn', 'renewable supply'],
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'AG.LND.AGRI.ZS',
+    sourceLabel: 'World Bank — agricultural land (% of land area)',
+    sourceUrl: 'https://data.worldbank.org/indicator/AG.LND.AGRI.ZS',
+    xLabel: 'Country',
+    yLabel: 'Agricultural land %',
+    topics: ['geography', 'ecology'],
+    aliases: ['agricultural land', 'farmland', 'farm land'],
   },
   {
     family: 'fred',
@@ -214,17 +200,9 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://fred.stlouisfed.org/series/UNRATE',
     xLabel: 'Month',
     yLabel: 'Unemployment %',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      if (has(q, 'youth')) {
-        return false;
-      }
-      return (
-        has(q, 'unrate') ||
-        ((has(q, 'unemployment') || has(q, 'jobless rate')) &&
-          has(q, 'us', 'u.s.', 'united states', 'american', 'u.s'))
-      );
-    },
+    topics: ['economy'],
+    aliases: ['us unemployment', 'u.s. unemployment', 'unrate', 'american unemployment', 'united states unemployment'],
+    avoid: ['youth'],
   },
   {
     family: 'fred',
@@ -233,10 +211,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://fred.stlouisfed.org/series/CPIAUCSL',
     xLabel: 'Month',
     yLabel: 'CPI',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'consumer price', 'cpi') || (has(q, 'inflation') && has(q, 'us', 'u.s.', 'united states', 'american'));
-    },
+    topics: ['economy'],
+    aliases: ['cpi', 'consumer price', 'us inflation', 'u.s. inflation', 'american inflation'],
   },
   {
     family: 'fred',
@@ -245,10 +221,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://fred.stlouisfed.org/series/FEDFUNDS',
     xLabel: 'Month',
     yLabel: 'Rate %',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'fed funds', 'federal funds rate', 'fed fund', 'fed hiking');
-    },
+    topics: ['economy'],
+    aliases: ['fed funds', 'federal funds rate', 'fed hiking', 'fed fund'],
   },
   {
     family: 'fred',
@@ -257,10 +231,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://fred.stlouisfed.org/series/HOUST',
     xLabel: 'Month',
     yLabel: 'Starts (thousands)',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'housing starts', 'housing start') || (has(q, 'housing') && has(q, 'starts', 'permits'));
-    },
+    topics: ['economy'],
+    aliases: ['housing starts', 'housing start', 'housing permits'],
   },
   {
     family: 'owid',
@@ -269,13 +241,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://ourworldindata.org/grapher/temperature-anomaly',
     xLabel: 'Year',
     yLabel: 'Anomaly °C',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return (
-        (has(q, 'temperature') && has(q, 'anomaly', 'global', '1880', 'warming')) ||
-        has(q, 'global temperature')
-      );
-    },
+    topics: ['climate'],
+    aliases: ['temperature anomaly', 'global temperature', 'global warming'],
   },
   {
     family: 'owid',
@@ -284,10 +251,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://ourworldindata.org/grapher/arctic-sea-ice',
     xLabel: 'Year',
     yLabel: 'September minimum (million km²)',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'sea ice') || (has(q, 'arctic') && has(q, 'ice'));
-    },
+    topics: ['climate', 'ecology'],
+    aliases: ['sea ice', 'arctic ice', 'arctic summer ice'],
   },
   {
     family: 'owid',
@@ -296,10 +261,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://ourworldindata.org/grapher/annual-area-burnt-by-wildfires',
     xLabel: 'Year',
     yLabel: 'Area burned (ha)',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'wildfire', 'wildfires') && has(q, 'acre', 'acres', 'burned', 'burnt', 'season');
-    },
+    topics: ['climate', 'ecology'],
+    aliases: ['wildfire', 'wildfires', 'acres burned', 'fire seasons'],
   },
   {
     family: 'owid',
@@ -308,10 +271,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://ourworldindata.org/grapher/lithium-production',
     xLabel: 'Country',
     yLabel: 'Production (tonnes)',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'lithium');
-    },
+    topics: ['energy', 'economy', 'geography'],
+    aliases: ['lithium'],
   },
   {
     family: 'owid',
@@ -320,10 +281,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://ourworldindata.org/grapher/electric-car-sales-share',
     xLabel: 'Country',
     yLabel: 'Electric share of new cars %',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'electric') && has(q, 'car', 'cars', 'vehicle', 'vehicles', 'ev') && has(q, 'share', 'sales', '20%');
-    },
+    topics: ['energy', 'tech'],
+    aliases: ['electric share of new', 'electric car', 'electric cars', 'ev sales', 'new car sales'],
   },
   {
     family: 'owid',
@@ -332,13 +291,8 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://ourworldindata.org/grapher/oil-production-by-country',
     xLabel: 'Country',
     yLabel: 'Oil production',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return (
-        (has(q, 'crude oil') || has(q, 'oil production') || has(q, 'shale')) &&
-        has(q, 'country', 'countries', 'us', 'u.s.', 'crown', 'production')
-      );
-    },
+    topics: ['energy', 'economy'],
+    aliases: ['crude oil', 'oil production', 'shale boom', 'shale'],
   },
   {
     family: 'wiki',
@@ -347,22 +301,343 @@ export const RECIPES: readonly Recipe[] = [
     sourceUrl: 'https://en.wikipedia.org/wiki/Gold_reserve',
     xLabel: 'Country',
     yLabel: 'Gold (tonnes)',
-    match: (asked) => {
-      const q = foldAsked(asked);
-      return has(q, 'gold') && has(q, 'reserve', 'reserves');
-    },
+    topics: ['economy', 'geopolitics'],
+    aliases: ['gold reserves', 'gold reserve', 'official gold'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'deforestation',
+    sourceLabel: 'Our World in Data — annual deforestation',
+    sourceUrl: 'https://ourworldindata.org/grapher/annual-deforestation',
+    xLabel: 'Country',
+    yLabel: 'Forest lost (ha)',
+    topics: ['ecology', 'geography'],
+    aliases: ['deforestation', 'deforest', 'clear-cut', 'clearcutting'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'tree_cover_loss',
+    sourceLabel: 'Our World in Data — tree cover loss (Global Forest Watch)',
+    sourceUrl: 'https://ourworldindata.org/grapher/tree-cover-loss',
+    xLabel: 'Country',
+    yLabel: 'Tree cover lost',
+    topics: ['ecology', 'geography'],
+    aliases: ['tree cover', 'canopy'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'forest_share',
+    sourceLabel: 'Our World in Data — share of land covered by forest',
+    sourceUrl: 'https://ourworldindata.org/grapher/forest-area-as-share-of-land-area',
+    xLabel: 'Country',
+    yLabel: 'Forest % of land',
+    topics: ['ecology', 'geography'],
+    aliases: ['forest cover', 'forested', 'forest area', 'covered by forest', 'forest country'],
+    avoid: ['deforest', 'wildfire', 'tree cover'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'terrestrial_protected',
+    sourceLabel: 'Our World in Data — terrestrial protected areas',
+    sourceUrl: 'https://ourworldindata.org/grapher/terrestrial-protected-areas',
+    xLabel: 'Country',
+    yLabel: 'Protected land %',
+    topics: ['ecology', 'geography'],
+    aliases: ['protected areas', 'protected land', 'terrestrial protected', 'habitat aside'],
+    avoid: ['marine'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'marine_protected',
+    sourceLabel: 'Our World in Data — marine protected areas',
+    sourceUrl: 'https://ourworldindata.org/grapher/marine-protected-areas',
+    xLabel: 'Country',
+    yLabel: 'Protected waters %',
+    topics: ['ecology', 'geography'],
+    aliases: ['marine protected', 'mpa', 'fishing grounds'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'living_planet_index',
+    sourceLabel: 'Our World in Data — Living Planet Index (WWF / ZSL)',
+    sourceUrl: 'https://ourworldindata.org/grapher/living-planet-index-by-region',
+    xLabel: 'Year',
+    yLabel: 'Living Planet Index',
+    topics: ['ecology', 'biology'],
+    aliases: ['living planet', 'wildlife abundance', 'vertebrate wildlife'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'fish_overexploited',
+    sourceLabel: 'Our World in Data — overexploited fish stocks (FAO)',
+    sourceUrl: 'https://ourworldindata.org/grapher/fish-stocks-within-sustainable-levels',
+    xLabel: 'Year',
+    yLabel: 'Overexploited stocks %',
+    topics: ['ecology', 'biology'],
+    aliases: ['fish stocks', 'fish stock', 'overfish', 'overfishing', 'overexploit'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'population_density',
+    sourceLabel: 'Our World in Data — population density',
+    sourceUrl: 'https://ourworldindata.org/grapher/population-density',
+    xLabel: 'Country',
+    yLabel: 'People per km²',
+    topics: ['geography', 'demography'],
+    aliases: ['population density', 'densest', 'people per km', 'most crowded'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'plastic_ocean',
+    sourceLabel: 'Our World in Data — plastic waste emitted to the ocean',
+    sourceUrl: 'https://ourworldindata.org/grapher/plastic-waste-emitted-to-the-ocean',
+    xLabel: 'Country',
+    yLabel: 'Plastic to ocean',
+    topics: ['ecology', 'chemistry'],
+    aliases: ['plastic waste', 'plastic to the ocean', 'plastic pollution', 'leaking the most'],
+  },
+  {
+    family: 'wiki',
+    seriesId: 'volcano_deaths',
+    sourceLabel: 'Wikipedia — volcanic eruptions by death toll',
+    sourceUrl: 'https://en.wikipedia.org/wiki/List_of_volcanic_eruptions_by_death_toll',
+    xLabel: 'Volcano',
+    yLabel: 'Deaths',
+    topics: ['geography', 'history'],
+    aliases: ['volcanic', 'volcano', 'eruptions', 'lives lost'],
+  },
+  {
+    family: 'wiki',
+    seriesId: 'wild_tigers',
+    sourceLabel: 'Wikipedia — wild tiger population by country',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Tiger',
+    xLabel: 'Country',
+    yLabel: 'Wild tigers',
+    topics: ['biology', 'ecology'],
+    aliases: ['tiger', 'tigers'],
+    avoid: ['economy', 'paper'],
+  },
+  {
+    family: 'wiki',
+    seriesId: 'atlantic_hurricanes',
+    sourceLabel: 'Wikipedia — Atlantic hurricane seasons',
+    sourceUrl: 'https://en.wikipedia.org/wiki/List_of_Atlantic_hurricane_seasons',
+    xLabel: 'Year',
+    yLabel: 'Hurricanes',
+    topics: ['climate', 'geography'],
+    aliases: ['atlantic hurricane', 'named atlantic', 'hurricane seasons', 'named hurricanes'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'world_population',
+    sourceLabel: 'Our World in Data — world population',
+    sourceUrl: 'https://ourworldindata.org/grapher/population',
+    xLabel: 'Year',
+    yLabel: 'People',
+    topics: ['history', 'demography'],
+    aliases: ['world population', 'human population', 'global population'],
+    avoid: ['density', '65', 'urban', 'fertility', 'aged'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'conflict_deaths',
+    sourceLabel: 'Our World in Data — deaths in state-based conflicts (UCDP)',
+    sourceUrl: 'https://ourworldindata.org/grapher/deaths-in-state-based-conflicts',
+    xLabel: 'Year',
+    yLabel: 'Battle deaths',
+    topics: ['history', 'geopolitics'],
+    aliases: ['armed conflict', 'battle deaths', 'battle death', 'conflict deaths', 'state-based'],
+    avoid: ['deadliest wars', 'death toll', 'wars by death'],
+  },
+  {
+    family: 'wiki',
+    seriesId: 'wars_death_toll',
+    sourceLabel: 'Wikipedia — wars by death toll',
+    sourceUrl: 'https://en.wikipedia.org/wiki/List_of_wars_by_death_toll',
+    xLabel: 'War',
+    yLabel: 'Deaths (millions, low estimate)',
+    topics: ['history', 'geopolitics'],
+    aliases: ['deadliest wars', 'wars by death', 'death toll', 'world war ii'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'child_mortality',
+    sourceLabel: 'Our World in Data — under-five mortality',
+    sourceUrl: 'https://ourworldindata.org/grapher/child-mortality',
+    xLabel: 'Year',
+    yLabel: 'Under-five deaths per 100 births',
+    topics: ['history', 'biology', 'demography'],
+    aliases: ['child mortality', 'under-five', 'under 5', 'under five', 'children dying'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'extreme_poverty',
+    sourceLabel: 'Our World in Data — share in extreme poverty',
+    sourceUrl: 'https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty',
+    xLabel: 'Year',
+    yLabel: 'Share in poverty %',
+    topics: ['history', 'economy'],
+    aliases: ['extreme poverty', 'in poverty'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'literacy_rate',
+    sourceLabel: 'Our World in Data — adult literacy',
+    sourceUrl: 'https://ourworldindata.org/grapher/cross-country-literacy-rates',
+    xLabel: 'Year',
+    yLabel: 'Literacy %',
+    topics: ['history', 'demography'],
+    aliases: ['literacy', 'literate', 'taught the planet to read'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'democracy_index',
+    sourceLabel: 'Our World in Data — electoral democracy index (V-Dem)',
+    sourceUrl: 'https://ourworldindata.org/grapher/electoral-democracy-index',
+    xLabel: 'Year',
+    yLabel: 'Electoral democracy index',
+    topics: ['history', 'geopolitics'],
+    aliases: ['democracy index', 'electoral democracy', 'v-dem', 'democratize'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'countries_count',
+    sourceLabel: 'Our World in Data — number of countries (Gleditsch and Ward)',
+    sourceUrl: 'https://ourworldindata.org/grapher/number-of-countries',
+    xLabel: 'Year',
+    yLabel: 'Countries',
+    topics: ['history', 'geopolitics'],
+    aliases: ['number of countries', 'how many countries', 'decolonization'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'urban_share',
+    sourceLabel: 'Our World in Data — urban population share',
+    sourceUrl: 'https://ourworldindata.org/grapher/share-of-population-urban',
+    xLabel: 'Year',
+    yLabel: 'Urban share %',
+    topics: ['history', 'demography', 'geography'],
+    aliases: ['urbanization', 'urbanisation', 'urban population', 'majority city'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'world_gdp',
+    sourceLabel: 'Our World in Data — global GDP over the long run',
+    sourceUrl: 'https://ourworldindata.org/grapher/global-gdp-over-the-long-run',
+    xLabel: 'Year',
+    yLabel: 'World GDP',
+    topics: ['history', 'economy'],
+    aliases: ['world gdp', 'global gdp', 'gdp over the long', 'long-run gdp', 'long run gdp', 'hockey stick'],
+    avoid: ['per capita', 'per person'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'nuclear_warheads',
+    sourceLabel: 'Our World in Data — deployed strategic nuclear warheads',
+    sourceUrl: 'https://ourworldindata.org/grapher/nuclear-warhead-inventories',
+    xLabel: 'Country',
+    yLabel: 'Deployed strategic warheads',
+    topics: ['physics', 'geopolitics'],
+    aliases: ['warhead', 'warheads', 'nuclear arsenal', 'nuclear weapon', 'nuclear bomb'],
+    avoid: ['reactor', 'reactors'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'transistors',
+    sourceLabel: 'Our World in Data — transistors per microprocessor',
+    sourceUrl: 'https://ourworldindata.org/grapher/transistors-per-microprocessor',
+    xLabel: 'Year',
+    yLabel: 'Transistors',
+    topics: ['physics', 'tech'],
+    aliases: ['transistor', 'transistors', "moore's law", 'moores law', 'moore law'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'nitrogen_fertilizer',
+    sourceLabel: 'Our World in Data — nitrogen fertilizer production (FAO)',
+    sourceUrl: 'https://ourworldindata.org/grapher/fertilizer-production-by-nutrient-type-npk',
+    xLabel: 'Year',
+    yLabel: 'Nitrogen fertilizer',
+    topics: ['chemistry', 'ecology'],
+    aliases: ['nitrogen fertilizer', 'haber-bosch', 'haber bosch', 'ammonia'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'tuberculosis_deaths',
+    sourceLabel: 'Our World in Data — tuberculosis death rate (WHO)',
+    sourceUrl: 'https://ourworldindata.org/grapher/tuberculosis-death-rate',
+    xLabel: 'Year',
+    yLabel: 'TB deaths per 100,000',
+    topics: ['biology', 'history'],
+    aliases: ['tuberculosis', 'tb death', 'tb deaths', 'tb mortality'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'described_species',
+    sourceLabel: 'Our World in Data — number of described species',
+    sourceUrl: 'https://ourworldindata.org/grapher/number-of-described-species',
+    xLabel: 'Group',
+    yLabel: 'Described species',
+    topics: ['biology', 'ecology'],
+    aliases: ['described species', 'named species', 'kinds of life', 'how many species'],
   },
 ];
+
+/** @deprecated Use DATASETS. Same records; matching is retrieval, not per-row predicates. */
+export const RECIPES: readonly Recipe[] = DATASETS;
+
+export function datasetsForTopic(topic: DatasetTopic): Dataset[] {
+  return DATASETS.filter((row) => row.topics.includes(topic));
+}
+
+export function rankDatasets(asked: string): Array<{ dataset: Dataset; score: number }> {
+  const q = foldAsked(asked);
+  const ranked: Array<{ dataset: Dataset; score: number }> = [];
+  for (const dataset of DATASETS) {
+    const score = scoreDataset(q, dataset);
+    if (score > 0) {
+      ranked.push({ dataset, score });
+    }
+  }
+  ranked.sort((a, b) => b.score - a.score);
+  return ranked;
+}
 
 export function matchPrompt(asked: string): Recipe | null {
   const text = asked.trim();
   if (text.length < 8) {
     return null;
   }
-  for (const recipe of RECIPES) {
-    if (recipe.match(text)) {
-      return recipe;
+  const ranked = rankDatasets(text);
+  const top = ranked[0];
+  if (!top || top.score < 3) {
+    return null;
+  }
+  const second = ranked[1];
+  if (second && top.score === second.score) {
+    return null;
+  }
+  return top.dataset;
+}
+
+function scoreDataset(asked: string, dataset: Dataset): number {
+  if (dataset.avoid?.some((needle) => asked.includes(foldAsked(needle)))) {
+    return 0;
+  }
+  let best = 0;
+  let hits = 0;
+  for (const alias of dataset.aliases) {
+    const needle = foldAsked(alias);
+    if (needle.length < 3 || !asked.includes(needle)) {
+      continue;
+    }
+    hits += 1;
+    if (needle.length > best) {
+      best = needle.length;
     }
   }
-  return null;
+  if (hits === 0) {
+    return 0;
+  }
+  return best * 10 + hits;
 }

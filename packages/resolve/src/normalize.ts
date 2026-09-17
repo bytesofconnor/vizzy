@@ -2,6 +2,7 @@ export function foldAsked(asked: string): string {
   return asked
     .toLowerCase()
     .replace(/[₂]/g, '2')
+    .replace(/[₄]/g, '4')
     .replace(/[’']/g, "'")
     .replace(/\s+/g, ' ')
     .trim();
@@ -20,11 +21,15 @@ export function sinceYearFromAsked(asked: string): number | undefined {
 }
 
 export function yearOfX(x: string): number | undefined {
-  const match = String(x).match(/^(\d{4})/);
+  const match = String(x).match(/^(-?\d{1,6})/);
   if (!match) {
     return undefined;
   }
-  return Number(match[1]);
+  const year = Number(match[1]);
+  if (!Number.isFinite(year) || year < -20000 || year > 2100) {
+    return undefined;
+  }
+  return year;
 }
 
 export function parseNumber(value: string): number | undefined {

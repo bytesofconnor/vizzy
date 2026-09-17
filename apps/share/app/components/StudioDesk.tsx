@@ -3,14 +3,13 @@
 import { useCallback, useState } from 'react';
 import type { Piece } from '../../lib/pieces';
 import { seedFromPiece } from '../../lib/seed';
-import type { ComposeProgressEvent } from '../../lib/compose-progress';
+import type { ClientPiece, ComposeProgressEvent } from '../../lib/compose-progress';
 import { ComposeBox } from './ComposeBox';
 import { ComposeProgressStrip } from './ComposeBusyPlot';
-import { HomeCompose } from './HomeCompose';
 import { PieceStage } from './PieceStage';
 
 export function StudioDesk({
-  piece,
+  piece: initial,
   error,
   askPay,
 }: {
@@ -18,24 +17,24 @@ export function StudioDesk({
   error?: string;
   askPay?: boolean;
 }) {
+  const [piece, setPiece] = useState<Piece>(initial);
   const [progress, setProgress] = useState<ComposeProgressEvent | null>(null);
-  const [fresh, setFresh] = useState(false);
   const onBusyProgress = useCallback((next: ComposeProgressEvent | null) => {
     setProgress(next);
   }, []);
-
-  if (fresh) {
-    return <HomeCompose error={error} askPay={askPay} />;
-  }
+  const onMinted = useCallback((next: ClientPiece) => {
+    setPiece(next);
+  }, []);
 
   return (
     <>
       <ComposeBox
         error={error}
         askPay={askPay}
+        variant="hero"
         seed={seedFromPiece(piece)}
         onBusyProgress={onBusyProgress}
-        onNewChart={() => setFresh(true)}
+        onMinted={onMinted}
       />
       <PieceStage
         className="studio-chart"

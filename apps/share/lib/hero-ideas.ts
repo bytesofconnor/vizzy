@@ -14,7 +14,7 @@ export const HERO_IDEA_MIN = 8;
 export const HERO_IDEA_MAX = 10;
 export const HERO_SEEN_MAX = 80;
 
-const HERO_TOPICS = new Set(['nature', 'earth', 'world', 'science', 'tech']);
+const HERO_TOPICS = new Set(['nature', 'earth', 'world', 'science', 'tech', 'history']);
 
 export const DEFAULT_HERO_IDEAS: HeroIdea[] = fallbackFromIds([
   'sea-ice',
@@ -164,6 +164,37 @@ function chipLabel(idea: PromptIdea): string {
     launches: 'Who is launching the satellites',
     dollar: 'Is the dollar share slipping',
     robots: 'Where the robots actually work',
+    tigers: 'Where wild tigers came back',
+    reef: 'Where the reef cover actually dropped',
+    bees: 'Are the bad bee years getting worse',
+    volcanoes: 'Which eruptions killed the most',
+    hurricanes: 'Are Atlantic seasons getting busier',
+    forest: 'Who still has the forest left',
+    deforestation: 'Who is still cutting the forest',
+    'tree-cover': 'Who lost the most tree cover',
+    protected: 'Who actually protected the land',
+    'marine-parks': 'Who closed the fishing grounds',
+    'living-planet': 'How far wildlife abundance fell',
+    'fish-stocks': 'How overfished the stocks became',
+    density: 'Who lives on top of each other',
+    plastic: 'Who leaks plastic into the ocean',
+    farmland: 'Who turned the map into farms',
+    'world-pop': 'When world population went vertical',
+    'conflict-deaths': 'Did the post-war peace actually hold',
+    'wars-toll': 'Which wars killed the most people',
+    'child-mortality': 'How far child mortality actually fell',
+    poverty: 'When extreme poverty actually dropped',
+    literacy: 'Who taught the planet to read',
+    democracy: 'Did the world actually democratize',
+    countries: 'When decolonization added countries',
+    urban: 'When the world became majority city',
+    'world-gdp': 'When global GDP went hockey-stick',
+    warheads: 'Who still holds the nuclear arsenal',
+    transistors: 'Did Moore’s law actually hold',
+    'fertilizer-n': 'How big Haber-Bosch actually got',
+    tb: 'Is tuberculosis still falling',
+    species: 'How many kinds of life we named',
+    methane: 'Is atmospheric methane still climbing',
   };
   return named[idea.id] ?? asChipLabel(idea.id.replace(/-/g, ' '));
 }
@@ -203,7 +234,11 @@ const CHIP_WORDS: Record<string, string> = {
   olympics: 'Olympics',
   arctic: 'Arctic',
   antarctic: 'Antarctic',
-  keeling: 'Keeling',
+  ch4: 'CH₄',
+  'ch₄': 'CH₄',
+  haber: 'Haber',
+  bosch: 'Bosch',
+  moore: 'Moore',
   kepler: 'Kepler',
   jwst: 'JWST',
   apollo: 'Apollo',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchPrompt } from './catalog';
+import { datasetsForTopic, matchPrompt, rankDatasets } from './catalog';
 import { notesFromResolved, resolvePrompt } from './resolve';
 import { parseFredCsv } from './parse/fred';
 import { parseNoaaCo2 } from './parse/noaa';
@@ -79,6 +79,84 @@ describe('matchPrompt', () => {
     expect(matchPrompt('Official gold reserves by country — who stacked bars after 2010, and who sold?')?.seriesId).toBe(
       'gold_reserves'
     );
+    expect(
+      matchPrompt('Freshwater withdrawal versus renewable supply by country — who is already overdrawn?')?.seriesId
+    ).toBe('ER.H2O.FWTL.ZS');
+    expect(matchPrompt('Share of land covered by forest — who is still a forest country?')?.seriesId).toBe('forest_share');
+    expect(matchPrompt('Annual deforestation by country — who is still cutting the fastest?')?.seriesId).toBe(
+      'deforestation'
+    );
+    expect(matchPrompt('Tree cover loss by country — who lost the most forest canopy?')?.seriesId).toBe('tree_cover_loss');
+    expect(matchPrompt('Share of land in protected areas — who actually set habitat aside?')?.seriesId).toBe(
+      'terrestrial_protected'
+    );
+    expect(matchPrompt('Marine protected area share — who actually closed the fishing grounds?')?.seriesId).toBe(
+      'marine_protected'
+    );
+    expect(matchPrompt('Living Planet Index since 1970 — how far did vertebrate wildlife fall?')?.seriesId).toBe(
+      'living_planet_index'
+    );
+    expect(matchPrompt('Share of fish stocks that are overexploited — did the FAO curve keep rising?')?.seriesId).toBe(
+      'fish_overexploited'
+    );
+    expect(matchPrompt('Population density by country — who is actually the most crowded?')?.seriesId).toBe(
+      'population_density'
+    );
+    expect(matchPrompt('Plastic waste emitted to the ocean by country — who is leaking the most?')?.seriesId).toBe(
+      'plastic_ocean'
+    );
+    expect(matchPrompt('Deadliest volcanic eruptions since 1800 by lives lost — which century was worst?')?.seriesId).toBe(
+      'volcano_deaths'
+    );
+    expect(
+      matchPrompt('Wild tiger population by country today — where did they come back, and where did they vanish?')
+        ?.seriesId
+    ).toBe('wild_tigers');
+    expect(
+      matchPrompt('Named Atlantic hurricanes per decade since 1960 — are the busy seasons bunching together?')?.seriesId
+    ).toBe('atlantic_hurricanes');
+    expect(matchPrompt('World population since 1800 — when did the curve go vertical?')?.seriesId).toBe('world_population');
+    expect(matchPrompt('Deaths in state-based armed conflicts since 1946 — did the post-Cold War peace actually hold?')?.seriesId).toBe(
+      'conflict_deaths'
+    );
+    expect(matchPrompt('Deadliest wars by death toll — is World War II still in a league of its own?')?.seriesId).toBe(
+      'wars_death_toll'
+    );
+    expect(matchPrompt('Under-five child mortality since 1800 — how far did the world actually fall?')?.seriesId).toBe(
+      'child_mortality'
+    );
+    expect(matchPrompt('Share of the world in extreme poverty — when did the drop actually steepen?')?.seriesId).toBe(
+      'extreme_poverty'
+    );
+    expect(matchPrompt('World adult literacy since 1820 — who taught the planet to read?')?.seriesId).toBe('literacy_rate');
+    expect(matchPrompt('Electoral democracy index since 1900 — did the 20th century actually democratize?')?.seriesId).toBe(
+      'democracy_index'
+    );
+    expect(matchPrompt('How many countries exist over time — when did decolonization show up in the count?')?.seriesId).toBe(
+      'countries_count'
+    );
+    expect(matchPrompt('Urban population share since 1950 — when did the world become majority city?')?.seriesId).toBe(
+      'urban_share'
+    );
+    expect(matchPrompt('Global GDP over the long run — when did the hockey stick actually start?')?.seriesId).toBe('world_gdp');
+    expect(matchPrompt('Deployed strategic nuclear warheads by country — who still has the arsenal?')?.seriesId).toBe(
+      'nuclear_warheads'
+    );
+    expect(matchPrompt("Transistors per microprocessor since 1971 — did Moore's law actually hold?")?.seriesId).toBe(
+      'transistors'
+    );
+    expect(matchPrompt('Nitrogen fertilizer production since 1961 — how big did Haber-Bosch get?')?.seriesId).toBe(
+      'nitrogen_fertilizer'
+    );
+    expect(matchPrompt('Tuberculosis death rate since 2000 — is the WHO curve still falling?')?.seriesId).toBe(
+      'tuberculosis_deaths'
+    );
+    expect(matchPrompt('Number of described species by group — how many kinds of life have we actually named?')?.seriesId).toBe(
+      'described_species'
+    );
+    expect(matchPrompt('Atmospheric methane concentration globally since 1984 — is CH₄ still climbing?')?.seriesId).toBe(
+      'ch4_annmean_gl'
+    );
   });
 
   it('does not keep culture leftovers', () => {
@@ -90,6 +168,18 @@ describe('matchPrompt', () => {
     expect(matchPrompt('chart this')).toBeNull();
     expect(matchPrompt('Jan 10\nFeb 12\nMar 9')).toBeNull();
     expect(matchPrompt('jobs at my startup by week')).toBeNull();
+  });
+
+  it('scores aliases instead of first-match predicates', () => {
+    const ranked = rankDatasets('Youth unemployment by country — who stayed stuck above 20% after 2015?');
+    expect(ranked[0]?.dataset.seriesId).toBe('SL.UEM.1524.ZS');
+    expect(ranked.some((row) => row.dataset.seriesId === 'UNRATE')).toBe(false);
+  });
+
+  it('keeps datasets on topics so history is a shelf not a chart', () => {
+    const history = datasetsForTopic('history').map((row) => row.seriesId);
+    expect(history).toEqual(expect.arrayContaining(['world_population', 'literacy_rate', 'wars_death_toll']));
+    expect(datasetsForTopic('chemistry').some((row) => row.seriesId === 'ch4_annmean_gl')).toBe(true);
   });
 });
 
@@ -144,6 +234,16 @@ describe('parsers', () => {
       { slug: 'lithium-production', value: /Lithium Production/i, rank: true }
     );
     expect(rank.map((row) => row.x)).toEqual(['Australia', 'Chile', 'China']);
+    const forest = parseOwidCsv(
+      'Entity,Code,Year,Share of land covered by forest\nWorld,OWID_WRL,2023,31\nAfrica (FAO),,2023,22\nSuriname,SUR,2023,96\nFinland,FIN,2023,74\nBrazil,BRA,2023,59\n',
+      { slug: 'forest-area-as-share-of-land-area', value: /^Share of land covered by forest$/i, rank: true }
+    );
+    expect(forest.map((row) => row.x)).toEqual(['Suriname', 'Finland', 'Brazil']);
+    const species = parseOwidCsv(
+      'Entity,Year,Number of described species\nAll groups,2025,2000000\nInsects,2025,1000000\nBirds,2025,11000\nMammals,2025,6500\n',
+      { slug: 'number-of-described-species', value: /Number of described species/i, rank: true }
+    );
+    expect(species.map((row) => row.x)).toEqual(['Insects', 'Birds', 'Mammals']);
   });
 
   it('reads UNGA in-favour tallies', () => {
@@ -193,6 +293,47 @@ describe('parsers', () => {
       valueHeader: /holdings|tonnes/i,
     });
     expect(rows[0]).toEqual({ x: 'United States', y: 8133 });
+  });
+
+  it('reads a year series across several wikitables', () => {
+    const html = `
+      <table class="wikitable">
+        <tr><th>Year</th><th>TS</th><th>H</th></tr>
+        <tr><td>1960</td><td>7</td><td>4</td></tr>
+        <tr><td>1961</td><td>11</td><td>8</td></tr>
+      </table>
+      <table class="wikitable">
+        <tr><th>Year</th><th>TS</th><th>H</th></tr>
+        <tr><td>2005</td><td>28</td><td>15</td></tr>
+        <tr><td>1960</td><td>7</td><td>4</td></tr>
+      </table>`;
+    const rows = parseWikiTables(html, {
+      page: 'List_of_Atlantic_hurricane_seasons',
+      nameHeader: /^year$/i,
+      valueHeader: /^h$/i,
+      mode: 'year',
+    });
+    expect(rows).toEqual([
+      { x: '1960', y: 4 },
+      { x: '1961', y: 8 },
+      { x: '2005', y: 15 },
+    ]);
+  });
+
+  it('reads war death ranges as the low millions estimate', () => {
+    const html = `
+      <table class="wikitable">
+        <tr><th>War</th><th>Death range</th><th>Date</th></tr>
+        <tr><td>World War II</td><td>70–85 million</td><td>1939–1945</td></tr>
+        <tr><td>Taiping Rebellion</td><td>20–70 million</td><td>1850–1864</td></tr>
+        <tr><td>Mongol invasions</td><td>20–60 million</td><td>1206–1368</td></tr>
+      </table>`;
+    const rows = parseWikiTables(html, {
+      page: 'List_of_wars_by_death_toll',
+      nameHeader: /^war$/i,
+      valueHeader: /death range/i,
+    });
+    expect(rows[0]).toEqual({ x: 'World War II', y: 70 });
   });
 
   it('reads World Bank latest-year countries', () => {

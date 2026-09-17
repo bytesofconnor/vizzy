@@ -2,7 +2,7 @@ import { matchPrompt } from './catalog';
 import { defaultGet } from './http';
 import { sinceYearFromAsked } from './normalize';
 import { parseFredCsv, fredCsvUrl } from './parse/fred';
-import { parseNoaaCo2, NOAA_CO2_URL } from './parse/noaa';
+import { parseNoaaCo2, NOAA_CO2_URL, NOAA_CH4_URL } from './parse/noaa';
 import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
 import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
 import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
@@ -20,6 +20,9 @@ export async function fetchRecipe(
   if (recipe.family === 'noaa') {
     if (recipe.seriesId === 'ozone_hole_area') {
       return parseOwidOzone(await get(OWID_OZONE_URL));
+    }
+    if (recipe.seriesId === 'ch4_annmean_gl') {
+      return parseNoaaCo2(await get(NOAA_CH4_URL));
     }
     return parseNoaaCo2(await get(NOAA_CO2_URL));
   }

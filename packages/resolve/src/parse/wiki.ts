@@ -5,6 +5,7 @@ export type WikiTableSpec = {
   page: string;
   nameHeader: RegExp;
   valueHeader: RegExp;
+  mode?: 'rank' | 'year';
 };
 
 function stripTags(html: string): string {
@@ -59,6 +60,7 @@ function eachRow(html: string): { cells: string[]; after: number; html: string }
 }
 
 export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] {
+  const collected: SeriesRow[] = [];
   for (const table of tableChunks(html)) {
     const rowsHtml = eachRow(table);
     let nameCol = -1;
@@ -94,10 +96,27 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
       }
       rows.push({ x: name.slice(0, 40), y });
     }
+    if (spec.mode === 'year') {
+      collected.push(...rows);
+      continue;
+    }
     if (rows.length >= 3) {
       rows.sort((a, b) => b.y - a.y);
       return rows.slice(0, 15);
     }
+  }
+  if (spec.mode === 'year') {
+    const byYear = new Map<string, number>();
+    for (const row of collected) {
+      const year = row.x.match(/^(\d{4})/)?.[1];
+      if (!year) {
+        continue;
+      }
+      byYear.set(year, row.y);
+    }
+    return [...byYear.entries()]
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([x, y]) => ({ x, y }));
   }
   return [];
 }
@@ -199,5 +218,26 @@ export const WIKI_SPEC: Record<string, WikiTableSpec> = {
     page: 'Gold_reserve',
     nameHeader: /country/i,
     valueHeader: /holdings|tonnes/i,
+  },
+  volcano_deaths: {
+    page: 'List_of_volcanic_eruptions_by_death_toll',
+    nameHeader: /^volcano$/i,
+    valueHeader: /death toll/i,
+  },
+  wild_tigers: {
+    page: 'Tiger',
+    nameHeader: /^country$/i,
+    valueHeader: /estimate/i,
+  },
+  atlantic_hurricanes: {
+    page: 'List_of_Atlantic_hurricane_seasons',
+    nameHeader: /^year$/i,
+    valueHeader: /^h$/i,
+    mode: 'year',
+  },
+  wars_death_toll: {
+    page: 'List_of_wars_by_death_toll',
+    nameHeader: /^war$/i,
+    valueHeader: /death range/i,
   },
 };

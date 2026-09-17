@@ -19,11 +19,6 @@ export function HomeCompose({ error, askPay }: { error?: string; askPay?: boolea
     setPiece(next);
   }, []);
 
-  const onNewChart = useCallback(() => {
-    setPiece(null);
-    setProgress(null);
-  }, []);
-
   return (
     <ComposeBox
       error={error}
@@ -32,8 +27,6 @@ export function HomeCompose({ error, askPay }: { error?: string; askPay?: boolea
       seed={piece ? seedFromPiece(piece) : undefined}
       onBusyProgress={setProgress}
       onMinted={onMinted}
-      onNewChart={onNewChart}
-      showIdeas={!showStage}
     >
       {showStage ? (
         piece ? (

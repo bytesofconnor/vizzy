@@ -25,3 +25,4 @@ export function parseNoaaCo2(text: string): SeriesRow[] {
 }
 
 export const NOAA_CO2_URL = 'https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_annmean_mlo.txt';
+export const NOAA_CH4_URL = 'https://gml.noaa.gov/webdata/ccgg/trends/ch4/ch4_annmean_gl.txt';

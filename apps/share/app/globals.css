@@ -2765,13 +2765,19 @@ a.admin-eval-act {
   opacity: 0.72;
 }
 
-.compose-hero-submit.is-primary:disabled {
+.compose-hero-submit.is-primary:disabled,
+.compose-hero-submit.is-amber:disabled {
   opacity: 0.55;
   cursor: wait;
 }
 
 .compose-hero-submit.is-primary:disabled:hover {
   background: color-mix(in srgb, #4a4542 86%, #818891);
+  outline: none;
+}
+
+.compose-hero-submit.is-amber:disabled:hover {
+  background: color-mix(in srgb, #c9a36a 76%, #918380);
   outline: none;
 }
 

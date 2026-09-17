@@ -6,6 +6,7 @@ export type PromptTopic =
   | 'earth'
   | 'world'
   | 'science'
+  | 'history'
   | 'music'
   | 'tech'
   | 'art'
@@ -133,6 +134,66 @@ export const PROMPT_IDEAS: readonly PromptIdea[] = [
     topic: 'nature',
     prompt: 'Managed honeybee colony losses by season in the US — are the bad years getting more frequent?',
     tone: DUST[2],
+  },
+  {
+    id: 'forest',
+    topic: 'nature',
+    prompt: 'Share of land covered by forest — who is still a forest country, and who already converted it?',
+    tone: DUST[3],
+  },
+  {
+    id: 'deforestation',
+    topic: 'nature',
+    prompt: 'Annual deforestation by country — who is still cutting the fastest?',
+    tone: DUST[1],
+  },
+  {
+    id: 'tree-cover',
+    topic: 'nature',
+    prompt: 'Tree cover loss by country — who lost the most canopy after 2000?',
+    tone: DUST[5],
+  },
+  {
+    id: 'protected',
+    topic: 'earth',
+    prompt: 'Share of land in protected areas — who actually set habitat aside?',
+    tone: DUST[6],
+  },
+  {
+    id: 'marine-parks',
+    topic: 'earth',
+    prompt: 'Marine protected area share — who closed fishing grounds, and who did not?',
+    tone: DUST[4],
+  },
+  {
+    id: 'living-planet',
+    topic: 'nature',
+    prompt: 'Living Planet Index since 1970 — how far did vertebrate wildlife abundance fall?',
+    tone: DUST[2],
+  },
+  {
+    id: 'fish-stocks',
+    topic: 'nature',
+    prompt: 'Share of fish stocks that are overexploited — did the FAO curve keep rising?',
+    tone: DUST[0],
+  },
+  {
+    id: 'density',
+    topic: 'earth',
+    prompt: 'Population density by country — who is actually the most crowded?',
+    tone: DUST[7],
+  },
+  {
+    id: 'plastic',
+    topic: 'earth',
+    prompt: 'Plastic waste emitted to the ocean by country — who is leaking the most?',
+    tone: DUST[1],
+  },
+  {
+    id: 'farmland',
+    topic: 'earth',
+    prompt: 'Agricultural land as a share of country area — who turned the map into farms?',
+    tone: DUST[3],
   },
   {
     id: 'un-votes',
@@ -343,6 +404,102 @@ export const PROMPT_IDEAS: readonly PromptIdea[] = [
     topic: 'tech',
     prompt: 'Robot density in manufacturing by country — how far ahead is South Korea?',
     tone: DUST[7],
+  },
+  {
+    id: 'world-pop',
+    topic: 'history',
+    prompt: 'World population since 1800 — when did the curve actually go vertical?',
+    tone: DUST[0],
+  },
+  {
+    id: 'conflict-deaths',
+    topic: 'history',
+    prompt: 'Deaths in state-based armed conflicts since 1946 — did the post-Cold War peace actually hold?',
+    tone: DUST[1],
+  },
+  {
+    id: 'wars-toll',
+    topic: 'history',
+    prompt: 'Deadliest wars by death toll — is World War II still in a league of its own?',
+    tone: DUST[7],
+  },
+  {
+    id: 'child-mortality',
+    topic: 'history',
+    prompt: 'Under-five child mortality since 1800 — how far did the world actually fall?',
+    tone: DUST[2],
+  },
+  {
+    id: 'poverty',
+    topic: 'history',
+    prompt: 'Share of the world in extreme poverty — when did the drop actually steepen?',
+    tone: DUST[3],
+  },
+  {
+    id: 'literacy',
+    topic: 'history',
+    prompt: 'World adult literacy since 1820 — who taught the planet to read?',
+    tone: DUST[4],
+  },
+  {
+    id: 'democracy',
+    topic: 'history',
+    prompt: 'Electoral democracy index since 1900 — did the 20th century actually democratize?',
+    tone: DUST[5],
+  },
+  {
+    id: 'countries',
+    topic: 'history',
+    prompt: 'How many countries exist over time — when did decolonization show up in the count?',
+    tone: DUST[6],
+  },
+  {
+    id: 'urban',
+    topic: 'history',
+    prompt: 'Urban population share since 1950 — when did the world become majority city?',
+    tone: DUST[1],
+  },
+  {
+    id: 'world-gdp',
+    topic: 'history',
+    prompt: 'Global GDP over the long run — when did the hockey stick actually start?',
+    tone: DUST[0],
+  },
+  {
+    id: 'warheads',
+    topic: 'science',
+    prompt: 'Deployed strategic nuclear warheads by country — who still has the arsenal?',
+    tone: DUST[7],
+  },
+  {
+    id: 'transistors',
+    topic: 'science',
+    prompt: "Transistors per microprocessor since 1971 — did Moore's law actually hold?",
+    tone: DUST[6],
+  },
+  {
+    id: 'fertilizer-n',
+    topic: 'science',
+    prompt: 'Nitrogen fertilizer production since 1961 — how big did Haber-Bosch get?',
+    tone: DUST[3],
+  },
+  {
+    id: 'tb',
+    topic: 'science',
+    prompt: 'Tuberculosis death rate since 2000 — is the WHO curve still falling?',
+    tone: DUST[2],
+  },
+  {
+    id: 'species',
+    topic: 'science',
+    prompt: 'Number of described species by group — how many kinds of life have we actually named?',
+    tone: DUST[5],
+  },
+  {
+    id: 'methane',
+    topic: 'science',
+    prompt: 'Atmospheric methane concentration globally since 1984 — is CH₄ still climbing?',
+    tone: DUST[4],
   },
 ];
 
