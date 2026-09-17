@@ -53,7 +53,12 @@ export default defineSchema({
   })
     .index('by_wallet', ['walletId', 'createdAt'])
     .index('by_wallet_slug', ['walletId', 'slug'])
-    .index('by_wallet_pinned', ['walletId', 'pinnedAt']),
+    .index('by_wallet_pinned', ['walletId', 'pinnedAt'])
+    .index('by_wallet_route', ['walletId', 'route', 'createdAt'])
+    .searchIndex('search_title', {
+      searchField: 'title',
+      filterFields: ['walletId', 'route'],
+    }),
 
   eventDaily: defineTable({
     name: v.string(),

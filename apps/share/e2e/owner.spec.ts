@@ -58,10 +58,20 @@ test('owner charts are unlimited', async ({ context, page }) => {
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
 
   await page.goto('/me');
-  await expect(page.getByRole('heading', { name: /charts left|generate whenever|no paid charts/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your charts' })).toBeVisible();
+  await expect(page.getByText(/charts left|generate whenever|no paid charts/i)).toBeVisible();
   await expect(page.getByText(/signed in as/i)).toHaveCount(0);
   await expect(page.getByRole('button', { name: /buy \d+ more/i })).toBeVisible();
-  await expect(page.getByText('Last 14 days', { exact: true })).toBeVisible();
+  await expect(page.getByRole('searchbox', { name: 'Find a chart' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+  const selectAll = page.getByRole('checkbox', { name: 'Select all on this page' });
+  if (await selectAll.count()) {
+    await selectAll.check();
+    await page.getByRole('button', { name: 'Remove from history' }).click();
+    await expect(page.getByRole('dialog', { name: 'Remove from your history?' })).toBeVisible();
+    await page.getByRole('button', { name: 'Keep them' }).click();
+    await expect(page.getByRole('dialog', { name: 'Remove from your history?' })).toHaveCount(0);
+  }
 
   const published = await page.request.post('/api/publish', {
     headers: { Authorization: `Bearer vizzy_${token}` },

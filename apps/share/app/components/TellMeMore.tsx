@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ChartSeed } from '../../lib/seed';
 
 const MAX_LESSON_LAYERS = 5;
@@ -110,6 +110,7 @@ export function TellMeMore({
   const [lessonBusy, setLessonBusy] = useState(false);
   const [fail, setFail] = useState(false);
   const [lessonFail, setLessonFail] = useState(false);
+  const [open, setOpen] = useState(true);
   const onInsightRef = useRef(onInsight);
   const seedRef = useRef(seed);
   onInsightRef.current = onInsight;
@@ -152,6 +153,7 @@ export function TellMeMore({
   useEffect(() => {
     setLayers([]);
     setLessonFail(false);
+    setOpen(true);
     if (presetInsight) {
       setInsight(presetInsight);
       setBusy(false);
@@ -191,6 +193,8 @@ export function TellMeMore({
     setLessonBusy(false);
   }
 
+  const bodyId = useId();
+
   return (
     <div className={embedded ? 'tell-more is-embedded' : 'tell-more'}>
       {busy && !insight ? (
@@ -199,52 +203,68 @@ export function TellMeMore({
           <p className="tell-more-text is-pending">Reading the chart…</p>
         </div>
       ) : insight ? (
-        <div className="tell-more-body">
-          <p className="tell-more-kicker">Context</p>
-          {insight.split(/\n\s*\n/).map((paragraph) => (
-            <p key={paragraph.slice(0, 24)} className="tell-more-text">
-              {paragraph}
-            </p>
-          ))}
-          {layers.map((lesson, index) => (
-            <div key={`${index}-${lesson.question.slice(0, 20)}`} className="tell-more-lesson">
-              <p className="tell-more-kicker">{LAYER_KICKER[index] ?? 'Deeper'}</p>
-              <p className="tell-more-notice">{lesson.notice}</p>
-              {lesson.teach.split(/\n\s*\n/).map((paragraph) => (
+        <div className={open ? 'tell-more-body' : 'tell-more-body is-folded'}>
+          <div className="tell-more-bar">
+            <p className="tell-more-kicker">Context</p>
+            <button
+              type="button"
+              className="tell-more-fold"
+              aria-expanded={open}
+              aria-controls={bodyId}
+              aria-label={open ? 'Hide context' : 'Show context'}
+              onClick={() => setOpen((current) => !current)}
+            >
+              {open ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          {open ? (
+            <div id={bodyId}>
+              {insight.split(/\n\s*\n/).map((paragraph) => (
                 <p key={paragraph.slice(0, 24)} className="tell-more-text">
                   {paragraph}
                 </p>
               ))}
-              <p className="tell-more-ask">
-                <span>Ask yourself</span>
-                {lesson.question}
-              </p>
-              <button
-                type="button"
-                className="tell-more-next"
-                onClick={() => fillComposePrompt(lesson.tryNext, true)}
-              >
-                Keep learning
-                <span>{lesson.tryNext}</span>
-              </button>
-            </div>
-          ))}
-          {canGoDeeper ? (
-            <>
-              <button
-                type="button"
-                className="tell-more-trigger tell-more-deeper"
-                onClick={() => void loadLesson()}
-                disabled={lessonBusy}
-              >
-                {lessonBusy ? 'Going deeper…' : 'Tell me even more'}
-              </button>
-              {lessonFail && !lessonBusy ? (
-                <p className="tell-more-fail" role="status">
-                  Still working on a deeper cut. Try the button once more.
-                </p>
+              {layers.map((lesson, index) => (
+                <div key={`${index}-${lesson.question.slice(0, 20)}`} className="tell-more-lesson">
+                  <p className="tell-more-kicker">{LAYER_KICKER[index] ?? 'Deeper'}</p>
+                  <p className="tell-more-notice">{lesson.notice}</p>
+                  {lesson.teach.split(/\n\s*\n/).map((paragraph) => (
+                    <p key={paragraph.slice(0, 24)} className="tell-more-text">
+                      {paragraph}
+                    </p>
+                  ))}
+                  <p className="tell-more-ask">
+                    <span>Ask yourself</span>
+                    {lesson.question}
+                  </p>
+                  <button
+                    type="button"
+                    className="tell-more-next"
+                    onClick={() => fillComposePrompt(lesson.tryNext, true)}
+                  >
+                    Keep learning
+                    <span>{lesson.tryNext}</span>
+                  </button>
+                </div>
+              ))}
+              {canGoDeeper ? (
+                <>
+                  <button
+                    type="button"
+                    className="tell-more-trigger tell-more-deeper"
+                    onClick={() => void loadLesson()}
+                    disabled={lessonBusy}
+                  >
+                    {lessonBusy ? 'Going deeper…' : 'Tell me even more'}
+                  </button>
+                  {lessonFail && !lessonBusy ? (
+                    <p className="tell-more-fail" role="status">
+                      Still working on a deeper cut. Try the button once more.
+                    </p>
+                  ) : null}
+                </>
               ) : null}
-            </>
+            </div>
           ) : null}
         </div>
       ) : fail ? (

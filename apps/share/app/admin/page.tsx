@@ -275,6 +275,7 @@ function eventLabel(name: string): string {
     copy_agent_paste: 'ChatGPT prompt copied',
     tap_pin_chart: 'Chart pinned',
     tap_unpin_chart: 'Chart unpinned',
+    tap_remove_chart: 'Chart removed from history',
   };
   return labels[name] ?? name.replace(/_/g, ' ');
 }

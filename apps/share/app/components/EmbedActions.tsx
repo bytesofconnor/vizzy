@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { CARD_SIZES, type CardSize } from '../../lib/compose';
 import { htmlEmbed, markdownEmbed, pieceImagePath } from '../../lib/embed';
-import type { ChartSeed } from '../../lib/seed';
 import { DUST } from '../../lib/theme';
-import { TellMeMore } from './TellMeMore';
 
 type Mode = 'image' | 'markdown' | 'html' | null;
 
@@ -50,19 +48,16 @@ export function EmbedActions({
   title,
   note,
   source,
-  seed,
-  presetInsight,
+  insight,
 }: {
   slug: string;
   title: string;
   note: string;
   source?: string;
-  seed: ChartSeed;
-  presetInsight?: string;
+  insight: string | null;
 }) {
-  const [insight, setInsight] = useState<string | null>(presetInsight ?? null);
   const [size, setSize] = useState<CardSize>('md');
-  const [includeInsight, setIncludeInsight] = useState(Boolean(presetInsight));
+  const [includeInsight, setIncludeInsight] = useState(Boolean(insight));
   const [copied, setCopied] = useState<Mode>(null);
   const [busy, setBusy] = useState<Mode>(null);
   const [fail, setFail] = useState<Mode>(null);
@@ -200,15 +195,8 @@ export function EmbedActions({
 
   return (
     <div className="paste-menu" aria-label="Copy chart">
-      <div className={`paste-menu-head${insight ? ' has-context' : ''}`}>
-        <TellMeMore
-          embedded
-          seed={seed}
-          presetInsight={presetInsight}
-          onInsight={setInsight}
-        />
-        <div className="paste-menu-controls">
-          <p className="paste-menu-kicker">Size</p>
+      <div className="paste-menu-controls">
+        <p className="paste-menu-kicker">Size</p>
           <div className="paste-size-row paste-size-row--stacked">
             <div
               className="paste-size-pills"
@@ -255,7 +243,6 @@ export function EmbedActions({
               <span>Include context in exports</span>
             </label>
           ) : null}
-        </div>
       </div>
 
       <div className="paste-menu-section">

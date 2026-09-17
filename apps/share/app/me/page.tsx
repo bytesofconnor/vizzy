@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ChartConfig, DataPoint } from '@vizzy/core';
+import type { AccountLibraryPage } from '../../lib/account-chart';
 import { getAccount, readWalletToken } from '../../lib/billing';
-import { listPinnedCharts, listRecentCharts, ownerSession } from '../../lib/telemetry';
 import { googleClientId } from '../../lib/google';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
+import { listLibraryCharts, listPinnedCharts, ownerSession } from '../../lib/telemetry';
 import { studioChart } from '../../lib/theme';
 import { AccountBuy } from '../components/AccountBuy';
-import { AccountChartsTable } from '../components/AccountChartsTable';
+import { AccountLibrary } from '../components/AccountLibrary';
 import { AccountPinned } from '../components/AccountPinned';
 import { AccountPurchasesTable } from '../components/AccountPurchasesTable';
 import { ChartMount } from '../components/ChartMount';
@@ -18,45 +19,27 @@ import { SiteFoot } from '../components/SiteFoot';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Account',
+  title: 'Your charts',
   robots: { index: false, follow: false },
 };
 
-const kicker = {
-  fontFamily: 'var(--font-mono), ui-monospace, monospace',
-  fontSize: 11,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: 'var(--mute)',
-  margin: 0,
-} as const;
-
-const body = {
-  maxWidth: 540,
-  fontSize: 15,
-  lineHeight: 1.5,
-  marginTop: 14,
-} as const;
-
-const rowTitle = {
-  fontSize: 15,
-  lineHeight: 1.45,
-  fontWeight: 500,
-  textDecoration: 'underline',
-  textUnderlineOffset: '0.18em',
-} as const;
+const emptyLibrary: AccountLibraryPage = {
+  page: [],
+  isDone: true,
+  continueCursor: '',
+};
 
 export default async function MePage() {
   let account: Awaited<ReturnType<typeof getAccount>> = null;
-  let recent: Awaited<ReturnType<typeof listRecentCharts>> = [];
+  let library: AccountLibraryPage = emptyLibrary;
   let pinned: Awaited<ReturnType<typeof listPinnedCharts>> = [];
   let owner = false;
   try {
     account = await getAccount();
     const token = await readWalletToken();
     if (token && account) {
-      recent = await listRecentCharts(token, 50);
-      pinned = await listPinnedCharts(token, 24);
+      library = await listLibraryCharts(token, { kind: 'all' });
+      pinned = await listPinnedCharts(token, 48);
     }
     owner = await ownerSession();
   } catch (error) {
@@ -65,65 +48,63 @@ export default async function MePage() {
 
   const google = Boolean(googleClientId());
   const offerGoogle = Boolean(google && (!account || !account.saved || !account.email));
+  const showUsage = Boolean(account && account.used > 0 && !account.unlimited);
+  const showPurchases = Boolean(account && account.orders.length > 0);
 
   return (
-    <main id="content" className="page-main">
+    <main id="content" className="page-main me-desk">
       <KickerNav here="account" email={account?.email} known={Boolean(account)} owner={owner} />
-      <h1
-        style={{
-          fontWeight: 500,
-          fontSize: 'clamp(1.45rem, 6vw, 1.9rem)',
-          letterSpacing: '-0.02em',
-          lineHeight: 1.12,
-          margin: '8px 0 0',
-        }}
-      >
-        {headline(account)}
-      </h1>
-      <p style={body}>{statusLine(account, google)}</p>
-      {offerGoogle ? (
-        <p
-          style={{
-            fontFamily: 'var(--font-mono), ui-monospace, monospace',
-            fontSize: 12,
-            color: 'var(--mute)',
-            margin: '14px 0 0',
-            lineHeight: 1.45,
-            maxWidth: 540,
-          }}
-        >
-          <SaveGoogle />
-          {account
-            ? ' so they follow you on other devices.'
-            : ' to bring charts from another browser.'}
+      <header className="me-hero">
+        <div>
+          <h1>Your charts</h1>
+          <p className="me-lede">
+            Save the keepers. Search the rest. Open a paste and ask the next public question.
+          </p>
+        </div>
+        <p className="me-make">
+          <Link href="/">Make a chart</Link>
         </p>
+      </header>
+      <div className="me-meter">
+        <p className="me-meter-head">{meterLine(account)}</p>
+        <p className="me-meter-copy">{statusLine(account, google)}</p>
+        {offerGoogle ? (
+          <p className="me-meter-copy">
+            <SaveGoogle />
+            {account
+              ? ' so they follow you on other devices.'
+              : ' to bring charts from another browser.'}
+          </p>
+        ) : null}
+        <AccountBuy more={Boolean(account)} />
+      </div>
+      {account ? (
+        <nav className="me-jump" aria-label="On this page">
+          <a href="#saved">Saved{pinned.length ? ` ${pinned.length}` : ''}</a>
+          <a href="#library">Library</a>
+          {showUsage ? <a href="#usage">Last 14 days</a> : null}
+          {showPurchases ? <a href="#purchases">Purchases</a> : null}
+        </nav>
       ) : null}
-      <AccountBuy more={Boolean(account)} />
       {account ? <AccountPinned charts={pinned} /> : null}
-      {account ? <AccountChartsTable charts={recent} saved={account.saved} /> : null}
-      {account && account.used > 0 && !account.unlimited ? (
-        <Activity account={account} savedCount={recent.length} />
+      {account ? <AccountLibrary initial={library} saved={account.saved} /> : null}
+      {showUsage && account ? <Activity account={account} listed={library.page.length} /> : null}
+      {showPurchases && account ? (
+        <div id="purchases">
+          <AccountPurchasesTable orders={account.orders} />
+        </div>
       ) : null}
-      {account ? <AccountPurchasesTable orders={account.orders} /> : null}
-      <p style={{ ...body, marginTop: 36 }}>
-        <Link href="/" style={rowTitle}>
-          Make a chart
-        </Link>
-      </p>
       <SiteFoot />
     </main>
   );
 }
 
-function headline(account: Awaited<ReturnType<typeof getAccount>>): string {
+function meterLine(account: Awaited<ReturnType<typeof getAccount>>): string {
   if (!account) {
     return 'No charts on this browser yet.';
   }
   if (account.justPaid && account.credits > 0) {
-    if (account.saved) {
-      return `${account.credits} chart${account.credits === 1 ? '' : 's'} added to your account.`;
-    }
-    return `${account.credits} chart${account.credits === 1 ? ' is' : 's are'} on this browser now.`;
+    return `${account.credits} chart${account.credits === 1 ? '' : 's'} added.`;
   }
   if (account.unlimited && account.credits > 0) {
     return `${account.credits} charts left.`;
@@ -169,24 +150,21 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
 
 function Activity({
   account,
-  savedCount,
+  listed,
 }: {
   account: NonNullable<Awaited<ReturnType<typeof getAccount>>>;
-  savedCount: number;
+  listed: number;
 }) {
   const activeDays = account.days.filter((row) => row.charts > 0);
-  const summary = activitySummary(account.used, activeDays, savedCount);
+  const summary = activitySummary(account.used, activeDays, listed);
 
   return (
-    <section style={{ marginTop: 36, maxWidth: 720 }}>
-      <p style={kicker}>Activity</p>
-      <p style={{ ...body, marginTop: 10, color: 'var(--mute)' }}>
-        Every chart you make spends meter — including ones with no link listed above.
+    <section className="me-usage" id="usage" aria-labelledby="usage-title">
+      <p id="usage-title" className="admin-log-kicker">
+        Last 14 days
       </p>
-      <p style={{ ...body, marginTop: 10 }}>{summary}</p>
-      {activeDays.length >= 2 ? (
-        <ActivityChart days={activeDays} />
-      ) : null}
+      <p className="me-lede">{summary}</p>
+      {activeDays.length >= 2 ? <ActivityChart days={activeDays} /> : null}
     </section>
   );
 }
@@ -221,13 +199,10 @@ function ActivityChart({ days }: { days: Array<{ day: string; charts: number }> 
 function activitySummary(
   used: number,
   activeDays: Array<{ day: string; charts: number }>,
-  savedCount: number
+  listed: number
 ): string {
   const noun = `${used} chart${used === 1 ? '' : 's'} generated`;
-  const listedNote =
-    savedCount > 0
-      ? `${savedCount} listed above.`
-      : 'None listed above yet.';
+  const listedNote = listed > 0 ? `${listed} on this page of the library.` : 'None in this library page yet.';
   if (activeDays.length === 0) {
     return `${noun} in the last two weeks. ${listedNote}`;
   }

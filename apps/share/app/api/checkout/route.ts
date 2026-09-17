@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
+import type Stripe from 'stripe';
 import {
   billingConfigured,
   ensureWallet,
@@ -9,13 +9,22 @@ import {
   walletCookieOptions,
 } from '../../../lib/billing';
 import { PACK_CREDITS } from '../../../lib/pack';
-import { packLineItem, stripeClient } from '../../../lib/stripe';
 import { bumpEvent } from '../../../lib/telemetry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  try {
+    return await startCheckout(request);
+  } catch (error) {
+    console.error('checkout failed', error);
+    return Response.json({ ok: false, error: publicCheckoutError(error) }, { status: 502 });
+  }
+}
+
+async function startCheckout(request: Request) {
+  const { packLineItem, stripeClient } = await import('../../../lib/stripe');
   const stripe = stripeClient();
   if (!stripe || !billingConfigured()) {
     return Response.json({ ok: false, error: 'Payments are not configured' }, { status: 503 });
@@ -31,7 +40,7 @@ export async function POST(request: Request) {
     mode: 'payment',
     line_items: [packLineItem()],
     success_url: `${origin}/pay/thanks?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: origin,
+    cancel_url: `${origin}/me`,
     client_reference_id: token,
     metadata: {
       walletToken: token,
@@ -54,7 +63,7 @@ export async function POST(request: Request) {
     params.customer_creation = 'always';
   }
 
-  let session;
+  let session: Stripe.Checkout.Session;
   try {
     session = await stripe.checkout.sessions.create(params);
   } catch (error) {
@@ -62,21 +71,17 @@ export async function POST(request: Request) {
       delete params.customer;
       if (wallet?.email) {
         params.customer_email = wallet.email;
+      } else {
+        params.customer_creation = 'always';
       }
-      try {
-        session = await stripe.checkout.sessions.create(params);
-      } catch (retryError) {
-        const message = retryError instanceof Error ? retryError.message : 'Could not start checkout';
-        return Response.json({ ok: false, error: message }, { status: 502 });
-      }
+      session = await stripe.checkout.sessions.create(params);
     } else {
-      const message = error instanceof Error ? error.message : 'Could not start checkout';
-      return Response.json({ ok: false, error: message }, { status: 502 });
+      throw error;
     }
   }
 
   if (!session.url) {
-    return Response.json({ ok: false, error: 'Could not start checkout' }, { status: 500 });
+    return Response.json({ ok: false, error: 'Could not start checkout' }, { status: 502 });
   }
 
   await bumpEvent('checkout');
@@ -86,4 +91,12 @@ export async function POST(request: Request) {
     response.cookies.set(cookie.name, token, cookie);
   }
   return response;
+}
+
+function publicCheckoutError(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  if (/no such price|invalid api key|no such customer/i.test(message)) {
+    return 'Payments are misconfigured.';
+  }
+  return 'Could not start checkout. Try again in a moment.';
 }

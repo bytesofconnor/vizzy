@@ -30,12 +30,11 @@ export function Studio({
       ) : (
         <section className="home-hero" aria-labelledby="home-title">
           <h1 id="home-title" className="home-hero-title">
-            Turn a question into a publish-ready chart
+            A chart you can paste
           </h1>
           <DustRail className="home-hero-dust dust-rail is-idle" />
           <p className="home-hero-lede">
-            AI drafts the series. You get a link and PNG. Add a source when you have one — it shows on
-            the chart.
+            Ask a public question. Get the picture, the source, and a short explanation.
           </p>
           <HomeCompose error={error} askPay={askPay} />
           <AgentPaste />

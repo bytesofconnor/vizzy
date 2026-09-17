@@ -30,4 +30,15 @@ describe('mintFromOfficial', () => {
       expect(minted.piece.config.source?.method).toBe('official');
     }
   });
+
+  it('does not use the remix scaffold as a title', () => {
+    const minted = mintFromOfficial(
+      'Start from this chart and ask a sharper public question. Keep published numbers. Do not invent a source.\n\nThe next cut I want:',
+      co2
+    );
+    expect(minted.ok).toBe(true);
+    if (minted.ok) {
+      expect(minted.piece.title).toBe('CO₂ ppm by Year');
+    }
+  });
 });

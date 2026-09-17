@@ -1,10 +1,13 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { Piece } from '../../lib/pieces';
+import { seedFromPiece } from '../../lib/seed';
+import { ChartActionBar } from './ChartActionBar';
 import { ChartExtras } from './ChartExtras';
 import { ChartFrame } from './ChartFrame';
 import { ChartMount } from './ChartMount';
-import { PinButton } from './PinButton';
 import { SourceLine } from './SourceLine';
 
 export function PieceStage({
@@ -36,6 +39,12 @@ export function PieceStage({
   ) : (
     piece.title
   );
+  const [insight, setInsight] = useState<string | null>(piece.insight ?? null);
+  const seed = useMemo(() => seedFromPiece(piece), [piece]);
+
+  useEffect(() => {
+    setInsight(piece.insight ?? null);
+  }, [piece.slug, piece.insight]);
 
   return (
     <section className={['piece-stage', className].filter(Boolean).join(' ')} aria-labelledby={titleId}>
@@ -45,12 +54,20 @@ export function PieceStage({
             {headLead}
             <div className="chart-frame-meta">
               <p className="chart-kicker">{piece.kicker}</p>
-              {extras ? <PinButton slug={piece.slug} title={piece.title} /> : null}
+              {extras ? <ChartActionBar piece={piece} insight={insight} /> : null}
             </div>
             <TitleTag id={titleId} className="chart-title">
               {titleInner}
             </TitleTag>
           </>
+        }
+        foot={
+          piece.note || piece.config.source ? (
+            <>
+              {piece.note ? <p className="studio-chart-note">{piece.note}</p> : null}
+              {piece.config.source ? <SourceLine source={piece.config.source} /> : null}
+            </>
+          ) : null
         }
       >
         <div className={busy ? 'piece-stage-plot is-busy' : 'piece-stage-plot'}>
@@ -58,9 +75,7 @@ export function PieceStage({
           {overlay ? <div className="piece-stage-overlay">{overlay}</div> : null}
         </div>
       </ChartFrame>
-      {piece.note ? <p className="studio-chart-note">{piece.note}</p> : null}
-      {piece.config.source ? <SourceLine source={piece.config.source} /> : null}
-      {extras ? <ChartExtras piece={piece} /> : null}
+      {extras ? <ChartExtras seed={seed} presetInsight={piece.insight} onInsight={setInsight} /> : null}
     </section>
   );
 }

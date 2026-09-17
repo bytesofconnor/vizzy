@@ -1,23 +1,16 @@
 'use client';
 
-import { useMemo } from 'react';
-import type { Piece } from '../../lib/pieces';
-import { seedFromPiece } from '../../lib/seed';
-import { sourceLine } from '../../lib/source';
-import { EmbedActions } from './EmbedActions';
+import type { ChartSeed } from '../../lib/seed';
+import { TellMeMore } from './TellMeMore';
 
-export function ChartExtras({ piece }: { piece: Piece }) {
-  const source = piece.config.source ? `Source: ${sourceLine(piece.config.source)}` : undefined;
-  const seed = useMemo(() => seedFromPiece(piece), [piece]);
-
-  return (
-    <EmbedActions
-      slug={piece.slug}
-      title={piece.title}
-      note={piece.note}
-      source={source}
-      seed={seed}
-      presetInsight={piece.insight}
-    />
-  );
+export function ChartExtras({
+  seed,
+  presetInsight,
+  onInsight,
+}: {
+  seed: ChartSeed;
+  presetInsight?: string;
+  onInsight: (insight: string | null) => void;
+}) {
+  return <TellMeMore seed={seed} presetInsight={presetInsight} onInsight={onInsight} />;
 }

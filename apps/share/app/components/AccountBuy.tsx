@@ -46,8 +46,7 @@ export function AccountBuy({ more = true }: { more?: boolean }) {
             : `Buy ${PACK_CREDITS} for ${PACK_PRICE_LABEL}`}
       </button>
       {fail ? (
-        <span role="alert">
-          {' '}
+        <span className="me-buy-fail" role="alert">
           {fail}
         </span>
       ) : null}

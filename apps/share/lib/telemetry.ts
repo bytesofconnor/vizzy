@@ -1,3 +1,4 @@
+import type { AccountChartRow, AccountLibraryKind, AccountLibraryPage } from './account-chart';
 import { readWalletToken, walletTokenFromRequest } from './billing';
 
 type ConvexResult<T> = { status: 'success'; value: T } | { status: 'error'; errorMessage?: string };
@@ -78,36 +79,45 @@ export async function saveChartHistory(args: {
   }
 }
 
+export const LIBRARY_PAGE_SIZE = 24;
+
 export async function listRecentCharts(
   walletToken: string,
   limit = 20
-): Promise<
-  Array<{
-    slug: string;
-    title: string;
-    route: 'compose' | 'publish';
-    createdAt: number;
-    pinned: boolean;
-  }>
-> {
+): Promise<AccountChartRow[]> {
   if (!convexUrl()) {
     return [];
   }
   return await convexCall('query', 'charts:listRecent', { walletToken, limit });
 }
 
+export async function listLibraryCharts(
+  walletToken: string,
+  args: {
+    q?: string;
+    kind?: AccountLibraryKind;
+    cursor?: string | null;
+    numItems?: number;
+  } = {}
+): Promise<AccountLibraryPage> {
+  if (!convexUrl()) {
+    return { page: [], isDone: true, continueCursor: '' };
+  }
+  return await convexCall('query', 'charts:listLibrary', {
+    walletToken,
+    q: args.q,
+    kind: args.kind,
+    paginationOpts: {
+      numItems: Math.min(Math.max(args.numItems ?? LIBRARY_PAGE_SIZE, 1), 40),
+      cursor: args.cursor ?? null,
+    },
+  });
+}
+
 export async function listPinnedCharts(
   walletToken: string,
   limit = 12
-): Promise<
-  Array<{
-    slug: string;
-    title: string;
-    route: 'compose' | 'publish';
-    createdAt: number;
-    pinned: boolean;
-  }>
-> {
+): Promise<AccountChartRow[]> {
   if (!convexUrl()) {
     return [];
   }
@@ -132,6 +142,16 @@ export async function setChartPinned(args: {
     return { pinned: false };
   }
   return await convexCall('mutation', 'charts:setPinned', args);
+}
+
+export async function removeChartsFromHistory(
+  walletToken: string,
+  slugs: string[]
+): Promise<{ removed: number }> {
+  if (!convexUrl()) {
+    return { removed: 0 };
+  }
+  return await convexCall('mutation', 'charts:removeFromHistory', { walletToken, slugs });
 }
 
 export type AdminInsights = {

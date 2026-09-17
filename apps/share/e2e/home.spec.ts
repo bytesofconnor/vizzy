@@ -20,14 +20,22 @@ test('install and share images exist', async ({ request }) => {
 
 test('landing is the chart prompt', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Turn a question into a publish-ready chart' })).toBeVisible();
-  await expect(page.getByText(/AI drafts the series/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'A chart you can paste' })).toBeVisible();
+  await expect(page.getByText(/Get the picture, the source, and a short explanation/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Generate my chart' })).toBeVisible();
   await expect(page.getByLabel('Example questions')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Shuffle' })).toBeVisible();
   await expect(page.getByText(/free today, then \$8 for 25/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Copy a vizzy prompt' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /pin this chart/i }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Share chart' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remix this chart' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Export' }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Export' }).first().click();
+  await expect(page.getByRole('dialog', { name: 'Export' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Copy as PNG/i }).first()).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Export' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /pin for later|unpin/i }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speak' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Site' })).toBeVisible();
@@ -36,6 +44,23 @@ test('landing is the chart prompt', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Keep with Google' })).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('Keep this pack');
   await expect(page.locator('body')).not.toContainText('that pack');
+});
+
+test('export sheet stays on a phone screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Export' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Export' });
+  await expect(dialog).toBeVisible();
+  const box = await dialog.boundingBox();
+  expect(box).toBeTruthy();
+  expect(box!.x).toBeGreaterThanOrEqual(-1);
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(391);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(845);
+  await expect(page.getByRole('button', { name: /Copy as PNG/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Close export' }).last().click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test('agents can find the contract', async ({ request }) => {

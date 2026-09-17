@@ -1,5 +1,6 @@
 import type { ResolvedSeries } from '@vizzy/resolve';
 import { mintPiece, type MintResult } from './mint';
+import { remixFollowUp } from './remix-prompt';
 import { studioChart } from './theme';
 
 const MAX_OFFICIAL_ROWS = 80;
@@ -22,7 +23,8 @@ export function yearlyOfficialRows(rows: ResolvedSeries['rows']): boolean {
 }
 
 export function titleFromAsked(asked: string, series: ResolvedSeries): string {
-  const line = asked.split('\n')[0]?.trim() ?? '';
+  const follow = remixFollowUp(asked);
+  const line = (follow === null ? asked : follow).split('\n')[0]?.trim() ?? '';
   const cleaned = line.replace(/\s+/g, ' ').replace(/[?.!]+$/g, '');
   if (cleaned.length >= 12 && cleaned.length <= 90) {
     return cleaned;

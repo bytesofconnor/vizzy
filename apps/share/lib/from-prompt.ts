@@ -5,6 +5,7 @@ import { matchPrompt } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { mintFromOfficial } from './official-mint';
+import { chartTitleFromAsk, displayChartTitle } from './remix-prompt';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
 import { tryLocalRevision } from './revision-apply';
 import {
@@ -429,7 +430,7 @@ function mintDraft(
   );
 
   return mintPiece({
-    title: output.title,
+    title: displayChartTitle(output.title) === 'A remix' ? chartTitleFromAsk(asked) : output.title,
     kicker: estimated ? output.kicker || 'Illustrative' : output.kicker,
     note: output.note,
     data: rows,

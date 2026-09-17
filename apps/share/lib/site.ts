@@ -9,4 +9,4 @@ export function publicOrigin(): string {
 }
 
 export const SITE_DESCRIPTION =
-  'Turn a question into a publish-ready chart. AI drafts the series; you get a link and PNG. Source optional, shown on the chart when you have one.';
+  'A chart you can paste. Ask a public question. Get the picture, the source, and a short explanation.';

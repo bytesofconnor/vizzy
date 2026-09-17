@@ -2,11 +2,16 @@ import Stripe from 'stripe';
 import { PACK_CENTS, PACK_CREDITS } from './pack';
 
 export function stripeClient(): Stripe | null {
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) {
     return null;
   }
-  return new Stripe(key);
+  try {
+    return new Stripe(key);
+  } catch (error) {
+    console.error('stripe client failed', error);
+    return null;
+  }
 }
 
 export function packLineItem(): Stripe.Checkout.SessionCreateParams.LineItem {
