@@ -15,7 +15,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm install
-      - run: npm test --workspace=@vizzy/core --workspace=@vizzy/react --workspace=@vizzy/mcp --workspace=@vizzy/eval --if-present
+      - run: npm test --workspace=@vizzy/core --workspace=@vizzy/react --workspace=@vizzy/mcp --workspace=@vizzy/resolve --workspace=@vizzy/eval --if-present
 
   probe:
     runs-on: ubuntu-latest

@@ -9,4 +9,6 @@ export const LOOKUP_MODEL = 'google/gemini-2.5-flash-lite';
 
 export const LOOKUP_SONAR_MODEL = 'perplexity/sonar';
 
-export const STACK_MODELS = [...new Set([...COMPOSE_MODELS, LOOKUP_MODEL, LOOKUP_SONAR_MODEL])];
+export const HINT_MODEL = 'google/gemini-2.5-flash-lite';
+
+export const STACK_MODELS = [...new Set([...COMPOSE_MODELS, LOOKUP_MODEL, LOOKUP_SONAR_MODEL, HINT_MODEL])];

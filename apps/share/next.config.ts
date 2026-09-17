@@ -4,7 +4,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   serverExternalPackages: ['jsdom', '@resvg/resvg-js', 'stripe'],
-  transpilePackages: ['@vizzy/core', '@vizzy/react'],
+  transpilePackages: ['@vizzy/core', '@vizzy/react', '@vizzy/resolve'],
   outputFileTracingIncludes: {
     '/agents': ['./content/AGENTS.md'],
   },
@@ -45,6 +45,7 @@ const nextConfig: NextConfig = {
       ...config.resolve.alias,
       '@vizzy/core': path.resolve(__dirname, '../../packages/core/src'),
       '@vizzy/react': path.resolve(__dirname, '../../packages/react/src'),
+      '@vizzy/resolve': path.resolve(__dirname, '../../packages/resolve/src'),
     };
     return config;
   },

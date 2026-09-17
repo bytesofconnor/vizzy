@@ -5,12 +5,18 @@ import type { RefObject } from 'react';
 export function HeroTypewriter({
   display,
   measureRef,
+  paused = false,
 }: {
   display: string;
   measureRef?: RefObject<HTMLDivElement | null>;
+  paused?: boolean;
 }) {
   return (
-    <div ref={measureRef} className="compose-hero-type" aria-hidden="true">
+    <div
+      ref={measureRef}
+      className={paused ? 'compose-hero-type is-paused' : 'compose-hero-type'}
+      aria-hidden="true"
+    >
       <span className="compose-hero-demo-tag">Demo prompt</span>
       <p className="compose-hero-type-line">
         <span className="compose-hero-type-text">{display || '\u00a0'}</span>

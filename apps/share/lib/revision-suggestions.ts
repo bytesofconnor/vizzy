@@ -21,10 +21,18 @@ const RevisionSchema = z.object({
 const SYSTEM = `You write short revision prompts for someone editing a chart they already have open.
 Each line is one imperative sentence they would type into a revise box — not a question, not an explanation.
 Good: "Sort by share. Drop anything under 5%." "Make it a line." "Keep India, Russia, and Nepal only."
-Bad: "Would you like to..." "You could consider..."
-Use real category names from the chart when it helps. Mention chart type changes, sorting, top-N, dropping outliers, or relabeling axes.
+Bad: "Would you like to..." "You could consider..." "Drop 2025 and 2026" when those years are not in ROWS.
+Use real category names and years from the ROWS table. Never mention a year or label that is not an x value.
 Do not ask them to paste new data unless the chart clearly has too few rows to compare.
 Keep each prompt under 90 characters. Return exactly 4 prompts.`;
+
+function promptFitsSeed(prompt: string, seed: ChartSeed): boolean {
+  const years = [...prompt.matchAll(/\b((?:19|20)\d{2})\b/g)].map((match) => match[1] ?? '');
+  if (years.length === 0) {
+    return true;
+  }
+  return years.every((year) => seed.rows.some((row) => String(row.x).includes(year)));
+}
 
 function uniquePrompts(prompts: string[]): string[] {
   const seen = new Set<string>();
@@ -76,7 +84,7 @@ async function aiRevisionPromptsUncached(seed: ChartSeed): Promise<string[] | nu
       maxOutputTokens: 220,
     });
     await logAiFromResult('revision_hints', REVISION_HINT_MODEL, result.usage, result.totalUsage);
-    const cleaned = uniquePrompts(result.output.prompts);
+    const cleaned = uniquePrompts(result.output.prompts).filter((line) => promptFitsSeed(line, seed));
     return cleaned.length >= 3 ? cleaned.slice(0, 5) : null;
   } catch (error) {
     console.error('revision hints failed', error);
@@ -93,7 +101,7 @@ const cachedAiRevisionPrompts = unstable_cache(
     }
     return aiRevisionPromptsUncached(seed);
   },
-  ['revision-prompts-v1'],
+  ['revision-prompts-v2'],
   { revalidate: 60 * 60 * 24 * 7 }
 );
 

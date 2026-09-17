@@ -17,7 +17,8 @@
     "paths": {
       "@/*": ["./*"],
       "@vizzy/core": ["../../packages/core/src/index.ts"],
-      "@vizzy/react": ["../../packages/react/src/index.ts"]
+      "@vizzy/react": ["../../packages/react/src/index.ts"],
+      "@vizzy/resolve": ["../../packages/resolve/src/index.ts"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

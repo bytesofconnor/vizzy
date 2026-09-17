@@ -2,54 +2,18 @@
 
 import {
   busyBarHeights,
-  guessBarCount,
   type ComposeProgressEvent,
 } from '../../lib/compose-progress';
 import { DUST, STUDIO } from '../../lib/theme';
 
-function trimPrompt(prompt: string, max = 96): string {
-  const text = prompt.trim().replace(/\s+/g, ' ');
-  if (text.length <= max) {
-    return text;
-  }
-  return `${text.slice(0, max - 1)}…`;
-}
-
-export function ComposeBusyPlot({
-  variant = 'default',
-  prompt = '',
-  progress = null,
-}: {
-  variant?: 'default' | 'hero' | 'studio';
-  prompt?: string;
-  progress?: ComposeProgressEvent | null;
-}) {
-  const echo = prompt.trim();
-  const rawCount = progress?.barCount ?? guessBarCount(prompt);
-  const inCard = variant === 'hero' || variant === 'studio';
-  const barCount = inCard ? DUST.length : Math.min(rawCount, 12);
-  const heights = busyBarHeights(barCount);
+export function ComposeProgressStrip({ progress }: { progress: ComposeProgressEvent | null }) {
   const percent = progress?.progress ?? 8;
   const status = progress?.message ?? 'Starting…';
   const detail = progress?.detail;
 
   return (
-    <div className={inCard ? 'compose-hero-busy' : 'compose-draw'} aria-live="polite">
-      {echo ? (
-        <p className="compose-busy-echo" title={echo}>
-          {trimPrompt(echo)}
-        </p>
-      ) : null}
-      <div
-        className="compose-busy-progress"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        aria-label="Chart generation progress"
-      >
-        <i style={{ width: `${percent}%` }} />
-      </div>
+    <div className="compose-hero-progress" aria-live="polite">
+      <ProgressBar percent={percent} />
       <p key={status} className="compose-busy-status">
         {status}
       </p>
@@ -58,11 +22,43 @@ export function ComposeBusyPlot({
           {detail}
         </p>
       ) : null}
-      <div className={['compose-busy-chart', inCard ? 'is-card' : ''].filter(Boolean).join(' ')}>
+    </div>
+  );
+}
+
+export function ComposeBusyPlot({
+  variant = 'hero',
+  progress = null,
+}: {
+  variant?: 'hero' | 'studio';
+  prompt?: string;
+  progress?: ComposeProgressEvent | null;
+}) {
+  const barCount = DUST.length;
+  const heights = busyBarHeights(barCount);
+  const percent = progress?.progress ?? 8;
+  const status = progress?.message ?? 'Starting…';
+  const detail = progress?.detail;
+
+  return (
+    <div
+      className={variant === 'studio' ? 'compose-busy-stage is-studio' : 'compose-busy-stage is-hero'}
+      aria-live="polite"
+    >
+      <ProgressBar percent={percent} />
+      <p key={status} className="compose-busy-status">
+        {status}
+      </p>
+      {detail ? (
+        <p className="compose-busy-detail" title={detail}>
+          {detail}
+        </p>
+      ) : null}
+      <div className="compose-busy-chart is-card">
         <div className="compose-busy-y" aria-hidden="true">
-          <span>40</span>
-          <span>20</span>
-          <span>0</span>
+          <span />
+          <span />
+          <span />
         </div>
         <div className="compose-busy-plot-wrap">
           <div className="compose-busy-grid" aria-hidden="true">
@@ -72,9 +68,7 @@ export function ComposeBusyPlot({
             <i />
           </div>
           <div
-            className={['compose-draw-plot', 'compose-busy-plot', inCard ? 'is-card-plot' : '']
-              .filter(Boolean)
-              .join(' ')}
+            className="compose-draw-plot compose-busy-plot is-card-plot"
             aria-hidden="true"
             data-bar-count={String(barCount)}
           >
@@ -94,6 +88,21 @@ export function ComposeBusyPlot({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProgressBar({ percent }: { percent: number }) {
+  return (
+    <div
+      className="compose-busy-progress"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percent}
+      aria-label="Chart generation progress"
+    >
+      <i style={{ width: `${percent}%` }} />
     </div>
   );
 }

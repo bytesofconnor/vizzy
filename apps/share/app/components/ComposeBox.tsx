@@ -32,11 +32,13 @@ export function ComposeBox({
   askPay,
   seed,
   variant = 'default',
+  onBusyProgress,
 }: {
   error?: string;
   askPay?: boolean;
   seed?: ChartSeed;
   variant?: 'default' | 'hero';
+  onBusyProgress?: (progress: ComposeProgressEvent | null) => void;
 }) {
   const hero = variant === 'hero' && !seed;
   const studio = Boolean(seed);
@@ -57,15 +59,19 @@ export function ComposeBox({
   const typeRef = useRef<HTMLDivElement | null>(null);
   const reviseTypeRef = useRef<HTMLDivElement | null>(null);
 
-  const showTypewriter = hero && !busy && prompt.length === 0 && !held;
-  const showReviseTypewriter = studio && !busy && prompt.length === 0 && !held;
+  const promptIdle = !busy && prompt.length === 0;
+  const showTypewriter = hero;
+  const showReviseTypewriter = studio;
+  const ghostPaused = held || prompt.length > 0 || busy;
   const { display: typedDisplay, fullPrompt: typedExample } = usePromptTypewriter(
     PROMPT_LINES,
-    showTypewriter
+    showTypewriter,
+    ghostPaused
   );
   const { display: reviseDisplay, fullPrompt: reviseExample } = usePromptTypewriter(
     revisionLines,
-    showReviseTypewriter
+    showReviseTypewriter,
+    ghostPaused
   );
 
   const fitPromptHeight = useCallback(() => {
@@ -74,7 +80,9 @@ export function ComposeBox({
       return;
     }
     field.style.height = 'auto';
-    field.style.height = `${field.scrollHeight}px`;
+    const ghost = typeRef.current ?? reviseTypeRef.current;
+    const floor = ghost?.offsetHeight ?? 0;
+    field.style.height = `${Math.max(field.scrollHeight, floor)}px`;
   }, []);
 
   const onPickIdea = useCallback(
@@ -132,33 +140,24 @@ export function ComposeBox({
     if (!hero && !studio) {
       return;
     }
-    if (showTypewriter || showReviseTypewriter) {
-      const syncIdleHeight = () => {
-        const field = promptRef.current;
-        const ghost = showTypewriter ? typeRef.current : reviseTypeRef.current;
-        if (field && ghost) {
-          field.style.height = `${ghost.offsetHeight}px`;
-        }
-      };
-      syncIdleHeight();
-      requestAnimationFrame(syncIdleHeight);
-      return;
-    }
-    fitPromptHeight();
-    const onResize = () => {
-      if (showTypewriter || showReviseTypewriter) {
-        const field = promptRef.current;
-        const ghost = showTypewriter ? typeRef.current : reviseTypeRef.current;
-        if (field && ghost) {
-          field.style.height = `${ghost.offsetHeight}px`;
-        }
+    const syncFieldHeight = () => {
+      const field = promptRef.current;
+      const ghost = hero ? typeRef.current : reviseTypeRef.current;
+      if (!field) {
         return;
       }
-      fitPromptHeight();
+      field.style.height = 'auto';
+      const floor = ghost?.offsetHeight ?? 0;
+      field.style.height = `${Math.max(field.scrollHeight, floor)}px`;
+    };
+    syncFieldHeight();
+    requestAnimationFrame(syncFieldHeight);
+    const onResize = () => {
+      syncFieldHeight();
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [hero, studio, prompt, showTypewriter, showReviseTypewriter, typedDisplay, reviseDisplay, fitPromptHeight]);
+  }, [hero, studio, prompt, showTypewriter, showReviseTypewriter, typedDisplay, reviseDisplay, ghostPaused, fitPromptHeight]);
 
   useEffect(() => {
     if (!hero) {
@@ -182,6 +181,10 @@ export function ComposeBox({
       cancel = true;
     };
   }, []);
+
+  useEffect(() => {
+    onBusyProgress?.(busy ? composeProgress : null);
+  }, [busy, composeProgress, onBusyProgress]);
 
 
   async function submit() {
@@ -266,51 +269,57 @@ export function ComposeBox({
       aria-busy={busy}
     >
       <div className={hero ? 'compose-hero-inner' : studio ? 'compose-studio-inner' : undefined}>
-        <label
-          htmlFor={seed ? 'again-prompt' : 'prompt'}
-          className={hero ? 'compose-hero-label' : studio ? 'compose-studio-label' : undefined}
-          style={
-            hero || studio
-              ? undefined
-              : {
-                  display: 'block',
-                  fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                  fontSize: 12,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: 'var(--mute)',
-                  marginBottom: 10,
-                }
-          }
-        >
-          {seed ? 'Revise it' : hero ? 'What should the chart show?' : 'Make one'}
-        </label>
+        {studio ? (
+          <div className="compose-studio-head">
+            <label htmlFor="again-prompt" className="compose-studio-label">
+              Revise it
+            </label>
+            <Link href="/#make-one" className="compose-studio-new">
+              New chart
+            </Link>
+          </div>
+        ) : (
+          <label
+            htmlFor="prompt"
+            className={hero ? 'compose-hero-label' : undefined}
+            style={
+              hero
+                ? undefined
+                : {
+                    display: 'block',
+                    fontFamily: 'var(--font-mono), ui-monospace, monospace',
+                    fontSize: 12,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--mute)',
+                    marginBottom: 10,
+                  }
+            }
+          >
+            {hero ? 'What should the chart show?' : 'Make one'}
+          </label>
+        )}
         {card ? (
           <div className="compose-hero-card">
             <DustRail className="compose-hero-rail dust-rail" />
-            {busy ? (
-              <ComposeBusyPlot
-                variant={hero ? 'hero' : 'studio'}
-                prompt={prompt}
-                progress={composeProgress}
-              />
-            ) : (
-              <>
-                {hero ? (
+            {hero ? (
                   <div className={showTypewriter ? 'compose-hero-field is-idle' : 'compose-hero-field'}>
                     {showTypewriter ? (
-                      <HeroTypewriter display={typedDisplay} measureRef={typeRef} />
+                      <HeroTypewriter display={typedDisplay} measureRef={typeRef} paused={ghostPaused} />
                     ) : null}
                     <textarea
                       ref={promptRef}
                       id="prompt"
                       name="prompt"
-                      className={showTypewriter ? 'compose-hero-input is-dormant' : 'compose-hero-input'}
+                      className={
+                        promptIdle && !held ? 'compose-hero-input is-dormant' : 'compose-hero-input'
+                      }
                       required
                       minLength={3}
                       maxLength={4000}
                       rows={1}
                       autoFocus={focusHero}
+                      disabled={busy}
                       value={prompt}
                       onChange={(event) => {
                         setPrompt(event.target.value);
@@ -319,7 +328,7 @@ export function ComposeBox({
                       onFocus={() => setHeld(true)}
                       onBlur={() => setHeld(false)}
                       onKeyDown={onKeyDown}
-                      placeholder={showTypewriter ? '' : 'Paste a table, or drop in a source link.'}
+                      placeholder={promptIdle && !held ? '' : 'Paste a table, or drop in a source link.'}
                     />
                   </div>
                 ) : (
@@ -329,21 +338,26 @@ export function ComposeBox({
                     }
                   >
                     {showReviseTypewriter ? (
-                      <HeroTypewriter display={reviseDisplay} measureRef={reviseTypeRef} />
+                      <HeroTypewriter
+                        display={reviseDisplay}
+                        measureRef={reviseTypeRef}
+                        paused={ghostPaused}
+                      />
                     ) : null}
                     <textarea
                       ref={promptRef}
                       id="again-prompt"
                       name="prompt"
                       className={
-                        showReviseTypewriter
+                        promptIdle && !held
                           ? 'compose-hero-input compose-studio-input is-dormant'
                           : 'compose-hero-input compose-studio-input'
                       }
                       required
                       minLength={3}
                       maxLength={4000}
-                      rows={showReviseTypewriter ? 1 : 2}
+                      rows={1}
+                      disabled={busy}
                       value={prompt}
                       onChange={(event) => {
                         setPrompt(event.target.value);
@@ -352,32 +366,43 @@ export function ComposeBox({
                       onFocus={() => setHeld(true)}
                       onBlur={() => setHeld(false)}
                       onKeyDown={onKeyDown}
-                      placeholder={showReviseTypewriter ? '' : 'Tell Vizzy what to change.'}
+                      placeholder={promptIdle && !held ? '' : 'Tell Vizzy what to change.'}
                     />
                   </div>
                 )}
-                <div className="compose-hero-bar">
+            <div className="compose-hero-bar">
                   <div className="compose-hero-actions">
-                    <button type="submit" className="compose-hero-submit is-primary">
+                    <button type="submit" className="compose-hero-submit is-primary" disabled={busy}>
                       {studio ? 'Update chart' : 'Generate my chart'}
                     </button>
-                    {hero && showTypewriter ? (
+                    {hero ? (
                       <button
                         type="button"
-                        className="compose-hero-use"
+                        className={promptIdle ? 'compose-hero-use' : 'compose-hero-use is-reserved'}
+                        tabIndex={promptIdle ? 0 : -1}
+                        aria-hidden={!promptIdle}
+                        disabled={!promptIdle || busy}
                         onClick={() => onPickIdea(typedExample)}
                       >
                         Use this example
                       </button>
                     ) : null}
-                    {studio && showReviseTypewriter ? (
-                      <button
-                        type="button"
-                        className="compose-hero-use"
-                        onClick={() => onPickIdea(reviseExample)}
-                      >
-                        Use suggestion
-                      </button>
+                    {studio ? (
+                      <>
+                        <button
+                          type="button"
+                          className={promptIdle ? 'compose-hero-use' : 'compose-hero-use is-reserved'}
+                          tabIndex={promptIdle ? 0 : -1}
+                          aria-hidden={!promptIdle}
+                          disabled={!promptIdle || busy}
+                          onClick={() => onPickIdea(reviseExample)}
+                        >
+                          Use suggestion
+                        </button>
+                        <Link href="/#make-one" className="compose-hero-new">
+                          Start a new chart
+                        </Link>
+                      </>
                     ) : null}
                   </div>
                   <span className="compose-hero-bar-note">
@@ -393,20 +418,16 @@ export function ComposeBox({
                     )}
                   </span>
                 </div>
-              </>
-            )}
           </div>
+        ) : null}
+        {hero && busy ? (
+          <ComposeBusyPlot variant="hero" progress={composeProgress} />
         ) : null}
         {hero ? (
           <>
             <div className={busy ? 'hero-examples-dim' : undefined}>
-              <HeroExamples onPick={onPickIdea} />
+              <HeroExamples onPick={onPickIdea} disabled={busy} />
             </div>
-            {!busy ? (
-              <p className="hero-jump">
-                <a href="#examples">See example charts</a>
-              </p>
-            ) : null}
           </>
         ) : null}
         {fail && !busy ? (

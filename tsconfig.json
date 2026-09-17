@@ -16,7 +16,8 @@
       "@vizzy/core": ["./packages/core/src"],
       "@vizzy/react": ["./packages/react/src"],
       "@vizzy/mcp": ["./apps/mcp/src"],
-      "@vizzy/eval": ["./apps/eval/src"]
+      "@vizzy/eval": ["./apps/eval/src"],
+      "@vizzy/resolve": ["./packages/resolve/src"]
     }
   },
   "exclude": ["node_modules", "dist"]

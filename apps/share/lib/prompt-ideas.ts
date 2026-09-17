@@ -164,6 +164,42 @@ export const PROMPT_IDEAS: readonly PromptIdea[] = [
     prompt: 'Named Atlantic hurricanes per decade since 1960 — are the busy seasons bunching together?',
     tone: DUST[1],
   },
+  {
+    id: 'unemployment',
+    topic: 'world',
+    prompt: 'U.S. unemployment rate since 2000 — which recoveries actually brought jobs back, and which did not?',
+    tone: DUST[5],
+  },
+  {
+    id: 'inflation',
+    topic: 'world',
+    prompt: 'U.S. CPI inflation since 2000 — when did the post-2020 spike actually start to break?',
+    tone: DUST[0],
+  },
+  {
+    id: 'fed-funds',
+    topic: 'world',
+    prompt: 'U.S. federal funds rate since 1990 — how violent were the hiking cycles versus the cuts?',
+    tone: DUST[6],
+  },
+  {
+    id: 'fertility',
+    topic: 'world',
+    prompt: 'Fertility rate by country since 1990 — who fell below replacement first, and who is still above?',
+    tone: DUST[3],
+  },
+  {
+    id: 'gdp-capita',
+    topic: 'world',
+    prompt: 'GDP per capita by country since 2000 — who pulled away, and who got stuck?',
+    tone: DUST[4],
+  },
+  {
+    id: 'electricity',
+    topic: 'tech',
+    prompt: 'Share of people with electricity by country — who closed the last big gaps after 2000?',
+    tone: DUST[2],
+  },
 ];
 
 export const PROMPT_LINES: readonly string[] = PROMPT_IDEAS.map((idea) => idea.prompt);

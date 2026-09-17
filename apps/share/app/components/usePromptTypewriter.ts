@@ -7,13 +7,20 @@ const DELETE_MS = 18;
 const HOLD_MS = 2400;
 const BETWEEN_MS = 420;
 
-export function usePromptTypewriter(prompts: readonly string[], enabled: boolean) {
+export function usePromptTypewriter(
+  prompts: readonly string[],
+  enabled: boolean,
+  paused = false
+) {
   const [ideaIndex, setIdeaIndex] = useState(0);
   const [display, setDisplay] = useState('');
 
   useEffect(() => {
     if (!enabled || prompts.length === 0) {
       setDisplay('');
+      return;
+    }
+    if (paused) {
       return;
     }
 
@@ -80,7 +87,7 @@ export function usePromptTypewriter(prompts: readonly string[], enabled: boolean
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [enabled, prompts]);
+  }, [enabled, paused, prompts]);
 
   const fullPrompt = prompts[ideaIndex] ?? '';
 

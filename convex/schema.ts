@@ -127,4 +127,24 @@ export default defineSchema({
     status: v.union(v.literal('working'), v.literal('wont')),
     updatedAt: v.number(),
   }).index('by_rec', ['recId']),
+
+  seriesCache: defineTable({
+    family: v.string(),
+    seriesId: v.string(),
+    sourceLabel: v.string(),
+    sourceUrl: v.string(),
+    method: v.literal('official'),
+    retrieved: v.number(),
+    xLabel: v.string(),
+    yLabel: v.string(),
+    rows: v.array(v.object({ x: v.string(), y: v.number() })),
+  }).index('by_series', ['family', 'seriesId']),
+
+  resolveEvents: defineTable({
+    family: v.optional(v.string()),
+    seriesId: v.optional(v.string()),
+    outcome: v.union(v.literal('hit'), v.literal('miss'), v.literal('error')),
+    fromCache: v.boolean(),
+    createdAt: v.number(),
+  }).index('by_created', ['createdAt']),
 });

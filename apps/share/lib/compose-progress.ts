@@ -77,5 +77,10 @@ export const BUSY_BAR_HEIGHTS = [42, 58, 31, 78, 48, 66, 92, 38, 55, 44, 71, 36,
 
 export function busyBarHeights(count: number): number[] {
   const size = Math.min(15, Math.max(3, count));
-  return Array.from({ length: size }, (_, index) => BUSY_BAR_HEIGHTS[index % BUSY_BAR_HEIGHTS.length] ?? 40);
+  const raw = Array.from({ length: size }, (_, index) => BUSY_BAR_HEIGHTS[index % BUSY_BAR_HEIGHTS.length] ?? 40);
+  const peak = Math.max(...raw);
+  if (peak <= 0) {
+    return raw;
+  }
+  return raw.map((height) => Math.max(28, Math.round((height / peak) * 100)));
 }

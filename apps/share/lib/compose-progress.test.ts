@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { guessBarCount, lookupDetail, sourceHintFromUrls } from './compose-progress';
+import { busyBarHeights, guessBarCount, lookupDetail, sourceHintFromUrls } from './compose-progress';
 
 describe('compose-progress', () => {
   it('guesses bar count from top-N prompts', () => {
     expect(guessBarCount('top 5 countries by GDP')).toBe(5);
     expect(guessBarCount('life expectancy by country')).toBe(12);
+  });
+
+  it('scales busy bars so the tallest fills the plot', () => {
+    const heights = busyBarHeights(8);
+    expect(Math.max(...heights)).toBe(100);
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(28);
   });
 
   it('formats lookup detail from urls', () => {

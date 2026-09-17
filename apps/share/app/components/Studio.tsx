@@ -1,15 +1,14 @@
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { PIECES, type Piece } from '../../lib/pieces';
-import { seedFromPiece } from '../../lib/seed';
 import { DustRail } from './DustRail';
-import { ChartFrame } from './ChartFrame';
 import { ChartMount } from './ChartMount';
 import { ComposeBox } from './ComposeBox';
 import { ChartExtras } from './ChartExtras';
 import { KickerNav } from './KickerNav';
 import { SiteFoot } from './SiteFoot';
 import { SourceLine } from './SourceLine';
+import { StudioDesk } from './StudioDesk';
 
 const kicker: CSSProperties = {
   fontFamily: 'var(--font-mono), ui-monospace, monospace',
@@ -46,7 +45,7 @@ export function Studio({
     <main id="content" className={`page-main${piece ? '' : ' page-home'}`}>
       <KickerNav here="home" email={email} known={known} owner={owner} />
       {piece ? (
-        <ComposeBox error={error} askPay={askPay} seed={seedFromPiece(piece)} />
+        <StudioDesk piece={piece} error={error} askPay={askPay} />
       ) : (
         <section className="home-hero" aria-labelledby="home-title">
           <h1 id="home-title" className="home-hero-title">
@@ -60,36 +59,11 @@ export function Studio({
           <ComposeBox error={error} askPay={askPay} variant="hero" />
         </section>
       )}
-      {piece ? <Featured piece={piece} /> : null}
       <div id="examples" className={piece ? undefined : 'home-examples'}>
         <ExampleList skip={piece?.slug} home={!piece} />
       </div>
       <SiteFoot />
     </main>
-  );
-}
-
-function Featured({ piece }: { piece: Piece }) {
-  return (
-    <section className="studio-chart" aria-labelledby="chart-title">
-      <ChartFrame
-        head={
-          <>
-            <p style={kicker}>{piece.kicker}</p>
-            <h1 id="chart-title" style={chartTitle}>
-              {piece.title}
-            </h1>
-          </>
-        }
-      >
-        <ChartMount config={piece.config} data={piece.data} label={piece.title} framed />
-      </ChartFrame>
-      {piece.note ? (
-        <p className="studio-chart-note">{piece.note}</p>
-      ) : null}
-      {piece.config.source ? <SourceLine source={piece.config.source} /> : null}
-      <ChartExtras piece={piece} />
-    </section>
   );
 }
 
@@ -101,7 +75,7 @@ function ExampleList({ skip, home = false }: { skip?: string; home?: boolean }) 
 
   return (
     <>
-      <p style={{ ...kicker, marginTop: home ? 0 : 28 }}>Examples</p>
+      <p style={{ ...kicker, marginTop: home ? 36 : 28 }}>Examples</p>
       <div className="piece-list">
         {pieces.map((piece) => (
           <article key={piece.slug}>

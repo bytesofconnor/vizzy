@@ -2,6 +2,7 @@ import { generateText, isStepCount, tool } from 'ai';
 import { z } from 'zod';
 import { LOOKUP_MODEL, LOOKUP_SONAR_MODEL } from './ai-models';
 import { logAiFromResult } from './ai-usage';
+import { gatherOfficialSeries } from './series';
 import { firstPromptUrl } from './source';
 
 export type Gathered = {
@@ -22,6 +23,14 @@ export async function gatherFacts(asked: string): Promise<Gathered> {
     return {
       notes: 'The user pasted numbers. Use those rows. Do not replace them.',
       urls: seed ? [seed] : [],
+    };
+  }
+
+  const official = await gatherOfficialSeries(asked);
+  if (official) {
+    return {
+      notes: official.notes,
+      urls: uniqueUrls([seed, ...official.urls]),
     };
   }
 

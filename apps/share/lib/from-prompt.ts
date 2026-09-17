@@ -1,10 +1,18 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex } from '@vizzy/core';
+import { matchPrompt } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
-import { followUpNeedsLookup, mintInputFromSeed, seedBriefing, type ChartSeed } from './seed';
+import { tryLocalRevision } from './revision-apply';
+import {
+  followUpNeedsLookup,
+  isUnsupportedVizOnlyRevision,
+  mintInputFromSeed,
+  seedBriefing,
+  type ChartSeed,
+} from './seed';
 import { COMPOSE_MODELS } from './ai-models';
 import { logAiFromResult } from './ai-usage';
 import { mostlyGenericPlaceholders, relabelGenericCategories } from './category-labels';
@@ -54,7 +62,7 @@ If y is a calendar year, keep it as the year. Do not convert it to a count from 
 Keep category names short enough to sit under a bar: August Schell, not August Schell Brewing Company.
 x is the name of each thing (skill, team, city, country). Never Rank 1, #3, Country A, or a place index. A top-10 chart still labels each bar with the name. For a country chart with no lookup, pick diverse real countries the reader recognizes.
 One comparison per chart. Each x value is one thing, once. Never "Claude Code (Rank)" and "Claude Code (usage %)". Pick one metric for y. Rank (lower is better) and a percentage (higher is better) must never share a chart.
-If CURRENT CHART is in the prompt, this is a second pass on that chart. Keep those rows unless the follow-up asks to drop, add, sort, or change numbers. Honor the follow-up. Do not switch subjects. Keep the existing source unless new numbers were looked up.`;
+If CURRENT CHART is in the prompt, this is a second pass on that chart. Keep those rows unless the follow-up asks to drop, add, sort, or change numbers. Honor the follow-up. Do not switch subjects. Keep the existing source unless LOOKED-UP NOTES contain a new published series. Never set sourceMethod to estimate just because the user filtered or restyled the current rows.`;
 
 /** Free-tier Gateway models. Full gpt-5.4 is paid-only and fails with a 403. */
 const MODELS = COMPOSE_MODELS;
@@ -82,6 +90,13 @@ export async function pieceFromPrompt(
   if (asked.length > 4000) {
     return { ok: false, error: 'Keep it under 4000 characters', issues: [] };
   }
+  if (from && isUnsupportedVizOnlyRevision(asked)) {
+    return {
+      ok: false,
+      error: 'Vizzy draws bar, line, and scatter charts. Ask for one of those, or another change to this series.',
+      issues: [],
+    };
+  }
 
   reportProgress(onProgress, {
     stage: 'queue',
@@ -98,13 +113,28 @@ export async function pieceFromPrompt(
     return mintPiece(mintInputFromSeed(from, { printGrayscale: true }));
   }
 
-  const lookup = !from || followUpNeedsLookup(asked);
+  if (from) {
+    const local = tryLocalRevision(from, asked);
+    if (local?.ok === false) {
+      return { ok: false, error: local.error, issues: [] };
+    }
+    if (local?.ok === true) {
+      reportProgress(onProgress, {
+        stage: 'mint',
+        progress: 86,
+        message: 'Updating this chart…',
+      });
+      return mintPiece(mintInputFromSeed(local.seed));
+    }
+  }
+
+  const lookup = !from || followUpNeedsLookup(asked, from);
   let gathered = { notes: '', urls: [] as string[] };
   if (lookup) {
     reportProgress(onProgress, {
       stage: 'lookup',
       progress: 18,
-      message: 'Searching public sources…',
+      message: matchPrompt(asked) ? 'Reading an official series…' : 'Searching public sources…',
     });
     try {
       gathered = await gatherFacts(asked);
@@ -246,8 +276,11 @@ function mintDraft(
   output: z.infer<typeof DraftSchema>,
   from?: ChartSeed
 ): MintResult {
-  const estimated = output.sourceMethod === 'estimate' || output.sourceMethod === 'example';
-  const lookedUp = !estimated && gathered.urls.length > 0 && /\d/.test(gathered.notes);
+  let estimated = output.sourceMethod === 'estimate' || output.sourceMethod === 'example';
+  const lookedUp = gathered.urls.length > 0 && /\d/.test(gathered.notes) && !estimated;
+  if (from && estimated && !lookedUp) {
+    estimated = false;
+  }
   if (estimated) {
     const basis = estimateBasisEvidence(output.evidence, {
       asked,
@@ -275,7 +308,7 @@ function mintDraft(
         : output.sourceMethod === 'unknown' && sourceUrl
           ? 'scraped'
           : output.sourceMethod;
-  if (!estimated && !sourceUrl && !meaningfulSourceLabel(output.sourceLabel)) {
+  if (!from && !estimated && !sourceUrl && !meaningfulSourceLabel(output.sourceLabel)) {
     return {
       ok: false,
       error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
@@ -291,17 +324,23 @@ function mintDraft(
     output.yLabel.trim() || 'Value'
   );
   const named = withNamedCategories(tidied.rows, gathered.notes, tidied.xLabel, asked);
-  if (output.chartType !== 'scatter' && mostlyRankIndex(named.rows)) {
+  if (output.chartType !== 'scatter' && mostlyRankIndex(named.rows) && !from) {
     return { ok: false, error: 'Could not find named figures to chart', issues: [] };
   }
   const noteNames = namesFromNotes(gathered.notes);
-  const rows = relabelGenericCategories(named.rows, noteNames, asked);
+  let rows = relabelGenericCategories(named.rows, noteNames, asked);
   if (output.chartType !== 'scatter' && mostlyGenericPlaceholders(rows)) {
-    return {
-      ok: false,
-      error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
-      issues: [],
-    };
+    if (!from) {
+      return {
+        ok: false,
+        error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
+        issues: [],
+      };
+    }
+    rows = from.rows.map((row) => ({ x: row.x, y: row.y }));
+  }
+  if (output.chartType !== 'scatter' && mostlyRankIndex(rows) && from) {
+    rows = from.rows.map((row) => ({ x: row.x, y: row.y }));
   }
   const xLabel = named.xLabel;
   const yLabel = tidied.yLabel;
