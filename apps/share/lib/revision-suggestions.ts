@@ -9,7 +9,7 @@ import { revisionYearSpan, seedBriefing, yearishRows, type ChartSeed } from './s
 
 export { heuristicRevisionPrompts } from './revision-heuristics';
 
-export const REVISION_HINT_MODEL = 'openai/gpt-4.1-mini';
+export const REVISION_HINT_MODEL = 'groq/llama-3.3-70b-versatile';
 
 const RevisionSchema = z.object({
   prompts: z

@@ -9,7 +9,7 @@ import { recordAfterChart } from '../../../lib/telemetry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 async function readCompose(request: Request): Promise<{ prompt: string; seed?: ChartSeed }> {
   const type = request.headers.get('content-type') ?? '';

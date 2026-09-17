@@ -2,8 +2,9 @@ import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex } from '@vizzy/core';
 import { matchPrompt } from '@vizzy/resolve';
-import { countedSeriesRows, gatherFacts, pastedATable } from './lookup';
+import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
+import { mintFromOfficial } from './official-mint';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
 import { tryLocalRevision } from './revision-apply';
 import {
@@ -22,7 +23,6 @@ import {
   composeModelsForRevision,
   GATEWAY_NO_RETRY,
   isGatewayRateLimited,
-  shouldSkipGoogleModel,
 } from './gateway-errors';
 import { mostlyGenericPlaceholders, relabelGenericCategories } from './category-labels';
 import { lookupDetail, reportProgress, type ComposeProgressReporter } from './compose-progress';
@@ -137,7 +137,7 @@ export async function pieceFromPrompt(
 
   const lookup = !from || followUpNeedsLookup(asked, from);
   const lookupAsked = from && lookup ? revisionLookupQuery(asked, from) : asked;
-  let gathered = { notes: '', urls: [] as string[] };
+  let gathered: Gathered = { notes: '', urls: [] };
   if (lookup) {
     reportProgress(onProgress, {
       stage: 'lookup',
@@ -186,6 +186,19 @@ export async function pieceFromPrompt(
     .filter(Boolean)
     .join('\n\n');
 
+  if (!from && gathered.official && gathered.official.rows.length >= 2) {
+    reportProgress(onProgress, {
+      stage: 'mint',
+      progress: 86,
+      message: 'Building chart…',
+      barCount: gathered.official.rows.length,
+    });
+    const minted = mintFromOfficial(asked, gathered.official);
+    if (minted.ok) {
+      return minted;
+    }
+  }
+
   reportProgress(onProgress, {
     stage: 'draft',
     progress: 48,
@@ -193,19 +206,15 @@ export async function pieceFromPrompt(
   });
 
   let lastError: unknown;
-  const limitedProviders = new Set<string>();
   const models = composeModelsForRevision(Boolean(from));
-  for (const model of models) {
-    const provider = model.split('/')[0] ?? '';
-    if (limitedProviders.has(provider) || shouldSkipGoogleModel(model, limitedProviders.has('google'))) {
-      continue;
-    }
-    try {
-      let output = await draftChart(model, briefing);
-      if (!output) {
-        lastError = new Error('Could not draft a chart');
-        continue;
-      }
+  for (let pass = 0; pass < 2; pass += 1) {
+    for (const model of models) {
+      try {
+        let output = await draftChart(model, briefing);
+        if (!output) {
+          lastError = new Error('Could not draft a chart');
+          continue;
+        }
 
       const hinted = countedSeriesRows(gathered.notes);
       if (!from && output.rows.length < 8 && hinted >= 12) {
@@ -270,10 +279,15 @@ export async function pieceFromPrompt(
     } catch (error) {
       lastError = error;
       console.error('compose draft failed', model, error);
-      if (isGatewayRateLimited(error) && provider) {
-        limitedProviders.add(provider);
+      if (isGatewayRateLimited(error)) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
       }
     }
+    }
+    if (!isRateLimited(lastError) || pass === 1) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1100));
   }
 
   if (from) {
@@ -290,7 +304,7 @@ export async function pieceFromPrompt(
   if (isRateLimited(lastError)) {
     return {
       ok: false,
-      error: 'The drafting model is busy. Try again in a moment, or paste a table.',
+      error: 'The drafting model is busy. Wait a moment and generate again, or paste a table.',
       issues: [],
     };
   }
@@ -305,8 +319,8 @@ async function draftChart(model: (typeof COMPOSE_MODELS)[number], prompt: string
   try {
     return await draftChartOnce(model, prompt);
   } catch (error) {
-    if (model.startsWith('openai/') && isGatewayRateLimited(error)) {
-      await new Promise((resolve) => setTimeout(resolve, 700));
+    if (isGatewayRateLimited(error)) {
+      await new Promise((resolve) => setTimeout(resolve, 550));
       return await draftChartOnce(model, prompt);
     }
     throw error;

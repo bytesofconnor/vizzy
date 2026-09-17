@@ -23,7 +23,7 @@ export function shouldSkipGoogleModel(model: string, googleLimited: boolean): bo
 }
 
 /**
- * Same stack for generate and revise. Provider 429s are skipped in the compose loop.
+ * Same stack for generate and revise. Each model is tried in order; a 429 does not skip the rest of that provider.
  */
 export function composeModelsForRevision(_revision: boolean): readonly (typeof COMPOSE_MODELS)[number][] {
   return COMPOSE_MODELS;

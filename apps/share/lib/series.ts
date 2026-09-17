@@ -46,7 +46,9 @@ async function record(
   });
 }
 
-export async function gatherOfficialSeries(asked: string): Promise<{ notes: string; urls: string[] } | null> {
+export async function gatherOfficialSeries(
+  asked: string
+): Promise<{ notes: string; urls: string[]; series: ResolvedSeries } | null> {
   const recipe = matchPrompt(asked);
   if (!recipe) {
     return null;
@@ -61,7 +63,7 @@ export async function gatherOfficialSeries(asked: string): Promise<{ notes: stri
   });
   if (cached && cached.rows.length >= 2) {
     await record('hit', { family: recipe.family, seriesId: recipe.seriesId, fromCache: true });
-    return { notes: notesFromResolved(cached), urls: [cached.sourceUrl] };
+    return { notes: notesFromResolved(cached), urls: [cached.sourceUrl], series: cached };
   }
 
   try {
@@ -81,7 +83,7 @@ export async function gatherOfficialSeries(asked: string): Promise<{ notes: stri
       rows: series.rows,
     });
     await record('hit', { family: series.family, seriesId: series.seriesId, fromCache: false });
-    return { notes: notesFromResolved(series), urls: [series.sourceUrl] };
+    return { notes: notesFromResolved(series), urls: [series.sourceUrl], series };
   } catch {
     await record('error', { family: recipe.family, seriesId: recipe.seriesId, fromCache: false });
     return null;

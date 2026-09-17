@@ -4,10 +4,12 @@ import { LOOKUP_MODEL, LOOKUP_SONAR_MODEL } from './ai-models';
 import { logAiFromResult } from './ai-usage';
 import { gatherOfficialSeries } from './series';
 import { firstPromptUrl } from './source';
+import type { ResolvedSeries } from '@vizzy/resolve';
 
 export type Gathered = {
   notes: string;
   urls: string[];
+  official?: ResolvedSeries;
 };
 
 const FETCH_MS = 8000;
@@ -34,6 +36,7 @@ export async function gatherFacts(
     return {
       notes: official.notes,
       urls: uniqueUrls([seed, ...official.urls]),
+      official: official.series,
     };
   }
 
