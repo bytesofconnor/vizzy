@@ -195,4 +195,9 @@ export const WIKI_SPEC: Record<string, WikiTableSpec> = {
     nameHeader: /^country$/i,
     valueHeader: /%\s*gen/i,
   },
+  gold_reserves: {
+    page: 'Gold_reserve',
+    nameHeader: /country/i,
+    valueHeader: /holdings|tonnes/i,
+  },
 };

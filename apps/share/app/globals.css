@@ -614,9 +614,29 @@ html:not(.is-inked) .home-hero-dust.is-idle i {
   text-align: center;
 }
 
+.page-home .home-examples,
+#examples {
+  width: min(40rem, 100%);
+  margin-inline: auto;
+}
+
 .page-home .home-examples {
-  padding-top: 0;
-  margin-top: 0;
+  margin-top: 8px;
+  padding-top: 20px;
+  text-align: left;
+}
+
+.home-examples-kicker {
+  margin: 28px 0 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.home-examples-kicker.is-home {
+  margin-top: 8px;
 }
 
 .page-writers {
@@ -1678,7 +1698,8 @@ a.compose-hero-submit.is-amber:focus-visible {
 
 .compose-studio,
 .compose-studio-inner {
-  width: 100%;
+  width: min(40rem, 100%);
+  margin-inline: auto;
 }
 
 .compose-studio-input {
@@ -1709,6 +1730,63 @@ a.compose-hero-submit.is-amber:focus-visible {
   border-radius: 16px;
   background: color-mix(in srgb, var(--paper) 90%, white);
   overflow: visible;
+}
+
+.chart-kicker {
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.chart-title {
+  margin: 4px 0 12px;
+  font-weight: 500;
+  font-size: clamp(1.25rem, 5vw, 1.5rem);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.chart-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.chart-title-link:hover,
+.chart-title-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.piece-stage {
+  width: 100%;
+}
+
+.piece-stage-plot {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+}
+
+.piece-stage-plot.is-busy .chart-mount {
+  opacity: 0.16;
+}
+
+.studio-chart .piece-stage-plot.is-busy .chart-mount {
+  opacity: 0.72;
+}
+
+.piece-stage-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  pointer-events: none;
 }
 
 .chart-frame-head {
@@ -1749,8 +1827,9 @@ a.compose-hero-submit.is-amber:focus-visible {
 }
 
 .studio-chart {
-  width: 100%;
-  margin-top: 40px;
+  width: min(40rem, 100%);
+  margin-top: 28px;
+  margin-inline: auto;
 }
 
 .studio-chart-stage {
@@ -2585,11 +2664,13 @@ a.admin-eval-act {
   height: auto;
 }
 
-.home-chart-stage.is-busy .chart-mount {
+.home-chart-stage.is-busy .chart-mount,
+.home-chart-slot .piece-stage-plot.is-busy .chart-mount {
   opacity: 0.16;
 }
 
-.home-chart-busy {
+.home-chart-busy,
+.home-chart-slot .piece-stage-overlay {
   position: absolute;
   inset: 0;
   display: flex;
@@ -2609,7 +2690,9 @@ a.admin-eval-act {
 
 .home-chart-busy .compose-busy-chart,
 .home-chart-busy .compose-busy-plot-wrap,
-.home-chart-slot .compose-busy-chart.is-card {
+.home-chart-slot .compose-busy-chart.is-card,
+.piece-stage-overlay .compose-busy-chart,
+.piece-stage-overlay .compose-busy-plot-wrap {
   flex: 1;
   min-height: 0;
   min-width: 0;
@@ -2631,7 +2714,8 @@ a.admin-eval-act {
   height: 100%;
 }
 
-.chart-frame-body .home-chart-busy .compose-busy-plot.compose-draw-plot.is-card-plot {
+.chart-frame-body .home-chart-busy .compose-busy-plot.compose-draw-plot.is-card-plot,
+.chart-frame-body .piece-stage-overlay .compose-busy-plot.compose-draw-plot.is-card-plot {
   aspect-ratio: auto;
   width: 100%;
   height: 100%;
@@ -2913,9 +2997,9 @@ html:not(.is-inked) .compose-hero-card {
 }
 
 .piece-list {
-  margin-top: 22px;
+  margin-top: 14px;
   display: grid;
-  gap: 72px;
+  gap: 36px;
 }
 
 .chart-mount {
@@ -3083,8 +3167,8 @@ html:not(.is-inked) .compose-hero-card {
   }
 
   .piece-list {
-    margin-top: 20px;
-    gap: 48px;
+    margin-top: 12px;
+    gap: 32px;
   }
 
   .compose-draw-plot {

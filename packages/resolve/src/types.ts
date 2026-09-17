@@ -1,4 +1,4 @@
-export type Family = 'fred' | 'noaa' | 'usgs' | 'wiki' | 'worldbank';
+export type Family = 'fred' | 'noaa' | 'owid' | 'usgs' | 'wiki' | 'worldbank';
 
 export type SeriesRow = {
   x: string;

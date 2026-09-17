@@ -3,7 +3,7 @@ import { defaultGet } from './http';
 import { sinceYearFromAsked } from './normalize';
 import { parseFredCsv, fredCsvUrl } from './parse/fred';
 import { parseNoaaCo2, NOAA_CO2_URL } from './parse/noaa';
-import { parseOwidOzone, OWID_OZONE_URL } from './parse/owid';
+import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
 import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
 import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
@@ -22,6 +22,13 @@ export async function fetchRecipe(
       return parseOwidOzone(await get(OWID_OZONE_URL));
     }
     return parseNoaaCo2(await get(NOAA_CO2_URL));
+  }
+  if (recipe.family === 'owid') {
+    const spec = OWID_SPEC[recipe.seriesId];
+    if (!spec) {
+      return [];
+    }
+    return parseOwidCsv(await get(owidCsvUrl(spec.slug)), spec);
   }
   if (recipe.family === 'usgs') {
     return parseUsgsGeojson(await get(USGS_M8_URL));

@@ -4,7 +4,7 @@ import { notesFromResolved, resolvePrompt } from './resolve';
 import { parseFredCsv } from './parse/fred';
 import { parseNoaaCo2 } from './parse/noaa';
 import { parseUsgsGeojson } from './parse/usgs';
-import { parseOwidOzone } from './parse/owid';
+import { parseOwidCsv, parseOwidOzone } from './parse/owid';
 import { parseWikiTables, parseWikiUnVotes } from './parse/wiki';
 import { parseWorldBank } from './parse/worldbank';
 import { downsample } from './window';
@@ -44,6 +44,41 @@ describe('matchPrompt', () => {
     expect(
       matchPrompt('Share of people with electricity by country — who closed the last big gaps after 2000?')?.seriesId
     ).toBe('EG.ELC.ACCS.ZS');
+    expect(matchPrompt('Youth unemployment by country — who stayed stuck above 20% after 2015?')?.seriesId).toBe(
+      'SL.UEM.1524.ZS'
+    );
+    expect(matchPrompt('Share of population aged 65+ by country — who crossed 20% first, and who is next?')?.seriesId).toBe(
+      'SP.POP.65UP.TO.ZS'
+    );
+    expect(matchPrompt('Military spending as a share of GDP — who stayed on a war footing after 2014?')?.seriesId).toBe(
+      'MS.MIL.XPND.GD.ZS'
+    );
+    expect(
+      matchPrompt('Remittances received as a share of GDP — which countries live on money from abroad?')?.seriesId
+    ).toBe('BX.TRF.PWKR.DT.GD.ZS');
+    expect(
+      matchPrompt('US housing starts versus permits since 2000 — which recoveries actually built houses?')?.seriesId
+    ).toBe('HOUST');
+    expect(matchPrompt('Global temperature anomaly since 1880 — when did the slope get steep?')?.seriesId).toBe(
+      'temperature_anomaly'
+    );
+    expect(
+      matchPrompt('Arctic sea ice September minimum since 1979 — when did the collapse actually steepen?')?.seriesId
+    ).toBe('arctic_sea_ice');
+    expect(matchPrompt('US wildfire acres burned by year — which seasons dwarf the 1990s?')?.seriesId).toBe(
+      'us_wildfire_area'
+    );
+    expect(
+      matchPrompt('Lithium mine production by country — how much of the battery metal still sits in Australia and Chile?')
+        ?.seriesId
+    ).toBe('lithium_production');
+    expect(matchPrompt('Electric share of new car sales by country — who crossed 20% first?')?.seriesId).toBe('ev_share');
+    expect(matchPrompt('Crude oil production by country — did the US shale boom actually take the crown?')?.seriesId).toBe(
+      'oil_production'
+    );
+    expect(matchPrompt('Official gold reserves by country — who stacked bars after 2010, and who sold?')?.seriesId).toBe(
+      'gold_reserves'
+    );
   });
 
   it('does not keep culture leftovers', () => {
@@ -95,6 +130,22 @@ describe('parsers', () => {
     ]);
   });
 
+  it('reads an OWID world time series and a latest-year ranking', () => {
+    const series = parseOwidCsv(
+      'Entity,Code,Year,Average,Lower bound,Upper bound\nWorld,OWID_WRL,1880,-0.2,-0.3,-0.1\nWorld,OWID_WRL,1881,-0.1,-0.2,0\nNorthern Hemisphere,OWID_NH,1880,0.4,0.1,0.7\n',
+      { slug: 'temperature-anomaly', value: /^Average$/i, entity: 'World' }
+    );
+    expect(series).toEqual([
+      { x: '1880', y: -0.2 },
+      { x: '1881', y: -0.1 },
+    ]);
+    const rank = parseOwidCsv(
+      'Entity,Code,Year,Lithium Production\nWorld,OWID_WRL,2024,999999\nAustralia,AUS,2024,92000\nChile,CHL,2024,49000\nChina,CHN,2023,100\nChina,CHN,2024,41000\n',
+      { slug: 'lithium-production', value: /Lithium Production/i, rank: true }
+    );
+    expect(rank.map((row) => row.x)).toEqual(['Australia', 'Chile', 'China']);
+  });
+
   it('reads UNGA in-favour tallies', () => {
     const html = `
       <table class="wikitable">
@@ -126,6 +177,22 @@ describe('parsers', () => {
       valueHeader: /native/i,
     });
     expect(rows.map((row) => row.x)).toEqual(['Mandarin', 'Spanish', 'English']);
+  });
+
+  it('reads gold holdings from a wikitable', () => {
+    const html = `
+      <table class="wikitable">
+        <tr><th>Rank</th><th>Country/Organization</th><th>Gold holdings (tonnes)</th></tr>
+        <tr><td>1</td><td>United States</td><td>8,133</td></tr>
+        <tr><td>2</td><td>Germany</td><td>3,352</td></tr>
+        <tr><td>3</td><td>Italy</td><td>2,452</td></tr>
+      </table>`;
+    const rows = parseWikiTables(html, {
+      page: 'Gold_reserve',
+      nameHeader: /country/i,
+      valueHeader: /holdings|tonnes/i,
+    });
+    expect(rows[0]).toEqual({ x: 'United States', y: 8133 });
   });
 
   it('reads World Bank latest-year countries', () => {

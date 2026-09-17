@@ -160,6 +160,54 @@ export const RECIPES: readonly Recipe[] = [
     },
   },
   {
+    family: 'worldbank',
+    seriesId: 'SL.UEM.1524.ZS',
+    sourceLabel: 'World Bank — youth unemployment',
+    sourceUrl: 'https://data.worldbank.org/indicator/SL.UEM.1524.ZS',
+    xLabel: 'Country',
+    yLabel: 'Youth unemployment %',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'youth') && has(q, 'unemployment', 'jobless');
+    },
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'SP.POP.65UP.TO.ZS',
+    sourceLabel: 'World Bank — population aged 65+',
+    sourceUrl: 'https://data.worldbank.org/indicator/SP.POP.65UP.TO.ZS',
+    xLabel: 'Country',
+    yLabel: 'Share aged 65+ %',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, '65') && has(q, 'population', 'aged', 'aging', 'ageing', 'crossed');
+    },
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'MS.MIL.XPND.GD.ZS',
+    sourceLabel: 'World Bank — military spending (% of GDP)',
+    sourceUrl: 'https://data.worldbank.org/indicator/MS.MIL.XPND.GD.ZS',
+    xLabel: 'Country',
+    yLabel: 'Military % of GDP',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'military') && has(q, 'spending', 'expenditure', 'gdp', 'war footing');
+    },
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'BX.TRF.PWKR.DT.GD.ZS',
+    sourceLabel: 'World Bank — remittances received (% of GDP)',
+    sourceUrl: 'https://data.worldbank.org/indicator/BX.TRF.PWKR.DT.GD.ZS',
+    xLabel: 'Country',
+    yLabel: 'Remittances % of GDP',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'remittance', 'remittances');
+    },
+  },
+  {
     family: 'fred',
     seriesId: 'UNRATE',
     sourceLabel: 'FRED — U.S. unemployment rate',
@@ -168,7 +216,14 @@ export const RECIPES: readonly Recipe[] = [
     yLabel: 'Unemployment %',
     match: (asked) => {
       const q = foldAsked(asked);
-      return has(q, 'unemployment', 'jobless rate', 'unrate');
+      if (has(q, 'youth')) {
+        return false;
+      }
+      return (
+        has(q, 'unrate') ||
+        ((has(q, 'unemployment') || has(q, 'jobless rate')) &&
+          has(q, 'us', 'u.s.', 'united states', 'american', 'u.s'))
+      );
     },
   },
   {
@@ -193,6 +248,108 @@ export const RECIPES: readonly Recipe[] = [
     match: (asked) => {
       const q = foldAsked(asked);
       return has(q, 'fed funds', 'federal funds rate', 'fed fund', 'fed hiking');
+    },
+  },
+  {
+    family: 'fred',
+    seriesId: 'HOUST',
+    sourceLabel: 'FRED — U.S. housing starts',
+    sourceUrl: 'https://fred.stlouisfed.org/series/HOUST',
+    xLabel: 'Month',
+    yLabel: 'Starts (thousands)',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'housing starts', 'housing start') || (has(q, 'housing') && has(q, 'starts', 'permits'));
+    },
+  },
+  {
+    family: 'owid',
+    seriesId: 'temperature_anomaly',
+    sourceLabel: 'Our World in Data — global temperature anomaly',
+    sourceUrl: 'https://ourworldindata.org/grapher/temperature-anomaly',
+    xLabel: 'Year',
+    yLabel: 'Anomaly °C',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return (
+        (has(q, 'temperature') && has(q, 'anomaly', 'global', '1880', 'warming')) ||
+        has(q, 'global temperature')
+      );
+    },
+  },
+  {
+    family: 'owid',
+    seriesId: 'arctic_sea_ice',
+    sourceLabel: 'Our World in Data — Arctic sea ice (NSIDC)',
+    sourceUrl: 'https://ourworldindata.org/grapher/arctic-sea-ice',
+    xLabel: 'Year',
+    yLabel: 'September minimum (million km²)',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'sea ice') || (has(q, 'arctic') && has(q, 'ice'));
+    },
+  },
+  {
+    family: 'owid',
+    seriesId: 'us_wildfire_area',
+    sourceLabel: 'Our World in Data — area burnt by wildfires (United States)',
+    sourceUrl: 'https://ourworldindata.org/grapher/annual-area-burnt-by-wildfires',
+    xLabel: 'Year',
+    yLabel: 'Area burned (ha)',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'wildfire', 'wildfires') && has(q, 'acre', 'acres', 'burned', 'burnt', 'season');
+    },
+  },
+  {
+    family: 'owid',
+    seriesId: 'lithium_production',
+    sourceLabel: 'Our World in Data — lithium mine production',
+    sourceUrl: 'https://ourworldindata.org/grapher/lithium-production',
+    xLabel: 'Country',
+    yLabel: 'Production (tonnes)',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'lithium');
+    },
+  },
+  {
+    family: 'owid',
+    seriesId: 'ev_share',
+    sourceLabel: 'Our World in Data — electric share of new cars',
+    sourceUrl: 'https://ourworldindata.org/grapher/electric-car-sales-share',
+    xLabel: 'Country',
+    yLabel: 'Electric share of new cars %',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'electric') && has(q, 'car', 'cars', 'vehicle', 'vehicles', 'ev') && has(q, 'share', 'sales', '20%');
+    },
+  },
+  {
+    family: 'owid',
+    seriesId: 'oil_production',
+    sourceLabel: 'Our World in Data — oil production',
+    sourceUrl: 'https://ourworldindata.org/grapher/oil-production-by-country',
+    xLabel: 'Country',
+    yLabel: 'Oil production',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return (
+        (has(q, 'crude oil') || has(q, 'oil production') || has(q, 'shale')) &&
+        has(q, 'country', 'countries', 'us', 'u.s.', 'crown', 'production')
+      );
+    },
+  },
+  {
+    family: 'wiki',
+    seriesId: 'gold_reserves',
+    sourceLabel: 'Wikipedia — official gold reserves',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Gold_reserve',
+    xLabel: 'Country',
+    yLabel: 'Gold (tonnes)',
+    match: (asked) => {
+      const q = foldAsked(asked);
+      return has(q, 'gold') && has(q, 'reserve', 'reserves');
     },
   },
 ];
