@@ -22,10 +22,13 @@ export function shouldSkipGoogleModel(model: string, googleLimited: boolean): bo
   return googleLimited && model.startsWith('google/');
 }
 
-/** Initial compose can use Flash. A follow-up in the same minute usually cannot. */
+/**
+ * Generate can use Flash. A follow-up in the same minute usually cannot —
+ * Flash and Flash-Lite share the Gateway free-tier RPM. Revise on OpenAI.
+ */
 export function composeModelsForRevision(revision: boolean): readonly (typeof COMPOSE_MODELS)[number][] {
   if (!revision) {
     return COMPOSE_MODELS;
   }
-  return ['google/gemini-2.5-flash-lite', 'openai/gpt-4.1-mini', 'google/gemini-2.5-flash'] as const;
+  return COMPOSE_MODELS.filter((model) => model.startsWith('openai/'));
 }

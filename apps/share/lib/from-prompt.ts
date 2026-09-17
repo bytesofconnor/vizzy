@@ -301,6 +301,18 @@ export async function pieceFromPrompt(
 }
 
 async function draftChart(model: (typeof COMPOSE_MODELS)[number], prompt: string) {
+  try {
+    return await draftChartOnce(model, prompt);
+  } catch (error) {
+    if (model.startsWith('openai/') && isGatewayRateLimited(error)) {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      return await draftChartOnce(model, prompt);
+    }
+    throw error;
+  }
+}
+
+async function draftChartOnce(model: (typeof COMPOSE_MODELS)[number], prompt: string) {
   const result = await generateText({
     model,
     output: Output.object({ schema: DraftSchema }),

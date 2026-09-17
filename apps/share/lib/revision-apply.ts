@@ -42,7 +42,7 @@ export function tryLocalRevision(
   let area = seed.area;
   let changed = false;
 
-  if (/\b(make it a line|switch to (?:a )?line)\b/i.test(text)) {
+  if (/\b(make it a line|switch to (?:a )?line|use a line|line chart)\b/i.test(text)) {
     chartType = 'line';
     changed = true;
   } else if (/\b(switch to bars?|make it (?:a )?bar)\b/i.test(text)) {

@@ -3,6 +3,7 @@ export const COMPOSE_MODELS = [
   'google/gemini-2.5-flash',
   'google/gemini-2.5-flash-lite',
   'openai/gpt-4.1-mini',
+  'openai/gpt-4o-mini',
 ] as const;
 
 export const LOOKUP_MODEL = 'google/gemini-2.5-flash-lite';
