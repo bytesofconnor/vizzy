@@ -2767,11 +2767,8 @@ a.compose-hero-submit.is-amber:focus-visible {
 }
 
 .piece-stage-plot.is-busy .chart-mount {
-  opacity: 0.16;
-}
-
-.studio-chart .piece-stage-plot.is-busy .chart-mount {
-  opacity: 0.72;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .piece-stage-overlay {
@@ -2782,6 +2779,7 @@ a.compose-hero-submit.is-amber:focus-visible {
   min-height: 0;
   min-width: 0;
   pointer-events: none;
+  background: var(--paper);
 }
 
 .chart-frame-head {
@@ -3740,7 +3738,8 @@ a.admin-eval-act {
 
 .home-chart-stage.is-busy .chart-mount,
 .home-chart-slot .piece-stage-plot.is-busy .chart-mount {
-  opacity: 0.16;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .home-chart-busy,
@@ -4016,7 +4015,7 @@ a.admin-eval-act {
 
 .piece-stage-overlay .compose-dust-field {
   height: 100%;
-  opacity: 0.88;
+  opacity: 1;
 }
 
 .compose-busy-chart.is-card {

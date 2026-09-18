@@ -41,4 +41,15 @@ describe('mintFromOfficial', () => {
       expect(minted.piece.title).toBe('CO₂ ppm by Year');
     }
   });
+
+  it('does not use a revise command as a title', () => {
+    const minted = mintFromOfficial(
+      'Add the missing comparison that would change how Tanzania looks',
+      co2
+    );
+    expect(minted.ok).toBe(true);
+    if (minted.ok) {
+      expect(minted.piece.title).toBe('CO₂ ppm by Year');
+    }
+  });
 });

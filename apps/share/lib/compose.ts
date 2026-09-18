@@ -1,5 +1,6 @@
 import { STUDIO } from './theme';
 import type { Piece } from './pieces';
+import { displayChartTitle } from './remix-prompt';
 import { sourceCardLine } from './source';
 
 export type CardSize = 'sm' | 'md' | 'lg';
@@ -188,7 +189,7 @@ export function composePieceSvg(
 <svg xmlns="http://www.w3.org/2000/svg" width="${spec.width}" height="${totalHeight}" viewBox="0 0 ${spec.width} ${totalHeight}">
   <rect width="100%" height="100%" fill="${STUDIO.paper}"/>
   <text x="${spec.pad}" y="${spec.kickerY}" fill="${STUDIO.mute}" font-size="${spec.kickerSize}" letter-spacing="1.2" font-family="IBM Plex Mono, monospace">${escapeXml(piece.kicker.toUpperCase())}</text>
-  <text x="${spec.pad}" y="${spec.titleY}" fill="${STUDIO.ink}" font-size="${spec.titleSize}" font-family="Archivo, Helvetica, sans-serif">${escapeXml(piece.title)}</text>
+  <text x="${spec.pad}" y="${spec.titleY}" fill="${STUDIO.ink}" font-size="${spec.titleSize}" font-family="Archivo, Helvetica, sans-serif">${escapeXml(displayChartTitle(piece.title, piece.note))}</text>
   <svg x="${spec.chart.x}" y="${spec.chart.y}" width="${spec.chart.width}" height="${spec.chart.height}" viewBox="0 0 ${frame.width} ${frame.height}" preserveAspectRatio="xMidYMid meet">
     ${chart}
   </svg>

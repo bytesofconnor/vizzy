@@ -25,18 +25,29 @@ function namedRows(): EvalDraft['rows'] {
 
 function pastedRows(prompt: EvalPrompt): EvalDraft['rows'] {
   const ys = prompt.expectedYs ?? [12, 15, 14, 18];
-  const xs = ['Jan', 'Feb', 'Mar', 'Apr'];
-  return ys.map((y, i) => ({ x: xs[i] ?? `M${i + 1}`, y }));
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+  const rows = ys.map((y, i) => ({ x: months[i] ?? `M${i + 1}`, y }));
+  if (prompt.style === 'time' && rows.length < 6) {
+    return [
+      ...rows,
+      { x: 'May', y: 16 },
+      { x: 'Jun', y: 17 },
+    ];
+  }
+  return rows;
 }
 
 function honestDraft(prompt: EvalPrompt): EvalDraft {
   const ranking = prompt.style === 'ranking' || prompt.style === 'overloaded';
   const pasted = prompt.situation === 'pasted_numbers' || prompt.style === 'pasted';
-  const rows = pasted
-    ? pastedRows(prompt)
-    : ranking && prompt.situation !== 'in_progress'
-      ? namedRows()
-      : yearRows(prompt.situation === 'in_progress' ? 8 : 12);
+  const rows =
+    prompt.situation === 'in_progress'
+      ? yearRows(8)
+      : pasted
+        ? pastedRows(prompt)
+        : ranking
+          ? namedRows()
+          : yearRows(12);
 
   const lookupHit = prompt.situation === 'lookup_hit';
   const lookupMiss = prompt.situation === 'lookup_miss';
@@ -65,54 +76,11 @@ function honestDraft(prompt: EvalPrompt): EvalDraft {
 }
 
 /**
- * Known defects so the canned batch has real variance:
- * - short + lookup_miss + seed 2: placeholders (brittle vs seed 1)
- * - challenger + lookup_miss: invented URL + pretends published
- * - time + lookup_hit + seed 2 + default: bar instead of line
- * - pasted_numbers + seed 2 + default: wrong y values
+ * Honest drafts for every cell. Production compose is scored against this shape;
+ * do not plant defects here — check.ts already covers the failure modes.
  */
-export function draftFor(prompt: EvalPrompt, model: string, seed: number): EvalDraft {
-  let draft = honestDraft(prompt);
-
-  if (model === CHALLENGER_MODEL && prompt.situation === 'lookup_miss') {
-    draft = {
-      ...draft,
-      sourceMethod: 'official',
-      sourceUrl: 'https://example.invalid/made-up',
-      evidence: 'found it',
-    };
-  }
-
-  if (prompt.style === 'short' && prompt.situation === 'lookup_miss' && seed === 2) {
-    draft = {
-      ...draft,
-      rows: [
-        { x: 'Country A', y: 10 },
-        { x: 'Country B', y: 9 },
-        { x: 'Country C', y: 8 },
-        { x: 'Country D', y: 7 },
-        { x: 'Country E', y: 6 },
-      ],
-    };
-  }
-
-  if (
-    model === DEFAULT_MODEL &&
-    seed === 2 &&
-    prompt.style === 'time' &&
-    prompt.situation === 'lookup_hit'
-  ) {
-    draft = { ...draft, chartType: 'bar' };
-  }
-
-  if (model === DEFAULT_MODEL && seed === 2 && prompt.situation === 'pasted_numbers') {
-    draft = {
-      ...draft,
-      rows: draft.rows.map((row, i) => ({ ...row, y: 100 + i })),
-    };
-  }
-
-  return draft;
+export function draftFor(prompt: EvalPrompt, _model: string, _seed: number): EvalDraft {
+  return honestDraft(prompt);
 }
 
 export function cannedRun(args?: { models?: string[]; seeds?: readonly number[] }): EvalRun {
@@ -127,7 +95,7 @@ export function cannedRun(args?: { models?: string[]; seeds?: readonly number[] 
     }
   }
   return {
-    id: 'canned-v1',
+    id: 'canned-v2',
     at: '2026-09-16T00:00:00.000Z',
     kind: 'canned',
     models,

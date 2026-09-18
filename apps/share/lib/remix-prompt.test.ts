@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { remixFollowUp, remixPrompt } from './remix-prompt';
+import { chartTitleFromAsk, looksLikeInstruction, remixFollowUp, remixPrompt, titleForChart } from './remix-prompt';
 
 describe('remixPrompt', () => {
   it('cites the paste URL and leaves room for the next question', () => {
@@ -34,5 +34,30 @@ describe('remixPrompt', () => {
     expect(remixFollowUp('Start from this chart and ask a sharper public question. Keep published numbers. Do not invent a source.')).toBe(
       ''
     );
+  });
+});
+
+describe('titleForChart', () => {
+  it('does not name the figure after a revise command', () => {
+    const asked = 'Add the missing comparison that would change how Tanzania looks';
+    expect(looksLikeInstruction(asked)).toBe(true);
+    expect(chartTitleFromAsk(asked)).toBe('A remix');
+    expect(
+      titleForChart({
+        drafted: asked,
+        asked,
+        previous: 'Share of territorial waters that are marine protected areas',
+      })
+    ).toBe('Share of territorial waters that are marine protected areas');
+  });
+
+  it('keeps a real drafted title when the subject changed', () => {
+    expect(
+      titleForChart({
+        drafted: 'Wild tiger population by country',
+        asked: 'Switch this to tigers',
+        previous: 'Share of territorial waters that are marine protected areas',
+      })
+    ).toBe('Wild tiger population by country');
   });
 });

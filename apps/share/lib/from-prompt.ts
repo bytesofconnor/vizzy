@@ -5,7 +5,7 @@ import { matchPrompt } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { mintFromOfficial } from './official-mint';
-import { chartTitleFromAsk, displayChartTitle } from './remix-prompt';
+import { titleForChart } from './remix-prompt';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
 import { tryLocalRevision } from './revision-apply';
 import {
@@ -25,7 +25,14 @@ import {
   GATEWAY_NO_RETRY,
   isGatewayRateLimited,
 } from './gateway-errors';
-import { mostlyGenericPlaceholders, relabelGenericCategories } from './category-labels';
+import { hasGenericPlaceholders, mostlyGenericPlaceholders, relabelGenericCategories } from './category-labels';
+import {
+  applyPastedNumberSeries,
+  expandShortPrompt,
+  fitChartType,
+  lookupFoundSeries,
+  pastedNumberSeries,
+} from './compose-guards';
 import { lookupDetail, reportProgress, type ComposeProgressReporter } from './compose-progress';
 import {
   estimateBasisEvidence,
@@ -37,7 +44,7 @@ import {
 } from './source';
 
 const DraftSchema = z.object({
-  title: z.string().describe('Short sentence that is the chart title'),
+  title: z.string().describe('Noun phrase for what the figure shows. Never the user instruction'),
   kicker: z.string().describe('Two or three word label above the title'),
   note: z.string().describe('One dry sentence under the chart'),
   chartType: z.enum(['bar', 'line', 'scatter']),
@@ -64,11 +71,12 @@ If LOOKED-UP NOTES contain a real series, chart those numbers. Do not invent a d
 Aim for about 15 rows on a ranking or named-category bar chart. A year by month is 12. A season is the published games so far. Do not pad past the natural series. Only take a top N when the user asked for one.
 If the user asked for decades of a yearly series (last 30 years, past 50 years), emit one row per year and prefer a line. Sequential year series may run up to about 50 points.
 If LOOKED-UP NOTES contain real numbers with a page, chart them and set sourceMethod scraped or official. Attach the page in sourceLabel. Put the page URL in SOURCE CANDIDATES on the chart when you have one.
-If lookup failed and the user pasted no numbers, return sourceMethod estimate only when you must illustrate shape — never pretend it is published data. sourceLabel must name what you tried to find (topic or site), never the single word Estimate. evidence must say lookup failed and that rows are illustrative. Even then, x must be real names from the question (Japan, Brazil, Arsenal) — never Country A, Team B, Item 1, or any letter-or-number placeholder.
+If lookup failed and the user pasted no numbers, sourceMethod must be estimate, evidence must say lookup failed, and there must be no URL. Never dress a miss as official or scraped. sourceLabel must name what you tried to find. Even then, x must be real names from the question (Japan, Brazil, Arsenal) — never Country A, Team B, Item 1, or Rank 1.
 If the asked year is still in progress, chart published months from the notes and mark later months as forecast in the note. sourceMethod estimate only for the unpublished tail. Never attach a URL to purely invented rows.
 Always name xLabel and yLabel in words a reader can trust (Month, Wins, Points). Never leave them as x or y.
 Never invent a source URL. Prefer the looked-up page title in sourceLabel.
-y must be numeric. Keep titles short. Named categories cap around 15. Sequential series may be longer.
+y must be numeric. Keep titles short. Title names the series (Protected waters % by country), not the user's command (Add Tanzania, Sort by share, Make it a line). If CURRENT CHART is in the prompt, keep that title unless the subject of the chart actually changed.
+Named categories cap around 15. Sequential series may be longer.
 If y is a calendar year, keep it as the year. Do not convert it to a count from zero.
 Keep category names short enough to sit under a bar: August Schell, not August Schell Brewing Company.
 x is the name of each thing (skill, team, city, country). Never Rank 1, #3, Country A, or a place index. A top-10 chart still labels each bar with the name. For a country chart with no lookup, pick diverse real countries the reader recognizes.
@@ -182,7 +190,7 @@ export async function pieceFromPrompt(
     gathered.notes
       ? `LOOKED-UP NOTES:\n${gathered.notes.slice(0, 6000)}\n\nSOURCE CANDIDATES:\n${gathered.urls.slice(0, 5).join('\n') || '(none)'}`
       : '',
-    `USER ASKED:\n${asked}`,
+    `USER ASKED:\n${from ? asked : expandShortPrompt(asked)}`,
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -346,8 +354,17 @@ function mintDraft(
   output: z.infer<typeof DraftSchema>,
   from?: ChartSeed
 ): MintResult {
+  const pastedYs = pastedNumberSeries(asked);
+  const foundSeries = lookupFoundSeries(gathered.notes);
+  const pasteOnly = Boolean(!from && (pastedYs || pastedATable(asked)) && !foundSeries);
   let estimated = output.sourceMethod === 'estimate' || output.sourceMethod === 'example';
-  const lookedUp = gathered.urls.length > 0 && /\d/.test(gathered.notes) && !estimated;
+  if (!from && !foundSeries && !pasteOnly) {
+    estimated = true;
+  }
+  if (pasteOnly) {
+    estimated = false;
+  }
+  const lookedUp = foundSeries && gathered.urls.length > 0 && !estimated;
   if (from && estimated && !lookedUp) {
     estimated = false;
   }
@@ -372,12 +389,14 @@ function mintDraft(
   const method = keepSource
     ? from!.sourceMethod
     : estimated
-      ? output.sourceMethod
-      : lookedUp && output.sourceMethod === 'unknown'
-        ? 'scraped'
-        : output.sourceMethod === 'unknown' && sourceUrl
+      ? 'estimate'
+      : pasteOnly
+        ? 'manual'
+        : lookedUp && output.sourceMethod === 'unknown'
           ? 'scraped'
-          : output.sourceMethod;
+          : output.sourceMethod === 'unknown' && sourceUrl
+            ? 'scraped'
+            : output.sourceMethod;
   if (!from && !estimated && !sourceUrl && !meaningfulSourceLabel(output.sourceLabel)) {
     return {
       ok: false,
@@ -399,6 +418,12 @@ function mintDraft(
   }
   const noteNames = namesFromNotes(gathered.notes);
   let rows = relabelGenericCategories(named.rows, noteNames, asked);
+  if (pastedYs) {
+    rows = applyPastedNumberSeries(rows, pastedYs);
+  }
+  if (hasGenericPlaceholders(rows)) {
+    rows = relabelGenericCategories(rows, noteNames, asked);
+  }
   if (output.chartType !== 'scatter' && mostlyGenericPlaceholders(rows)) {
     if (!from) {
       return {
@@ -412,9 +437,13 @@ function mintDraft(
   if (output.chartType !== 'scatter' && mostlyRankIndex(rows) && from) {
     rows = from.rows.map((row) => ({ x: row.x, y: row.y }));
   }
-  const xLabel = named.xLabel;
+  const chartType = fitChartType(output.chartType, rows, asked);
+  let xLabel = named.xLabel;
+  if (chartType === 'line' && /^(name|category)$/i.test(xLabel.trim())) {
+    xLabel = 'Year';
+  }
   const yLabel = tidied.yLabel;
-  const forecastAt = output.chartType === 'line' ? forecastStartIndex(rows, 'x') : -1;
+  const forecastAt = chartType === 'line' ? forecastStartIndex(rows, 'x') : -1;
   const forecastFrom = forecastAt >= 0 ? String(rows[forecastAt]?.x ?? '') : '';
 
   const source = normalizeInventedSource(
@@ -430,7 +459,7 @@ function mintDraft(
   );
 
   return mintPiece({
-    title: displayChartTitle(output.title) === 'A remix' ? chartTitleFromAsk(asked) : output.title,
+    title: titleForChart({ drafted: output.title, asked, previous: from?.title }),
     kicker: estimated ? output.kicker || 'Illustrative' : output.kicker,
     note: output.note,
     data: rows,
@@ -438,9 +467,9 @@ function mintDraft(
     printGrayscale: wantsPrintGrayscale(asked),
     config: {
       chart: {
-        type: output.chartType,
-        ...(output.chartType === 'bar' ? { barPadding: 0.32 } : {}),
-        ...(output.chartType === 'line' && output.area ? { area: true, curve: 'linear' } : {}),
+        type: chartType,
+        ...(chartType === 'bar' ? { barPadding: 0.32 } : {}),
+        ...(chartType === 'line' && output.area ? { area: true, curve: 'linear' } : {}),
         ...(forecastFrom ? { forecastFrom } : {}),
       },
       dataMapping: { x: 'x', y: 'y' },

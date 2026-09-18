@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { Piece } from '../../lib/pieces';
 import { seedFromPiece } from '../../lib/seed';
+import { displayChartTitle } from '../../lib/remix-prompt';
 import { ChartActionBar } from './ChartActionBar';
 import { ChartExtras } from './ChartExtras';
 import { ChartFrame } from './ChartFrame';
@@ -31,13 +32,14 @@ export function PieceStage({
   headLead?: ReactNode;
   className?: string;
 }) {
+  const shownTitle = displayChartTitle(piece.title, piece.note);
   const TitleTag = titleAs;
   const titleInner = href ? (
     <Link href={href} className="chart-title-link">
-      {piece.title}
+      {shownTitle}
     </Link>
   ) : (
-    piece.title
+    shownTitle
   );
   const [insight, setInsight] = useState<string | null>(piece.insight ?? null);
   const seed = useMemo(() => seedFromPiece(piece), [piece]);
@@ -71,7 +73,7 @@ export function PieceStage({
         }
       >
         <div className={busy ? 'piece-stage-plot is-busy' : 'piece-stage-plot'}>
-          <ChartMount config={piece.config} data={piece.data} label={piece.title} framed />
+          <ChartMount config={piece.config} data={piece.data} label={shownTitle} framed />
           {overlay ? <div className="piece-stage-overlay">{overlay}</div> : null}
         </div>
       </ChartFrame>
