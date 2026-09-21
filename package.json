@@ -20,7 +20,7 @@
   },
   "packageManager": "npm@10.9.2",
   "dependencies": {
-    "convex": "^1.27.0"
+    "convex": "^1.46.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
