@@ -23,14 +23,14 @@
     "convex": "^1.27.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "@types/node": "^20.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.1",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.0.0",
-    "prettier": "^3.0.0",
-    "turbo": "^2.3.0",
-    "typescript": "^5.6.0"
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.8",
+    "turbo": "^2.11.2",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=18.0.0"
