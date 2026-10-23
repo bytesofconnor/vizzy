@@ -14,7 +14,7 @@ You emit a `ChartConfig`. The runtime draws the SVG. Do not invent D3.
 - Keep `y` numeric. Use `bar` for categorical x, `line` for time-like x, `scatter` for two numerics.
 - If a year is still in progress, do not draw later months as fact. Set `chart.forecastFrom` to the first unpublished x. The runtime dashes that tail.
 - Call `validate_config` or `compile_chart` when unsure.
-- Attach `source` when you gathered the rows: `label`, optional `url`, `retrieved`, `method`, `evidence`. Put a `url` only when you have a real page. Do not invent a URL or a numeric confidence score.
+- Attach `source` when you gathered the rows: `label`, optional `url`, `retrieved`, `method`, `evidence`. Put a `url` when you have a real page. Do not invent a URL or a numeric confidence score.
 - Set `axes.x.label` and `axes.y.label` to words a reader can trust (Month, Wins, Rate %). Not the column letter.
 - Do not pick sm/md/lg at compile time. Size is an export. The host offers S/M/L when someone copies the image.
 - Call `publish_chart` to mint a paste URL and PNG. If you have no source, say so — do not invent one.
@@ -42,3 +42,8 @@ Minimal valid config:
 ```
 
 If validation fails, fix the issue `path` (for example `dataMapping.y`) using the `suggestion`. Do not rewrite the renderer.
+
+Agents in this repo work under `/poteto-mode`.
+Use Cursor first. Agents default every role and every launch to Cursor models first, grok-4.7, grok-4.6, and composer-2.5.
+Claude, GPT, and other models are an opt-in upgrade for a task that clearly needs one, while quota remains.
+If an other-model call is refused for usage, retry immediately on a Cursor model without stopping.
