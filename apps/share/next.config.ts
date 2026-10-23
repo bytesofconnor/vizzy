@@ -9,6 +9,8 @@ const sourceAlias = {
 
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
+  allowedDevOrigins: ['127.0.0.1'],
+  agentRules: false,
   turbopack: {
     resolveAlias: {
       '@vizzy/core': '../../packages/core/src',
