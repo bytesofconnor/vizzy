@@ -47,3 +47,18 @@ Agents in this repo work under `/poteto-mode`.
 Use Cursor first. Agents default every role and every launch to Cursor models first, grok-4.7, grok-4.6, and composer-2.5.
 Claude, GPT, and other models are an opt-in upgrade for a task that clearly needs one, while quota remains.
 If an other-model call is refused for usage, retry immediately on a Cursor model without stopping.
+
+## Auto-merge
+
+Auto-merge runs `gh pr merge --auto --squash` and waits for the required CI checks.
+
+The workflow trigger is `pull_request`. Do not switch it to `pull_request_target`. Permissions stay `contents: write` and `pull-requests: write`.
+
+Enable auto-merge when every rule below is true.
+
+- The pull request comes from this repository. Skip a fork. Skip an outside contributor. An outside contributor is an author who is not the repository owner, a member, or a collaborator. Dependabot passes this check when the next rule matches.
+- The head branch matches `cursor/*`, or the author is Dependabot and the update is a patch or a minor bump.
+- The diff does not change `.github/**`, `.cursor/rules/**`, or `AGENTS.md`.
+- The pull request is not a major version bump. A Dependabot `semver-major` update, a `major` label, or a title or body that moves `from x.y.z to X.y.z` with a higher major all count.
+
+Eval publish writes to production Convex when a pull request into `main` closes as merged, after the CI job `check` has succeeded on that head. A merge made with `GITHUB_TOKEN` does not start a workflow that listens to `push`. Full e2e still listens to `push` on `main`.

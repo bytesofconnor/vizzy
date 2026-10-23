@@ -1,0 +1,181 @@
+name: Auto-merge
+
+# Trigger is pull_request.
+# gh pr merge --auto --squash waits for the required CI checks.
+# Eligible when the PR is from this repository and either the head branch
+# is cursor/*, or Dependabot opened a patch or minor update.
+# Skip a fork, an outside contributor, a major bump, and any diff that
+# touches .github/**, .cursor/rules/**, or AGENTS.md.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    name: automerge
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.repo.fork == false
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Enable squash auto-merge when the policy matches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          FORK: ${{ github.event.pull_request.head.repo.fork }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          TITLE: ${{ github.event.pull_request.title || '' }}
+          BODY: ${{ github.event.pull_request.body || '' }}
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+
+          INSIDE = {"OWNER", "MEMBER", "COLLABORATOR"}
+          PATCH_MINOR = {
+              "version-update:semver-patch",
+              "version-update:semver-minor",
+          }
+          FROM_TO = re.compile(
+              r"\bfrom\s+v?(\d+\.\d+\.\d+)\s+to\s+v?(\d+\.\d+\.\d+)\b",
+              re.IGNORECASE,
+          )
+
+          def as_bool(value):
+              return str(value).lower() == "true"
+
+          def protected(path):
+              return (
+                  path == "AGENTS.md"
+                  or path == ".github"
+                  or path.startswith(".github/")
+                  or path == ".cursor/rules"
+                  or path.startswith(".cursor/rules/")
+              )
+
+          def parse_ver(value):
+              match = re.match(r"(\d+)\.(\d+)\.(\d+)$", value)
+              if not match:
+                  return None
+              return tuple(int(part) for part in match.groups())
+
+          def major_bump(update_type, title, body, labels):
+              if update_type == "version-update:semver-major":
+                  return True
+              if any(str(label).lower() == "major" for label in labels):
+                  return True
+              text = f"{title or ''}\n{body or ''}"
+              for match in FROM_TO.finditer(text):
+                  old = parse_ver(match.group(1))
+                  new = parse_ver(match.group(2))
+                  if old and new and new[0] > old[0]:
+                      return True
+              return False
+
+          # policy-start
+          def decide(
+              same_repo,
+              fork,
+              author,
+              association,
+              repo_owner,
+              head_ref,
+              update_type,
+              paths,
+              title,
+              body,
+              labels,
+          ):
+              if (not same_repo) or fork:
+                  return "fork"
+              association = (association or "").upper()
+              author = author or ""
+              inside = (
+                  author == repo_owner
+                  or author == "dependabot[bot]"
+                  or association in INSIDE
+              )
+              if not inside:
+                  return "outside contributor"
+              if any(protected(path) for path in paths):
+                  return "protected path"
+              if major_bump(update_type, title, body, labels):
+                  return "major bump"
+              cursor = (head_ref or "").startswith("cursor/")
+              dependabot_ok = author == "dependabot[bot]" and update_type in PATCH_MINOR
+              if cursor or dependabot_ok:
+                  return "ok"
+              return "not eligible"
+          # policy-end
+
+          def gh_files():
+              raw = subprocess.check_output(
+                  [
+                      "gh",
+                      "api",
+                      "--paginate",
+                      f"repos/{os.environ['GH_REPO']}/pulls/{os.environ['PR']}/files",
+                      "--jq",
+                      ".[].filename",
+                  ],
+                  text=True,
+              )
+              return [line for line in raw.splitlines() if line]
+
+          labels_raw = os.environ.get("LABELS_JSON") or "[]"
+          if labels_raw == "null":
+              labels = []
+          else:
+              labels = json.loads(labels_raw)
+
+          reason = decide(
+              as_bool(os.environ.get("SAME_REPO")),
+              as_bool(os.environ.get("FORK")),
+              os.environ.get("AUTHOR", ""),
+              os.environ.get("ASSOCIATION", ""),
+              os.environ.get("REPO_OWNER", ""),
+              os.environ.get("HEAD_REF", ""),
+              os.environ.get("UPDATE_TYPE", ""),
+              gh_files(),
+              os.environ.get("TITLE", ""),
+              os.environ.get("BODY", ""),
+              labels,
+          )
+          if reason == "ok" and as_bool(os.environ.get("DRAFT")):
+              reason = "draft"
+
+          url = os.environ["PR_URL"]
+          if reason != "ok":
+              print(f"Skip: {reason}")
+              subprocess.run(["gh", "pr", "merge", "--disable-auto", url], check=False)
+              sys.exit(0)
+
+          print("Enable squash auto-merge")
+          subprocess.run(["gh", "pr", "merge", "--auto", "--squash", url], check=True)
+          PY
