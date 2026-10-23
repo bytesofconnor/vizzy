@@ -34,7 +34,7 @@ export function validateChartRequest(
 
   const parsedConfig = ChartConfigSchema.safeParse(config);
   if (!parsedConfig.success) {
-    for (const issue of parsedConfig.error.errors) {
+    for (const issue of parsedConfig.error.issues) {
       const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
       issues.push({
         path,
@@ -173,7 +173,7 @@ export function assertValidChartRequest(config: unknown, data: unknown) {
 }
 
 export function zodIssuesToValidation(error: z.ZodError): ValidationIssue[] {
-  return error.errors.map((issue) => ({
+  return error.issues.map((issue) => ({
     path: issue.path.length > 0 ? issue.path.join('.') : '(root)',
     code: String(issue.code).toUpperCase(),
     message: issue.message,
