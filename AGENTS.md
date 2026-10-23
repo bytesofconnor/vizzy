@@ -57,3 +57,13 @@ A pull request from a fork waits for Connor.
 The workflow trigger is `pull_request`. Do not switch it to `pull_request_target`. Permissions stay `contents: write` and `pull-requests: write`. A draft is skipped until it is marked ready.
 
 Eval publish writes to production Convex when a pull request into `main` closes as merged, after the CI job `checks` has succeeded on that head. A merge made with `GITHUB_TOKEN` does not start a workflow that listens to `push`. Full e2e still listens to `push` on `main`.
+
+## Vercel builds
+
+Hobby builds are limited.
+The vizzy project builds from `apps/share`. The canopy-charts project builds from the repository root.
+A project skips its build when the commit does not change its root.
+A project skips preview builds whose branch starts with `dependabot/` or `cursor/`.
+A production build still runs when its root changes.
+If the parent commit is missing, the build runs.
+Dependabot opens one npm pull request and one GitHub Actions pull request each week, including major updates.
