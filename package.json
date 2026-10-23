@@ -32,6 +32,9 @@
     "turbo": "^2.11.9",
     "typescript": "^7.0.2"
   },
+  "overrides": {
+    "typescript": "^7.0.2"
+  },
   "engines": {
     "node": ">=22.22.2"
   }
