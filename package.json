@@ -20,16 +20,16 @@
   },
   "packageManager": "npm@10.9.2",
   "dependencies": {
-    "convex": "^1.27.0"
+    "convex": "^1.48.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@types/node": "^20.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.0",
+    "@typescript-eslint/parser": "^8.72.0",
     "eslint": "^9.0.0",
-    "prettier": "^3.0.0",
-    "turbo": "^2.3.0",
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.10",
     "typescript": "^5.6.0"
   },
   "engines": {
