@@ -1,0 +1,1 @@
+../../../scripts/vercel-ignore-build.sh
