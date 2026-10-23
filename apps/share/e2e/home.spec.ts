@@ -35,7 +35,7 @@ test('landing is the chart prompt', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Copy as PNG/i }).first()).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Export' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /pin for later|unpin/i }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /save for later|remove from saved/i }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speak' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Site' })).toBeVisible();
