@@ -1,7 +1,7 @@
 {
   "name": "@vizzy/core",
   "version": "0.1.0",
-  "description": "Chart compiler runtime — ChartConfig in, SVG out",
+  "description": "Chart compiler runtime \u2014 ChartConfig in, SVG out",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -31,6 +31,6 @@
     "jsdom": "^24.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.0.0"
+    "vitest": "^5.0.5"
   }
 }
