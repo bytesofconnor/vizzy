@@ -17,7 +17,7 @@ jobs:
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     steps:
-      - name: Require the CI check job on the PR head
+      - name: Require the CI checks job on the PR head
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -25,8 +25,8 @@ jobs:
         run: |
           set -euo pipefail
           conclusions=$(gh api --paginate "repos/${GH_REPO}/commits/${HEAD_SHA}/check-runs" \
-            --jq '.check_runs[] | select(.name=="check") | .conclusion')
-          echo "check conclusions: ${conclusions:-none}"
+            --jq '.check_runs[] | select(.name=="checks") | .conclusion')
+          echo "checks conclusions: ${conclusions:-none}"
           found=0
           bad=0
           while IFS= read -r line; do
@@ -37,7 +37,7 @@ jobs:
             fi
           done <<< "$conclusions"
           if [ "$found" -ne 1 ] || [ "$bad" -ne 0 ]; then
-            echo "Refusing to publish. CI job check must have succeeded on ${HEAD_SHA}."
+            echo "Refusing to publish. CI job checks must have succeeded on ${HEAD_SHA}."
             exit 1
           fi
 
