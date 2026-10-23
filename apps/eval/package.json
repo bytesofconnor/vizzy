@@ -2,7 +2,7 @@
   "name": "@vizzy/eval",
   "version": "0.1.0",
   "private": true,
-  "description": "Offline chart eval lab \u2014 tagged prompt grid, mechanical scoring, recs. No Convex, no Next.",
+  "description": "Offline chart eval lab — tagged prompt grid, mechanical scoring, recs. No Convex, no Next.",
   "main": "dist/index.js",
   "bin": {
     "vizzy-eval": "dist/cli.js"

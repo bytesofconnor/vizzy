@@ -1,7 +1,7 @@
 {
   "name": "@vizzy/mcp",
   "version": "0.1.0",
-  "description": "MCP server for Vizzy \u2014 gather rows, emit ChartConfig v1, publish a paste URL and PNG.",
+  "description": "MCP server for Vizzy — gather rows, emit ChartConfig v1, publish a paste URL and PNG.",
   "main": "dist/index.js",
   "bin": {
     "vizzy-mcp": "dist/cli.js"
