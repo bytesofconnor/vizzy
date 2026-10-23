@@ -44,6 +44,6 @@ Minimal valid config:
 If validation fails, fix the issue `path` (for example `dataMapping.y`) using the `suggestion`. Do not rewrite the renderer.
 
 Agents in this repo work under `/poteto-mode`.
-Agents default every role and every launch to Cursor models first, grok-4.7, grok-4.6, and composer-2.5.
+Use Cursor first. Agents default every role and every launch to Cursor models first, grok-4.7, grok-4.6, and composer-2.5.
 Claude, GPT, and other models are an opt-in upgrade for a task that clearly needs one, while quota remains.
 If an other-model call is refused for usage, retry immediately on a Cursor model without stopping.
