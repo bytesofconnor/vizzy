@@ -54,6 +54,6 @@ A pull request from this repository squash-merges when its required checks pass.
 
 A pull request from a fork waits for Connor.
 
-The workflow trigger is `pull_request`. Do not switch it to `pull_request_target`. Permissions stay `contents: write` and `pull-requests: write`. The command is `gh pr merge --auto --squash`, so GitHub waits for the required checks. A draft is skipped until it is marked ready, because GitHub will not merge a draft.
+The workflow trigger is `pull_request`. Do not switch it to `pull_request_target`. Permissions stay `contents: write` and `pull-requests: write`. A draft is skipped until it is marked ready.
 
 Eval publish writes to production Convex when a pull request into `main` closes as merged, after the CI job `checks` has succeeded on that head. A merge made with `GITHUB_TOKEN` does not start a workflow that listens to `push`. Full e2e still listens to `push` on `main`.
