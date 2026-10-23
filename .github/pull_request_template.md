@@ -1,5 +1,5 @@
-## What changed
+## Summary
 
-## Why
+## Verification
 
-## How it was verified
+## Blast Radius
