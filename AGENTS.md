@@ -50,15 +50,10 @@ If an other-model call is refused for usage, retry immediately on a Cursor model
 
 ## Auto-merge
 
-Auto-merge runs `gh pr merge --auto --squash` and waits for the required CI checks.
+A pull request from this repository squash-merges when its required checks pass. That includes a cloud-agent branch, every Dependabot update (patch, minor, major, and GitHub Actions), and a diff that edits `.github/**`, `.cursor/rules/**`, or `AGENTS.md`.
 
-The workflow trigger is `pull_request`. Do not switch it to `pull_request_target`. Permissions stay `contents: write` and `pull-requests: write`.
+A pull request from a fork waits for Connor.
 
-Enable auto-merge when every rule below is true.
-
-- The pull request comes from this repository. Skip a fork. Skip an outside contributor. An outside contributor is an author who is not the repository owner, a member, or a collaborator. Dependabot passes this check when the next rule matches.
-- The head branch matches `cursor/*`, or the author is Dependabot and the update is a patch or a minor bump.
-- The diff does not change `.github/**`, `.cursor/rules/**`, or `AGENTS.md`.
-- The pull request is not a major version bump. A Dependabot `semver-major` update, a `major` label, or a title or body that moves `from x.y.z to X.y.z` with a higher major all count.
+The workflow trigger is `pull_request`. Do not switch it to `pull_request_target`. Permissions stay `contents: write` and `pull-requests: write`. The command is `gh pr merge --auto --squash`, so GitHub waits for the required checks. A draft is skipped until it is marked ready, because GitHub will not merge a draft.
 
 Eval publish writes to production Convex when a pull request into `main` closes as merged, after the CI job `check` has succeeded on that head. A merge made with `GITHUB_TOKEN` does not start a workflow that listens to `push`. Full e2e still listens to `push` on `main`.
