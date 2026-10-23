@@ -34,24 +34,6 @@ jobs:
           CI: true
           NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3456
 
-  eval:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm install
-      - run: npm run build --workspace=@vizzy/core --workspace=@vizzy/eval
-      - run: node apps/eval/dist/cli.js run --publish
-        env:
-          CONVEX_URL: ${{ secrets.CONVEX_PROD_URL }}
-          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.CONVEX_PROD_URL }}
-          COMPOSE_SERVER_SECRET: ${{ secrets.COMPOSE_SERVER_SECRET_PROD }}
-
   e2e:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
