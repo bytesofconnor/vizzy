@@ -4,6 +4,13 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # TypeScript 7 has no compiler API, so tsup --dts fails. typescript-eslint
+    # also rejects 7 (peer >=4.8.4 <6.1.0). Pinned at 6.0.3 in #23.
+    # Remove this ignore when tsup --dts works on TypeScript 7 and that peer range allows it.
+    ignore:
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
     groups:
       npm:
         applies-to: version-updates
