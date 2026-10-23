@@ -22,7 +22,7 @@ export const DimensionsSchema = z.object({
     right: z.number().min(0).default(20),
     bottom: z.number().min(0).default(40),
     left: z.number().min(0).default(40),
-  }).default({}),
+  }).prefault({}),
 });
 export type Dimensions = z.infer<typeof DimensionsSchema>;
 
@@ -126,8 +126,8 @@ export const AxisConfigSchema = z.object({
 export type AxisConfig = z.infer<typeof AxisConfigSchema>;
 
 export const AxesConfigSchema = z.object({
-  x: AxisConfigSchema.default({}),
-  y: AxisConfigSchema.default({}),
+  x: AxisConfigSchema.prefault({}),
+  y: AxisConfigSchema.prefault({}),
 });
 export type AxesConfig = z.infer<typeof AxesConfigSchema>;
 
@@ -187,14 +187,14 @@ export type Source = z.infer<typeof SourceSchema>;
 
 export const ChartConfigSchema = z.object({
   schemaVersion: z.literal(1).default(1),
-  dimensions: DimensionsSchema.default({}),
-  colors: ColorSchemeSchema.default({}),
-  animation: AnimationConfigSchema.default({}),
-  interaction: InteractionConfigSchema.default({}),
-  accessibility: AccessibilityConfigSchema.default({}),
-  performance: ChartPerformanceConfigSchema.default({}),
-  axes: AxesConfigSchema.default({}),
-  legend: LegendConfigSchema.default({}),
+  dimensions: DimensionsSchema.prefault({}),
+  colors: ColorSchemeSchema.prefault({}),
+  animation: AnimationConfigSchema.prefault({}),
+  interaction: InteractionConfigSchema.prefault({}),
+  accessibility: AccessibilityConfigSchema.prefault({}),
+  performance: ChartPerformanceConfigSchema.prefault({}),
+  axes: AxesConfigSchema.prefault({}),
+  legend: LegendConfigSchema.prefault({}),
   chart: ChartTypeConfigSchema,
   dataMapping: z.object({
     x: z.string(),
@@ -287,7 +287,7 @@ export const validateChartConfig = (config: unknown): ChartConfig => {
       throw new VizzyError(
         'INVALID_CONFIG',
         'Chart configuration validation failed',
-        { zodError: error.errors },
+        { zodError: error.issues },
         true
       );
     }
@@ -303,7 +303,7 @@ export const validateDataset = (data: unknown): Dataset => {
       throw new VizzyError(
         'INVALID_DATA',
         'Dataset validation failed',
-        { zodError: error.errors },
+        { zodError: error.issues },
         true
       );
     }

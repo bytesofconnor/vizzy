@@ -1,8 +1,23 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
 
+const sourceAlias = {
+  '@vizzy/core': path.resolve(__dirname, '../../packages/core/src'),
+  '@vizzy/react': path.resolve(__dirname, '../../packages/react/src'),
+  '@vizzy/resolve': path.resolve(__dirname, '../../packages/resolve/src'),
+};
+
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
+  allowedDevOrigins: ['127.0.0.1'],
+  agentRules: false,
+  turbopack: {
+    resolveAlias: {
+      '@vizzy/core': '../../packages/core/src',
+      '@vizzy/react': '../../packages/react/src',
+      '@vizzy/resolve': '../../packages/resolve/src',
+    },
+  },
   serverExternalPackages: ['jsdom', '@resvg/resvg-js', 'stripe'],
   transpilePackages: ['@vizzy/core', '@vizzy/react', '@vizzy/resolve'],
   outputFileTracingIncludes: {
@@ -43,9 +58,7 @@ const nextConfig: NextConfig = {
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@vizzy/core': path.resolve(__dirname, '../../packages/core/src'),
-      '@vizzy/react': path.resolve(__dirname, '../../packages/react/src'),
-      '@vizzy/resolve': path.resolve(__dirname, '../../packages/resolve/src'),
+      ...sourceAlias,
     };
     return config;
   },
