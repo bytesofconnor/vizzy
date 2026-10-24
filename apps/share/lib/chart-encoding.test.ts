@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { settleEncoding } from './compose-guards';
 import { mintDraft } from './from-prompt';
 
 const BABY_NOTES = [
@@ -60,6 +61,35 @@ describe('chart encoding', () => {
     expect(heights).toEqual([15270, 13527, 20802, 18965]);
     const visible = `${minted.piece.note} ${minted.piece.data.map((row) => String(row.x)).join(' ')}`;
     expect(visible).toMatch(/boys and girls are mixed/i);
+  });
+
+  it('reads a side-by-side boys and girls table as births, not rank', () => {
+    const notes = [
+      '| Rank | Male name | Number | Female name | Number |',
+      '| --- | --- | --- | --- | --- |',
+      '| 1 | Liam | 20802 | Olivia | 15270 |',
+      '| 2 | Noah | 18965 | Emma | 13527 |',
+    ].join('\n');
+    const encoded = settleEncoding({
+      asked: 'Most popular baby names in the US 2023',
+      notes,
+      note: 'Social Security Administration.',
+      yLabel: 'Rank',
+      chartType: 'bar',
+      rows: [
+        { x: 'Olivia', y: 1 },
+        { x: 'Emma', y: 2 },
+        { x: 'Liam', y: 1 },
+        { x: 'Noah', y: 2 },
+      ],
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      return;
+    }
+    expect(encoded.rows.map((row) => row.y)).toEqual([15270, 13527, 20802, 18965]);
+    expect(encoded.yLabel).toBe('Number');
+    expect(encoded.note).toMatch(/boys and girls are mixed/i);
   });
 
   it('does not treat a country name as a second unit', () => {
