@@ -146,7 +146,7 @@ export default defineSchema({
     retrieved: v.number(),
     xLabel: v.string(),
     yLabel: v.string(),
-    rows: v.array(v.object({ x: v.string(), y: v.number() })),
+    rows: v.array(v.object({ x: v.string(), y: v.number(), series: v.optional(v.string()) })),
   }).index('by_series', ['family', 'seriesId']),
 
   resolveEvents: defineTable({

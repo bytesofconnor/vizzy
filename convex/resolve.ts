@@ -8,7 +8,7 @@ function assertServer(secret: string): void {
   }
 }
 
-const seriesRow = v.object({ x: v.string(), y: v.number() });
+const seriesRow = v.object({ x: v.string(), y: v.number(), series: v.optional(v.string()) });
 
 const cachedSeries = v.object({
   family: v.string(),

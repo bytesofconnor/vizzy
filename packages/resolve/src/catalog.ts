@@ -1,4 +1,5 @@
 import { foldAsked } from './normalize';
+import { phraseIn, placesInAsked } from './places';
 import type { Dataset, DatasetTopic, Recipe } from './types';
 
 export const DATASETS: readonly Dataset[] = [
@@ -253,6 +254,18 @@ export const DATASETS: readonly Dataset[] = [
     yLabel: 'September minimum (million km²)',
     topics: ['climate', 'ecology'],
     aliases: ['sea ice', 'arctic ice', 'arctic summer ice'],
+    avoid: ['antarctic', 'antarctica'],
+  },
+  {
+    family: 'owid',
+    seriesId: 'antarctic_sea_ice',
+    sourceLabel: 'Our World in Data — Antarctic sea ice (NSIDC)',
+    sourceUrl: 'https://ourworldindata.org/grapher/antarctica-sea-ice-extent',
+    xLabel: 'Year',
+    yLabel: 'February minimum (million km²)',
+    topics: ['climate', 'ecology'],
+    aliases: ['antarctic sea ice', 'antarctica sea ice', 'antarctic ice'],
+    avoid: ['arctic'],
   },
   {
     family: 'owid',
@@ -354,7 +367,7 @@ export const DATASETS: readonly Dataset[] = [
     xLabel: 'Country',
     yLabel: 'Protected waters %',
     topics: ['ecology', 'geography'],
-    aliases: ['marine protected', 'mpa', 'fishing grounds'],
+    aliases: ['marine protected', 'fishing grounds'],
   },
   {
     family: 'owid',
@@ -543,6 +556,18 @@ export const DATASETS: readonly Dataset[] = [
   },
   {
     family: 'owid',
+    seriesId: 'gdp_growth',
+    sourceLabel: 'Our World in Data — annual GDP growth',
+    sourceUrl: 'https://ourworldindata.org/grapher/annual-gdp-growth',
+    xLabel: 'Year',
+    yLabel: 'GDP growth %',
+    topics: ['economy'],
+    aliases: ['gdp growth'],
+    avoid: ['per capita', 'per person'],
+    places: true,
+  },
+  {
+    family: 'owid',
     seriesId: 'nuclear_warheads',
     sourceLabel: 'Our World in Data — deployed strategic nuclear warheads',
     sourceUrl: 'https://ourworldindata.org/grapher/nuclear-warhead-inventories',
@@ -640,14 +665,17 @@ export function matchPrompt(asked: string): Recipe | null {
 }
 
 function scoreDataset(asked: string, dataset: Dataset): number {
-  if (dataset.avoid?.some((needle) => asked.includes(foldAsked(needle)))) {
+  if (dataset.avoid?.some((needle) => phraseIn(asked, needle))) {
+    return 0;
+  }
+  if (dataset.places && placesInAsked(asked).length < 2) {
     return 0;
   }
   let best = 0;
   let hits = 0;
   for (const alias of dataset.aliases) {
     const needle = foldAsked(alias);
-    if (needle.length < 3 || !asked.includes(needle)) {
+    if (needle.length < 3 || !phraseIn(asked, alias)) {
       continue;
     }
     hits += 1;

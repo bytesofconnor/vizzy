@@ -1,11 +1,9 @@
-import type { ResolvedSeries } from '@vizzy/resolve';
+import { phraseIn, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
 import { fitChartType } from './compose-guards';
 import { honestTitle } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
 import { looksLikeInstruction, remixFollowUp } from './remix-prompt';
 import { studioChart } from './theme';
-
-const MAX_OFFICIAL_ROWS = 80;
 
 const FAMILY_KICKER: Record<ResolvedSeries['family'], string> = {
   noaa: 'NOAA',
@@ -107,6 +105,7 @@ function applyYearlyCut(asked: string, rows: ResolvedSeries['rows']): Array<{ x:
 }
 
 const CLASH_WORDS = ['poverty', 'population', 'death', 'pew', 'gallup'] as const;
+const POLES = ['arctic', 'antarctic'] as const;
 
 export function textClashesWithSeries(
   text: string,
@@ -114,7 +113,10 @@ export function textClashesWithSeries(
 ): boolean {
   const fold = text.toLowerCase();
   const identity = `${series.yLabel} ${series.sourceLabel} ${series.seriesId}`.toLowerCase();
-  return CLASH_WORDS.some((word) => fold.includes(word) && !identity.includes(word));
+  if (CLASH_WORDS.some((word) => fold.includes(word) && !identity.includes(word))) {
+    return true;
+  }
+  return POLES.some((pole) => phraseIn(fold, pole) && !phraseIn(identity, pole));
 }
 
 export function honestSeriesTitle(series: {
@@ -149,14 +151,13 @@ export function titleFromAsked(asked: string, series: ResolvedSeries): string {
   return cleaned;
 }
 
-/** Chart an official series without a drafting model. */
 export function mintFromOfficial(asked: string, series: ResolvedSeries): MintResult {
-  const capped =
-    series.rows.length > MAX_OFFICIAL_ROWS ? series.rows.slice(-MAX_OFFICIAL_ROWS) : series.rows;
-  const cut = applyYearlyCut(asked, capped);
-  const rows = cut ?? capped;
+  const spanned = rowsForAsked(series.rows, asked);
+  const cut = applyYearlyCut(asked, spanned);
+  const rows = cut ?? spanned;
+  const multi = new Set(rows.map((row) => row.series).filter(Boolean)).size >= 2;
   const yearly = yearlyOfficialRows(rows);
-  const chartType = fitChartType(yearly ? 'line' : 'bar', rows, asked);
+  const chartType = multi ? 'line' : fitChartType(yearly ? 'line' : 'bar', rows, asked);
   const xLabel = cut ? 'Year' : series.xLabel;
   const yLabel =
     cut && wantsYearlyChange(asked) && !/^change in /i.test(series.yLabel)
@@ -175,7 +176,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   const note = textClashesWithSeries(asked, series) ? title : series.sourceLabel;
   const config = studioChart(
     chartType === 'line' ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
-    { x: 'x', y: 'y' },
+    { x: 'x', y: 'y', ...(multi ? { color: 'series' as const } : {}) },
     {
       axes: {
         x: { label: xLabel },
@@ -192,7 +193,11 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     title,
     kicker: FAMILY_KICKER[series.family],
     note,
-    data: rows.map((row) => ({ x: row.x, y: row.y })),
+    data: rows.map((row) => ({
+      x: row.x,
+      y: row.y,
+      ...(row.series ? { series: row.series } : {}),
+    })),
     config,
     source: {
       label: series.sourceLabel,
