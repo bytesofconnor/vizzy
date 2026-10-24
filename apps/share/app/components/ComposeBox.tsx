@@ -11,7 +11,7 @@ import type { ClientPiece, ComposeProgressEvent } from '../../lib/compose-progre
 import { composeWithProgress } from '../../lib/compose-stream';
 import { HeroExamples } from './HeroExamples';
 import { HeroTypewriter } from './HeroTypewriter';
-import { FILL_COMPOSE_PROMPT } from './TellMeMore';
+import { FILL_COMPOSE_PROMPT, type FillComposeDetail } from './TellMeMore';
 import { usePromptTypewriter } from './usePromptTypewriter';
 
 type Quota = {
@@ -68,6 +68,7 @@ export function ComposeBox({
   );
   const [promptFresh, setPromptFresh] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const submitRef = useRef<(fresh?: boolean, askedOverride?: string) => void>(() => {});
   const typeRef = useRef<HTMLDivElement | null>(null);
   const reviseTypeRef = useRef<HTMLDivElement | null>(null);
 
@@ -199,24 +200,45 @@ export function ComposeBox({
 
   useEffect(() => {
     const onFill = (event: Event) => {
-      const detail = (event as CustomEvent<{ prompt?: string; fresh?: boolean }>).detail;
-      const next = detail?.prompt;
-      if (typeof next !== 'string' || next.trim().length < 3) {
+      const detail = (event as CustomEvent<Partial<FillComposeDetail> | undefined>).detail;
+      const next = typeof detail?.prompt === 'string' ? detail.prompt.trim() : '';
+      if (next.length < 3) {
+        return;
+      }
+      if (busy) {
+        if (detail) {
+          detail.result = 'busy';
+        }
         return;
       }
       const fresh = detail?.fresh === true;
+      const shouldSubmit = detail?.submit === true;
+      setPrompt(next);
+      setHeld(true);
       setPromptFresh(fresh);
       onPromptIntent?.({ fresh });
-      onPickIdea(next.trim());
+      if (shouldSubmit) {
+        if (detail) {
+          detail.result = 'started';
+        }
+        setFocusHero(false);
+        promptRef.current?.blur();
+        submitRef.current(fresh, next);
+        return;
+      }
+      if (detail) {
+        detail.result = 'filled';
+      }
+      onPickIdea(next);
     };
     window.addEventListener(FILL_COMPOSE_PROMPT, onFill);
     return () => window.removeEventListener(FILL_COMPOSE_PROMPT, onFill);
-  }, [onPickIdea, onPromptIntent]);
+  }, [busy, onPickIdea, onPromptIntent]);
 
 
-  async function submit(fresh = false) {
+  async function submit(fresh = false, askedOverride?: string) {
     const goFresh = fresh || promptFresh;
-    let asked = prompt.trim();
+    let asked = (askedOverride ?? prompt).trim();
     const demo = (hero ? typedExample : studio && !goFresh ? reviseExample : '').trim();
     if (asked.length < 3 && demo.length >= 3) {
       asked = demo;
@@ -268,6 +290,10 @@ export function ComposeBox({
     setBusy(false);
     setComposeProgress(null);
   }
+
+  submitRef.current = (fresh?: boolean, askedOverride?: string) => {
+    void submit(fresh ?? false, askedOverride);
+  };
 
   async function buy() {
     setBuying(true);

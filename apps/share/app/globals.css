@@ -3257,6 +3257,12 @@ a.compose-hero-submit.is-amber:focus-visible {
   border-color: color-mix(in srgb, var(--ink) 28%, var(--rule));
 }
 
+.tell-more-next:active {
+  transform: translateY(1px);
+  border-color: color-mix(in srgb, var(--ink) 40%, var(--rule));
+  background: color-mix(in srgb, var(--ink) 8%, var(--paper));
+}
+
 .paste-insight-toggle {
   display: inline-flex;
   align-items: center;
