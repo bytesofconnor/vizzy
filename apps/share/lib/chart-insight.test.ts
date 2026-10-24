@@ -71,6 +71,20 @@ describe('heuristic fallbacks', () => {
     expect(heuristicInsight(reef).length).toBeGreaterThan(80);
   });
 
+  it('does not say Pew when the source is Gallup', () => {
+    const text = heuristicInsight({
+      ...reef,
+      title: 'Gun ownership by age',
+      note: 'Pew, by age group. 50-64 and 65+ were not published.',
+      yLabel: 'Share %',
+      sourceLabel: 'Gallup',
+      sourceMethod: 'scraped',
+      sourceUrl: 'https://news.gallup.com/poll/264932/gun-owners.aspx',
+    });
+    expect(text).not.toMatch(/\bPew\b/);
+    expect(text).toMatch(/Gallup/);
+  });
+
   it('returns a valid lesson for every layer', () => {
     for (let layer = 1; layer <= 5; layer += 1) {
       expect(sanitizeLesson(heuristicLesson(reef, layer))).not.toBeNull();

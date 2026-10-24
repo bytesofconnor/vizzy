@@ -69,6 +69,32 @@ describe('mintFromOfficial', () => {
     }
   });
 
+  it('does not title world population as extreme poverty', () => {
+    const population: ResolvedSeries = {
+      family: 'owid',
+      seriesId: 'world_population',
+      sourceLabel: 'Our World in Data — world population',
+      sourceUrl: 'https://ourworldindata.org/grapher/population',
+      method: 'official',
+      retrieved: Date.UTC(2026, 9, 24),
+      xLabel: 'Year',
+      yLabel: 'People',
+      rows: [
+        { x: '-10000', y: 4501152 },
+        { x: '2023', y: 8091000000 },
+      ],
+    };
+    const minted = mintFromOfficial('Extreme poverty 1990-2023', population);
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(minted.piece.title.toLowerCase()).toContain('world population');
+    expect(minted.piece.title.toLowerCase()).not.toContain('poverty');
+    expect(minted.piece.note.toLowerCase()).toContain('world population');
+    expect(minted.piece.config.axes.y.label).toBe('People');
+  });
+
   it('does not use a revise command as a title', () => {
     const minted = mintFromOfficial(
       'Add the missing comparison that would change how Tanzania looks',
