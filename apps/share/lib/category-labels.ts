@@ -127,10 +127,10 @@ export function hasGenericPlaceholders(rows: Array<{ x: string | number }>): boo
 }
 
 export function relabelGenericCategories(
-  rows: Array<{ x: string | number; y: number }>,
+  rows: Array<{ x: string | number; y: number | null }>,
   names: string[],
   asked: string
-): Array<{ x: string | number; y: number }> {
+): Array<{ x: string | number; y: number | null }> {
   if (rows.length === 0 || !hasGenericPlaceholders(rows)) {
     return rows;
   }
