@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { tryLocalRevision } from './revision-apply';
 import type { ChartSeed } from './seed';
 
-function seed(rows: Array<{ x: string | number; y: number }>): ChartSeed {
+function seed(rows: Array<{ x: string | number; y: number | null }>): ChartSeed {
   return {
     title: 'UN General Assembly Yes Votes on Ukraine',
     kicker: 'Ukraine conflict',
@@ -66,6 +66,35 @@ describe('tryLocalRevision', () => {
     expect(next?.ok).toBe(true);
     if (next?.ok) {
       expect(next.seed.rows.map((row) => row.x)).toEqual([2023, 2025, 2026]);
+    }
+  });
+
+  it('drops the smallest figures and keeps empty slots', () => {
+    const numeric = tryLocalRevision(votes, 'Drop the bottom two.');
+    expect(numeric?.ok).toBe(true);
+    if (numeric?.ok) {
+      expect(numeric.seed.rows.map((row) => row.x)).toEqual([2022, 2014, 2023]);
+    }
+
+    const next = tryLocalRevision(
+      seed([
+        { x: '18-29', y: 27 },
+        { x: '30-49', y: 35 },
+        { x: '50-64', y: null },
+        { x: '40-49', y: 10 },
+        { x: '65+', y: null },
+        { x: '12-17', y: 4 },
+      ]),
+      'Drop the bottom two.'
+    );
+    expect(next?.ok).toBe(true);
+    if (next?.ok) {
+      expect(next.seed.rows).toEqual([
+        { x: '30-49', y: 35 },
+        { x: '18-29', y: 27 },
+        { x: '50-64', y: null },
+        { x: '65+', y: null },
+      ]);
     }
   });
 });

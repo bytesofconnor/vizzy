@@ -71,6 +71,21 @@ describe('heuristic fallbacks', () => {
     expect(heuristicInsight(reef).length).toBeGreaterThan(80);
   });
 
+  it('does not call an empty slot the low value', () => {
+    const text = heuristicInsight({
+      ...reef,
+      chartType: 'bar',
+      rows: [
+        { x: '18-29', y: 27 },
+        { x: '30-49', y: 35 },
+        { x: '65+', y: null },
+      ],
+    });
+    expect(text).toMatch(/30-49/);
+    expect(text).toMatch(/18-29/);
+    expect(text).not.toMatch(/65\+/);
+  });
+
   it('does not say Pew when the source is Gallup', () => {
     const text = heuristicInsight({
       ...reef,

@@ -1,4 +1,4 @@
-import { revisionYearSpan, rowYear, yearishRows, type ChartSeed } from './seed';
+import { rankFigures, revisionYearSpan, rowYear, yearishRows, type ChartSeed } from './seed';
 
 function yearPattern(): RegExp {
   return /\b((?:19|20)\d{2})\b/g;
@@ -56,21 +56,25 @@ export function tryLocalRevision(
   }
 
   if (/\bsort by\b/i.test(text)) {
-    rows = [...rows].sort((a, b) => b.y - a.y);
+    rows = rankFigures(rows);
     changed = true;
   }
 
   const top = text.match(/\b(?:keep only the )?top\s+(five|5|three|3|ten|10)\b/i);
   if (top) {
     const n = /10|ten/i.test(top[1] ?? '') ? 10 : /3|three/i.test(top[1] ?? '') ? 3 : 5;
-    rows = [...rows].sort((a, b) => b.y - a.y).slice(0, Math.min(n, rows.length));
+    rows = rankFigures(rows).slice(0, Math.min(n, rows.length));
     changed = true;
   }
 
   const dropBottom = text.match(/\bdrop the bottom\s+(three|3|two|2)\b/i);
   if (dropBottom && rows.length > 4) {
     const n = /2|two/i.test(dropBottom[1] ?? '') ? 2 : 3;
-    rows = [...rows].sort((a, b) => b.y - a.y).slice(0, Math.max(2, rows.length - n));
+    const ranked = rankFigures(rows);
+    const blanks = ranked.filter((row) => row.y === null);
+    const figures = ranked.filter((row) => row.y !== null);
+    const keep = blanks.length === 0 ? Math.max(2, figures.length - n) : Math.max(0, figures.length - n);
+    rows = [...figures.slice(0, keep), ...blanks];
     changed = true;
   }
 

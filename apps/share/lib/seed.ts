@@ -14,8 +14,39 @@ export type ChartSeed = {
   evidence: string;
   sourceUrl?: string;
   printGrayscale?: boolean;
-  rows: Array<{ x: string | number; y: number; series?: string }>;
+  rows: Array<{ x: string | number; y: number | null; series?: string }>;
 };
+
+export function parseSeedY(value: unknown): number | null | undefined {
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.toLowerCase() === 'empty') {
+      return null;
+    }
+    if (!trimmed) {
+      return undefined;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  return undefined;
+}
+
+export function figureRows<T extends { y: number | null }>(rows: readonly T[]): Array<T & { y: number }> {
+  return rows.filter((row): row is T & { y: number } => row.y !== null);
+}
+
+export function rankFigures<T extends { y: number | null }>(rows: readonly T[]): T[] {
+  const figures = [...figureRows(rows)].sort((a, b) => b.y - a.y);
+  const blanks = rows.filter((row) => row.y === null);
+  return [...figures, ...blanks];
+}
 
 const METHODS = ['official', 'export', 'scraped', 'estimate', 'manual', 'example', 'unknown'] as const;
 
@@ -32,17 +63,20 @@ export function seedFromPiece(piece: Piece): ChartSeed {
   const groupField = seriesField(piece.config.dataMapping);
   const source = piece.config.source;
   const method = METHODS.find((item) => item === source?.method) ?? 'unknown';
-  const rows = piece.data
-    .map((row) => {
-      const y = Number(row[yField]);
-      const series = groupField ? String(row[groupField] ?? '').trim() : '';
-      return {
+  const rows = piece.data.flatMap((row) => {
+    const y = parseSeedY(row[yField]);
+    if (y === undefined) {
+      return [];
+    }
+    const series = groupField ? String(row[groupField] ?? '').trim() : '';
+    return [
+      {
         x: row[xField] as string | number,
         y,
         ...(series ? { series } : {}),
-      };
-    })
-    .filter((row) => Number.isFinite(row.y));
+      },
+    ];
+  });
 
   return {
     title: piece.title,
@@ -117,11 +151,11 @@ export function parseChartSeed(value: unknown): ChartSeed | undefined {
     if (typeof row !== 'object' || row === null || !('x' in row) || !('y' in row)) {
       continue;
     }
-    const y = Number((row as { y: unknown }).y);
+    const y = parseSeedY((row as { y: unknown }).y);
     const x = (row as { x: unknown }).x;
     const seriesRaw = (row as { series?: unknown }).series;
     const series = typeof seriesRaw === 'string' ? seriesRaw.trim().slice(0, 40) : '';
-    if (!Number.isFinite(y) || (typeof x !== 'string' && typeof x !== 'number')) {
+    if (y === undefined || (typeof x !== 'string' && typeof x !== 'number')) {
       continue;
     }
     rows.push({ x, y, ...(series ? { series } : {}) });
@@ -149,9 +183,10 @@ export function parseChartSeed(value: unknown): ChartSeed | undefined {
 
 export function seedBriefing(seed: ChartSeed): string {
   const grouped = seed.rows.some((row) => Boolean(row.series));
+  const cell = (y: number | null) => (y === null ? 'empty' : String(y));
   const table = grouped
-    ? ['x\ty\tseries', ...seed.rows.map((row) => `${row.x}\t${row.y}\t${row.series ?? ''}`)].join('\n')
-    : ['x\ty', ...seed.rows.map((row) => `${row.x}\t${row.y}`)].join('\n');
+    ? ['x\ty\tseries', ...seed.rows.map((row) => `${row.x}\t${cell(row.y)}\t${row.series ?? ''}`)].join('\n')
+    : ['x\ty', ...seed.rows.map((row) => `${row.x}\t${cell(row.y)}`)].join('\n');
   return `CURRENT CHART:
 title: ${seed.title}
 kicker: ${seed.kicker}
