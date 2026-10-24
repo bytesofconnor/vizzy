@@ -355,7 +355,7 @@ async function draftChartOnce(model: (typeof COMPOSE_MODELS)[number], prompt: st
   return result.output;
 }
 
-function mintDraft(
+export function mintDraft(
   asked: string,
   gathered: { notes: string; urls: string[] },
   output: z.infer<typeof DraftSchema>,
