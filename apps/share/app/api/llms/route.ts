@@ -14,6 +14,7 @@ export async function GET() {
     `POST ${origin}/api/compose`,
     'JSON { "prompt": "ARR by quarter, last two years" }',
     'Returns { ok, url, png, token }. Humans get a chart page. Machines get JSON.',
+    'A compose body with clarify has a question and options, spends no slot, and has no paste URL. POST an option prompt, or POST the same prompt with "disposition": "send".',
     '',
     `POST ${origin}/api/publish`,
     'JSON { "title", "data": [ { ...rows } ], "config"?, "source"? }',
