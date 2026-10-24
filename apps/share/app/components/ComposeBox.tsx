@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { FREE_PER_DAY, PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import { PROMPT_LINES } from '../../lib/prompt-ideas';
@@ -8,11 +8,17 @@ import { heuristicRevisionPrompts } from '../../lib/revision-heuristics';
 import type { ChartSeed } from '../../lib/seed';
 import { DustRail } from './DustRail';
 import type { ClientPiece, ComposeProgressEvent } from '../../lib/compose-progress';
+import type { ClarifyAsk, ComposeDisposition } from '../../lib/compose-outcome';
 import { composeWithProgress } from '../../lib/compose-stream';
 import { HeroExamples } from './HeroExamples';
 import { HeroTypewriter } from './HeroTypewriter';
 import { FILL_COMPOSE_PROMPT, type FillComposeDetail } from './TellMeMore';
 import { usePromptTypewriter } from './usePromptTypewriter';
+
+type CardNotice =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'fail'; readonly error: string; readonly pay: boolean }
+  | { readonly kind: 'clarify'; readonly ask: ClarifyAsk };
 
 type Quota = {
   configured: boolean;
@@ -57,7 +63,9 @@ export function ComposeBox({
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [composeProgress, setComposeProgress] = useState<ComposeProgressEvent | null>(null);
-  const [fail, setFail] = useState(error ?? '');
+  const [notice, setNotice] = useState<CardNotice>(
+    error ? { kind: 'fail', error, pay: Boolean(askPay) } : { kind: 'none' }
+  );
   const [pay, setPay] = useState(Boolean(askPay));
   const [quota, setQuota] = useState<Quota | null>(null);
   const [buying, setBuying] = useState(false);
@@ -105,6 +113,7 @@ export function ComposeBox({
         return;
       }
       setPrompt(nextPrompt);
+      setNotice((current) => (current.kind === 'clarify' ? { kind: 'none' } : current));
       setHeld(true);
       window.requestAnimationFrame(() => {
         const field = promptRef.current;
@@ -236,7 +245,23 @@ export function ComposeBox({
   }, [busy, onPickIdea, onPromptIntent]);
 
 
-  async function submit(fresh = false, askedOverride?: string) {
+  function onPromptEdit(value: string) {
+    setPrompt(value);
+    setNotice((current) => (current.kind === 'clarify' ? { kind: 'none' } : current));
+    window.requestAnimationFrame(fitPromptHeight);
+  }
+
+  function pickOption(optionPrompt: string) {
+    setPrompt(optionPrompt);
+    setHeld(true);
+    void submit(false, optionPrompt);
+  }
+
+  function sendAsWritten() {
+    void submit(false, undefined, 'send');
+  }
+
+  async function submit(fresh = false, askedOverride?: string, disposition?: ComposeDisposition) {
     const goFresh = fresh || promptFresh;
     let asked = (askedOverride ?? prompt).trim();
     const demo = (hero ? typedExample : studio && !goFresh ? reviseExample : '').trim();
@@ -253,7 +278,7 @@ export function ComposeBox({
     onComposeStart?.({ fresh: goFresh });
     setPromptFresh(false);
     setBusy(true);
-    setFail('');
+    setNotice({ kind: 'none' });
     setPay(false);
     setComposeProgress({
       stage: 'queue',
@@ -261,30 +286,45 @@ export function ComposeBox({
       message: useSeed ? 'Reading your revision…' : 'Starting…',
     });
 
-    try {
-      const result = await composeWithProgress(
-        useSeed && seed ? { prompt: asked, seed } : { prompt: asked },
-        setComposeProgress
-      );
-      if (result.ok) {
-        if (onMinted && result.piece) {
-          onMinted(result.piece, result.url);
-          setPrompt('');
-          setHeld(false);
-          setBusy(false);
-          setComposeProgress(null);
-          return;
-        }
-        window.location.assign(result.url);
-        return;
-      }
+    const payload: { prompt: string; seed?: ChartSeed; disposition?: ComposeDisposition } = { prompt: asked };
+    if (useSeed && seed) {
+      payload.seed = seed;
+    }
+    if (disposition) {
+      payload.disposition = disposition;
+    }
 
-      setFail(result.error);
-      if (result.pay) {
-        setPay(true);
+    try {
+      const outcome = await composeWithProgress(payload, setComposeProgress);
+      switch (outcome.kind) {
+        case 'chart':
+          if (onMinted && outcome.piece) {
+            onMinted(outcome.piece, outcome.url);
+            setPrompt('');
+            setHeld(false);
+            setBusy(false);
+            setComposeProgress(null);
+            return;
+          }
+          window.location.assign(outcome.url);
+          return;
+        case 'clarify':
+          setNotice({ kind: 'clarify', ask: outcome.ask });
+          break;
+        case 'fail':
+          setNotice({ kind: 'fail', error: outcome.error, pay: Boolean(outcome.pay) });
+          if (outcome.pay) {
+            setPay(true);
+          }
+          break;
+        default: {
+          const unexpected: never = outcome;
+          setNotice({ kind: 'fail', error: 'Could not generate that chart', pay: false });
+          void unexpected;
+        }
       }
     } catch {
-      setFail('Could not generate that chart');
+      setNotice({ kind: 'fail', error: 'Could not generate that chart', pay: false });
     }
 
     setBusy(false);
@@ -297,7 +337,7 @@ export function ComposeBox({
 
   async function buy() {
     setBuying(true);
-    setFail('');
+    setNotice({ kind: 'none' });
     try {
       const response = await fetch('/api/checkout', { method: 'POST' });
       const body: unknown = await response.json();
@@ -309,22 +349,22 @@ export function ComposeBox({
         typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
           ? body.error
           : 'Could not start checkout';
-      setFail(message);
+      setNotice({ kind: 'fail', error: message, pay });
     } catch {
-      setFail('Could not start checkout');
+      setNotice({ kind: 'fail', error: 'Could not start checkout', pay });
     }
     setBuying(false);
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void submit();
+    void submit(false, undefined, 'ask');
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      void submit();
+      void submit(false, undefined, 'ask');
     }
   }
 
@@ -389,10 +429,7 @@ export function ComposeBox({
                       autoFocus={focusHero}
                       disabled={busy}
                       value={prompt}
-                      onChange={(event) => {
-                        setPrompt(event.target.value);
-                        window.requestAnimationFrame(fitPromptHeight);
-                      }}
+                      onChange={(event) => onPromptEdit(event.target.value)}
                       onFocus={() => setHeld(true)}
                       onBlur={() => setHeld(false)}
                       onKeyDown={onKeyDown}
@@ -430,10 +467,7 @@ export function ComposeBox({
                       rows={1}
                       disabled={busy}
                       value={prompt}
-                      onChange={(event) => {
-                        setPrompt(event.target.value);
-                        window.requestAnimationFrame(fitPromptHeight);
-                      }}
+                      onChange={(event) => onPromptEdit(event.target.value)}
                       onFocus={() => setHeld(true)}
                       onBlur={() => setHeld(false)}
                       onKeyDown={onKeyDown}
@@ -441,6 +475,9 @@ export function ComposeBox({
                     />
                   </div>
                 )}
+            {notice.kind === 'clarify' ? (
+              <ClarifyRow ask={notice.ask} busy={busy} onPick={pickOption} onSend={sendAsWritten} />
+            ) : null}
             <div className="compose-hero-bar">
                   {studio ? (
                     <>
@@ -481,9 +518,9 @@ export function ComposeBox({
                 </div>
           </div>
         ) : null}
-        {fail && !busy ? (
+        {notice.kind === 'fail' && notice.error && !busy ? (
           <p role="alert" className="compose-fail">
-            {fail}
+            {notice.error}
           </p>
         ) : null}
         </div>
@@ -491,6 +528,43 @@ export function ComposeBox({
         {home && showIdeas ? <HeroExamples onPick={onPickIdea} disabled={busy} /> : null}
       </div>
     </form>
+  );
+}
+
+function ClarifyRow({
+  ask,
+  busy,
+  onPick,
+  onSend,
+}: {
+  ask: ClarifyAsk;
+  busy: boolean;
+  onPick: (prompt: string) => void;
+  onSend: () => void;
+}) {
+  const questionId = useId();
+  return (
+    <div className="compose-clarify" role="group" aria-labelledby={questionId}>
+      <p id={questionId} className="compose-clarify-question">
+        {ask.question}
+      </p>
+      <div className="compose-clarify-options">
+        {ask.options.map((option) => (
+          <button
+            key={option.label}
+            type="button"
+            className="compose-clarify-chip"
+            disabled={busy}
+            onClick={() => onPick(option.prompt)}
+          >
+            {option.label}
+          </button>
+        ))}
+        <button type="button" className="compose-clarify-skip" disabled={busy} onClick={onSend}>
+          Just send it
+        </button>
+      </div>
+    </div>
   );
 }
 

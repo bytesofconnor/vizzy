@@ -5,7 +5,8 @@ import { datasetForSourceUrl, matchPrompt } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { honestSeriesTitle, mintFromOfficial, textClashesWithSeries } from './official-mint';
-import { clarifyingQuestion, honestTitle } from './honor-prompt';
+import type { MintOrder } from './compose-decision';
+import { honestTitle } from './honor-prompt';
 import { titleForChart } from './remix-prompt';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
 import { tryLocalRevision } from './revision-apply';
@@ -104,23 +105,11 @@ export function publicComposeError(error: unknown): string {
 }
 
 export async function pieceFromPrompt(
-  prompt: string,
-  from?: ChartSeed,
+  order: MintOrder,
   onProgress?: ComposeProgressReporter
 ): Promise<MintResult> {
-  const asked = prompt.trim();
-  if (asked.length < 3) {
-    return { ok: false, error: 'Say what to chart', issues: [] };
-  }
-  if (asked.length > 4000) {
-    return { ok: false, error: 'Keep it under 4000 characters', issues: [] };
-  }
-  if (!from) {
-    const question = clarifyingQuestion(asked);
-    if (question) {
-      return { ok: false, error: question, issues: [] };
-    }
-  }
+  const asked = order.prompt;
+  const from = order.seed;
   if (from && isUnsupportedVizOnlyRevision(asked)) {
     return {
       ok: false,
