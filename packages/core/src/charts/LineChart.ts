@@ -6,6 +6,7 @@ import { DataProcessor, ProcessedData } from '../components/DataProcessor';
 import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '../chart-tip';
 import { forecastStartIndex } from '../forecast';
 import { formatDataValue, linePointLabelPlacement } from '../format';
+import { sourceWithholdsCounts } from '../source-counts';
 
 type LineSeriesOptions = Partial<
   Pick<
@@ -222,6 +223,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       this._renderInflection(group, inflection, lineColor, published);
     }
     const showEndLabel =
+      !sourceWithholdsCounts(this._config) &&
       !inflection &&
       cut < 0 &&
       (seriesCount === 1 || !this._config.legend.show);
@@ -542,6 +544,10 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       .attr('fill', color)
       .attr('stroke', 'none');
 
+    if (sourceWithholdsCounts(this._config)) {
+      return;
+    }
+
     const beatIndex = seriesValues.findIndex((row) => row === beat);
     const prevRow = beatIndex > 0 ? seriesValues[beatIndex - 1] : undefined;
     const prevY =
@@ -699,7 +705,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
         d3.select(this).attr('r', 4);
       });
 
-    if (!host || interaction.tooltip === false) {
+    if (!host || interaction.tooltip === false || sourceWithholdsCounts(this._config)) {
       return;
     }
 
@@ -739,6 +745,9 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       .attr('aria-roledescription', 'point')
       .attr('aria-label', (d: TData) => {
         const xValue = d[dataMapping.x];
+        if (sourceWithholdsCounts(this._config)) {
+          return `Point: ${xValue}`;
+        }
         const yValue = d[dataMapping.y];
         return `Point: ${xValue}, ${yValue}`;
       })

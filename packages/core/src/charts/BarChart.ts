@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import { bindChartTip, formatTipNumber, seriesTipLabel } from '../chart-tip';
 import { formatDataValue } from '../format';
+import { sourceWithholdsCounts } from '../source-counts';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
@@ -310,7 +311,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
         d3.select(this).attr('opacity', 1).attr('stroke', 'none');
       });
 
-    if (!host || interaction.tooltip === false) {
+    if (!host || interaction.tooltip === false || sourceWithholdsCounts(this._config)) {
       return;
     }
 
@@ -346,6 +347,9 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .attr('aria-roledescription', 'bar')
       .attr('aria-label', (d: TData) => {
         const xValue = d[dataMapping.x];
+        if (sourceWithholdsCounts(this._config)) {
+          return String(xValue ?? '');
+        }
         const yValue = d[dataMapping.y];
         return `${xValue}: ${yValue}`;
       })

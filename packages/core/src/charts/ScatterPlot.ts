@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '../chart-tip';
+import { sourceWithholdsCounts } from '../source-counts';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
@@ -286,7 +287,7 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
         d3.select(this).attr('r', original);
       });
 
-    if (!host || interaction.tooltip === false) {
+    if (!host || interaction.tooltip === false || sourceWithholdsCounts(this._config)) {
       return;
     }
 
@@ -324,6 +325,9 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
       .attr('aria-roledescription', 'data point')
       .attr('aria-label', (d: TData) => {
         const xValue = d[dataMapping.x];
+        if (sourceWithholdsCounts(this._config)) {
+          return `Point: ${xValue}`;
+        }
         const yValue = d[dataMapping.y];
         let label = `Point: ${xValue}, ${yValue}`;
         
