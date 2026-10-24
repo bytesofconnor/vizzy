@@ -73,9 +73,46 @@ describe('source labels stay honest', () => {
     expect(source.url).toBeUndefined();
     expect(sourceCardLine(source).toLowerCase()).toContain('no published page');
     const svg = await renderToSVG(minted.piece.config, minted.piece.data);
-    const printed = [...svg.matchAll(/>([^<]*)</g)].map((match) => match[1]?.replace(/&nbsp;/g, ' ').trim() ?? '').filter(Boolean);
-    const numbers = printed.filter((text) => /^-?\d/.test(text));
-    expect.soft(printed.join(' ').toLowerCase()).toContain('no published page');
-    expect.soft(numbers).toEqual([]);
+    expect.soft(printedCounts(svg)).toEqual([]);
+    expect.soft(svg.toLowerCase()).toContain('no published page');
+  });
+
+  it('does not print an end label when a line estimate has no published page', async () => {
+    const minted = mintDraft(
+      'Egg prices by year',
+      { notes: 'Public lookup found no matching table.', urls: [] },
+      {
+        title: 'Egg prices',
+        kicker: 'Estimate',
+        note: 'No published page backs these numbers.',
+        chartType: 'line',
+        area: false,
+        xLabel: 'Year',
+        yLabel: 'Price',
+        sourceLabel: 'Estimate',
+        sourceMethod: 'estimate',
+        evidence: 'lookup failed',
+        rows: [
+          { x: '2019', y: 12 },
+          { x: '2020', y: 40 },
+        ],
+      }
+    );
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const svg = await renderToSVG(minted.piece.config, minted.piece.data);
+    expect(visibleText(svg).join(' ')).not.toMatch(/(?<![\d.])(?:12|40)(?![\d.])/);
   });
 });
+
+function printedCounts(svg: string): string[] {
+  return visibleText(svg).filter((value) => /\d/.test(value));
+}
+
+function visibleText(svg: string): string[] {
+  const text = [...svg.matchAll(/>([^<]*)</g)].map((match) => match[1]?.replace(/&nbsp;/g, ' ').trim() ?? '');
+  const names = [...svg.matchAll(/aria-label="([^"]*)"/g)].map((match) => match[1] ?? '');
+  return [...text, ...names].filter(Boolean);
+}
