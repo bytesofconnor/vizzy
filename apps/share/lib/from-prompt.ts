@@ -5,6 +5,7 @@ import { matchPrompt } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { mintFromOfficial } from './official-mint';
+import { clarifyingQuestion, honestTitle } from './honor-prompt';
 import { titleForChart } from './remix-prompt';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
 import { tryLocalRevision } from './revision-apply';
@@ -105,6 +106,12 @@ export async function pieceFromPrompt(
   }
   if (asked.length > 4000) {
     return { ok: false, error: 'Keep it under 4000 characters', issues: [] };
+  }
+  if (!from) {
+    const question = clarifyingQuestion(asked);
+    if (question) {
+      return { ok: false, error: question, issues: [] };
+    }
   }
   if (from && isUnsupportedVizOnlyRevision(asked)) {
     return {
@@ -459,7 +466,16 @@ function mintDraft(
   );
 
   return mintPiece({
-    title: titleForChart({ drafted: output.title, asked, previous: from?.title }),
+    title: honestTitle({
+      asked,
+      title: titleForChart({ drafted: output.title, asked, previous: from?.title }),
+      xLabel,
+      yLabel,
+      rows,
+      note: output.note,
+      sourceLabel: source.label,
+      notes: gathered.notes,
+    }),
     kicker: estimated ? output.kicker || 'Illustrative' : output.kicker,
     note: output.note,
     data: rows,

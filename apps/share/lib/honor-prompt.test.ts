@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { pieceFromPrompt } from './from-prompt';
 import { clarifyingQuestion, honestTitle } from './honor-prompt';
 
 describe('honestTitle', () => {
@@ -14,6 +15,22 @@ describe('honestTitle', () => {
         { x: 'Germany', y: 14 },
       ],
       note: 'Additions in 2023',
+    });
+    expect(title.toLowerCase()).toContain('new capacity');
+    expect(title.toLowerCase()).not.toContain('installed');
+  });
+
+  it('names new capacity when the lookup table is additions and the axis label is vague', () => {
+    const title = honestTitle({
+      asked: 'Top 10 countries by installed solar capacity in 2023',
+      title: 'Top 10 countries by installed solar capacity in 2023',
+      xLabel: 'Country',
+      yLabel: 'MW',
+      rows: [
+        { x: 'China', y: 217 },
+        { x: 'United States', y: 32 },
+      ],
+      notes: '| Country | Added capacity (MW) |\n| --- | --- |\n| China | 217 |',
     });
     expect(title.toLowerCase()).toContain('new capacity');
     expect(title.toLowerCase()).not.toContain('installed');
@@ -80,5 +97,14 @@ describe('clarifyingQuestion', () => {
 
   it('does not ask when the prompt already names a measure', () => {
     expect(clarifyingQuestion('US unemployment since 2019 — is the economy doing better?')).toBeNull();
+  });
+
+  it('does not mint a Sep 2026 title for a bare economy question', async () => {
+    const result = await pieceFromPrompt('Is the economy doing better?');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.toLowerCase()).toContain('which measure');
+      expect(result.error).not.toMatch(/sep(?:tember)?\s+2026/i);
+    }
   });
 });
