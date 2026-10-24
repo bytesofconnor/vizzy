@@ -1,6 +1,7 @@
 import { matchPrompt } from './catalog';
 import { defaultGet } from './http';
 import { yearSpanFromAsked } from './normalize';
+import { placesInAsked } from './places';
 import { parseFredCsv, fredCsvUrl } from './parse/fred';
 import { parseNoaaCo2, NOAA_CO2_URL, NOAA_CH4_URL } from './parse/noaa';
 import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
@@ -51,7 +52,19 @@ export async function fetchRecipe(
 }
 
 export function rowsForAsked(rows: SeriesRow[], asked: string): SeriesRow[] {
-  return downsample(windowSpan(rows, yearSpanFromAsked(asked)));
+  const spanned = windowSpan(rows, yearSpanFromAsked(asked));
+  return downsample(keepAskedPlaces(spanned, asked));
+}
+
+function keepAskedPlaces(rows: SeriesRow[], asked: string): SeriesRow[] {
+  if (!rows.some((row) => row.series)) {
+    return rows;
+  }
+  const wanted = new Set(placesInAsked(asked));
+  if (wanted.size === 0) {
+    return [];
+  }
+  return rows.filter((row) => row.series !== undefined && wanted.has(row.series));
 }
 
 export async function fetchMatched(
@@ -104,9 +117,14 @@ export function notesFromResolved(series: {
   yLabel: string;
   rows: SeriesRow[];
 }): string {
-  const header = `| ${series.xLabel} | ${series.yLabel} |`;
-  const rule = '| --- | --- |';
-  const body = series.rows.map((row) => `| ${row.x} | ${row.y} |`).join('\n');
+  const multi = series.rows.some((row) => row.series);
+  const header = multi
+    ? `| ${series.xLabel} | Series | ${series.yLabel} |`
+    : `| ${series.xLabel} | ${series.yLabel} |`;
+  const rule = multi ? '| --- | --- | --- |' : '| --- | --- |';
+  const body = series.rows
+    .map((row) => (multi ? `| ${row.x} | ${row.series ?? ''} | ${row.y} |` : `| ${row.x} | ${row.y} |`))
+    .join('\n');
   const retrieved = new Date(series.retrieved).toISOString().slice(0, 10);
   return [
     `Official series ${series.family}:${series.seriesId}. Chart these numbers. Do not invent a different table.`,

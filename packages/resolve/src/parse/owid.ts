@@ -7,6 +7,7 @@ export type OwidSpec = {
   entity?: string;
   rank?: boolean;
   scale?: number;
+  places?: boolean;
 };
 
 const SKIP_ENTITY =
@@ -32,6 +33,11 @@ export const OWID_SPEC: Record<string, OwidSpec> = {
     slug: 'arctic-sea-ice',
     value: /Minimum \(September\)/i,
     entity: 'Arctic Ocean',
+  },
+  antarctic_sea_ice: {
+    slug: 'antarctica-sea-ice-extent',
+    value: /Minimum \(February\)/i,
+    entity: 'Antarctica',
   },
   us_wildfire_area: {
     slug: 'annual-area-burnt-by-wildfires',
@@ -143,6 +149,11 @@ export const OWID_SPEC: Record<string, OwidSpec> = {
     value: /^GDP$/i,
     entity: 'World',
   },
+  gdp_growth: {
+    slug: 'annual-gdp-growth',
+    value: /^Annual GDP growth/i,
+    places: true,
+  },
   nuclear_warheads: {
     slug: 'nuclear-warhead-inventories',
     value: /Deployed strategic warheads/i,
@@ -193,6 +204,12 @@ export function parseOwidCsv(csv: string, spec: OwidSpec): SeriesRow[] {
       continue;
     }
     parsed.push({ entity, year, y: spec.scale ? y * spec.scale : y });
+  }
+  if (spec.places) {
+    return parsed
+      .filter((row) => !skipEntity(row.entity))
+      .sort((a, b) => a.year - b.year || a.entity.localeCompare(b.entity))
+      .map((row) => ({ x: String(row.year), y: roundY(row.y), series: row.entity }));
   }
   if (spec.entity) {
     return parsed

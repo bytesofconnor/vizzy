@@ -29,8 +29,31 @@ export function windowSpan(
   });
 }
 
-/** Keep first and last; pick evenly in between. */
+const MULTI_CAP = 80;
+
 export function downsample(rows: SeriesRow[], max = MAX_ROWS): SeriesRow[] {
+  if (rows.some((row) => row.series)) {
+    return thinEachSeries(rows);
+  }
+  return pickEvenly(rows, max);
+}
+
+function thinEachSeries(rows: SeriesRow[]): SeriesRow[] {
+  if (rows.length <= MULTI_CAP) {
+    return rows;
+  }
+  const groups = new Map<string, SeriesRow[]>();
+  for (const row of rows) {
+    const key = row.series ?? '';
+    const list = groups.get(key) ?? [];
+    list.push(row);
+    groups.set(key, list);
+  }
+  const per = Math.max(2, Math.floor(MULTI_CAP / Math.max(groups.size, 1)));
+  return [...groups.values()].flatMap((group) => pickEvenly(group, per));
+}
+
+function pickEvenly(rows: SeriesRow[], max: number): SeriesRow[] {
   if (rows.length <= max) {
     return rows;
   }

@@ -17,6 +17,7 @@ export type DatasetTopic =
 export type SeriesRow = {
   x: string;
   y: number;
+  series?: string;
 };
 
 /** A fetchable official series. Matching is retrieval over aliases, not a per-chart predicate. */
@@ -30,6 +31,8 @@ export type Dataset = {
   topics: readonly DatasetTopic[];
   aliases: readonly string[];
   avoid?: readonly string[];
+  /** Keep this series only when the prompt names at least two places. */
+  places?: boolean;
 };
 
 export type Recipe = Dataset;
