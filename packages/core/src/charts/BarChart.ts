@@ -36,28 +36,25 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     context: RenderContext,
     data: TData[]
   ): Promise<void> {
-    const stored = this._config;
-    const frame = sketchFrame(stored);
-    const storedContext = context.config;
-    this._config = frame;
+    const frame = sketchFrame(this._config);
     context.config = frame;
     try {
       this._host = context.container;
       this._processedData = this._dataProcessor.process(data);
 
-      this._scaleManager = new ScaleManager(this._config, context.dimensions);
+      this._scaleManager = new ScaleManager(frame, context.dimensions);
       const scales = this._scaleManager.createScales(this._processedData.domains);
 
       context.scales = scales;
 
-      this._renderEngine = new RenderEngine('svg', this._config);
+      this._renderEngine = new RenderEngine('svg', frame);
       this._renderEngine.setContext(context);
 
       await this._renderEngine.renderGrid();
-      await this._renderBars(context);
+      await this._renderBars(context, frame);
       await this._renderEngine.renderAxes();
 
-      if (this._config.legend.show && this._processedData.statistics.colorStats) {
+      if (frame.legend.show && this._processedData.statistics.colorStats) {
         const legendData = this._processedData.statistics.colorStats.unique.map(value => ({
           label: value,
           color: this._scaleManager.getColorValue(value),
@@ -70,13 +67,10 @@ export class BarChart<TData extends DataPoint = DataPoint> {
         'Failed to render bar chart',
         { originalError: error instanceof Error ? error.message : String(error) }
       );
-    } finally {
-      this._config = stored;
-      context.config = storedContext;
     }
   }
 
-  private async _renderBars(context: RenderContext): Promise<void> {
+  private async _renderBars(context: RenderContext, frame: ChartConfig): Promise<void> {
     if (!context.svg || !this._processedData) return;
 
     const { svg, config } = context;
@@ -94,23 +88,24 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     const groupField = config.dataMapping.group;
     
     if (chartConfig.grouping === 'single' || !groupField) {
-      await this._renderSingleBars(barsGroup as any, this._processedData.processed);
+      await this._renderSingleBars(barsGroup as any, this._processedData.processed, frame);
     } else if (chartConfig.grouping === 'grouped') {
-      await this._renderGroupedBars(barsGroup as any, this._processedData.processed);
+      await this._renderGroupedBars(barsGroup as any, this._processedData.processed, frame);
     } else if (chartConfig.grouping === 'stacked') {
-      await this._renderStackedBars(barsGroup as any, this._processedData.processed);
+      await this._renderStackedBars(barsGroup as any, this._processedData.processed, frame);
     }
   }
 
   private async _renderSingleBars(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
-    data: TData[]
+    data: TData[],
+    frame: ChartConfig
   ): Promise<void> {
-    const { dataMapping, chart, colors, animation } = this._config;
+    const { dataMapping, chart, colors, animation } = frame;
     const chartConfig = chart as { cornerRadius?: number };
     const spoken: Array<Spoken<TData>> = data.map((row) => ({
       row,
-      speak: barSpeak(row[dataMapping.x], row[dataMapping.y], this._config.source),
+      speak: barSpeak(row[dataMapping.x], row[dataMapping.y], frame.source),
     }));
     const drawn = spoken.filter((item) => item.speak.mark !== 'none');
     const fillFor = (row: TData) => {
@@ -175,33 +170,31 @@ export class BarChart<TData extends DataPoint = DataPoint> {
         .attr('height', (item) => this._barHeight(item.row[dataMapping.y]));
     }
 
-    if (this._config.interaction.hover) {
-      this._addHoverInteractions(barsUpdate);
+    if (frame.interaction.hover) {
+      this._addHoverInteractions(barsUpdate, frame);
     }
 
-    if (this._config.interaction.click) {
-      this._addClickInteractions(barsUpdate);
+    if (frame.accessibility.enabled) {
+      this._addAccessibilityAttributes(barsUpdate, frame);
     }
 
-    if (this._config.accessibility.enabled) {
-      this._addAccessibilityAttributes(barsUpdate);
-    }
-
-    this._drawBaseline(group);
-    this._renderSlotCopy(group, spoken);
+    this._drawBaseline(group, frame);
+    this._renderSlotCopy(group, spoken, frame);
     this._renderBarLabels(
       group,
       spoken
         .filter((item) => item.speak.mark === 'solid' && item.speak.glyph !== '0')
-        .map((item) => item.row)
+        .map((item) => item.row),
+      frame
     );
   }
 
   private _renderSlotCopy(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
-    spoken: Array<Spoken<TData>>
+    spoken: Array<Spoken<TData>>,
+    frame: ChartConfig
   ): void {
-    const { dataMapping, colors, accessibility, interaction } = this._config;
+    const { dataMapping, colors, accessibility } = frame;
     const blanks = spoken.filter((item) => item.speak.mark === 'none');
     const zeros = spoken.filter((item) => item.speak.glyph === '0');
     const mono = 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace';
@@ -241,7 +234,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .style('pointer-events', 'none')
       .text('0');
 
-    const showStamp = seriesIsSketch(this._config.source);
+    const showStamp = seriesIsSketch(frame.source);
     const stamp = group.selectAll<SVGTextElement, number>('.bar-sketch-stamp').data(showStamp ? [0] : []);
     stamp.exit().remove();
     if (showStamp) {
@@ -261,18 +254,18 @@ export class BarChart<TData extends DataPoint = DataPoint> {
         .style('pointer-events', 'none')
         .text('Unfinished');
     }
-    this._bindBlankTips(blankMerged, interaction.hover);
+    this._bindBlankTips(blankMerged, frame);
   }
 
   private _bindBlankTips(
     nodes: d3.Selection<SVGTextElement, Spoken<TData>, SVGGElement, unknown>,
-    hover: boolean
+    frame: ChartConfig
   ): void {
     const host = this._host;
-    if (!hover || !host || this._config.interaction.tooltip === false) {
+    if (!frame.interaction.hover || !host || frame.interaction.tooltip === false) {
       return;
     }
-    const { dataMapping } = this._config;
+    const { dataMapping } = frame;
     nodes.each((item, index, list) => {
       const node = list[index];
       if (!node) {
@@ -287,29 +280,26 @@ export class BarChart<TData extends DataPoint = DataPoint> {
 
   private async _renderGroupedBars(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
-    data: TData[]
+    data: TData[],
+    frame: ChartConfig
   ): Promise<void> {
-    // Implementation for grouped bars
-    // This would involve grouping data by the group field and creating sub-bands
-    // For now, fall back to single bars
-    await this._renderSingleBars(group, data);
+    await this._renderSingleBars(group, data, frame);
   }
 
   private async _renderStackedBars(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
-    data: TData[]
+    data: TData[],
+    frame: ChartConfig
   ): Promise<void> {
-    // Implementation for stacked bars
-    // This would involve stacking values and calculating cumulative heights
-    // For now, fall back to single bars
-    await this._renderSingleBars(group, data);
+    await this._renderSingleBars(group, data, frame);
   }
 
   private _renderBarLabels(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
-    data: TData[]
+    data: TData[],
+    frame: ChartConfig
   ): void {
-    const chartConfig = this._config.chart as { showValues?: boolean; orientation?: string };
+    const chartConfig = frame.chart as { showValues?: boolean; orientation?: string };
     if (!chartConfig.showValues || chartConfig.orientation === 'horizontal' || data.length > 14) {
       group.selectAll('.bar-label').remove();
       return;
@@ -320,7 +310,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       return;
     }
 
-    const { dataMapping, colors } = this._config;
+    const { dataMapping, colors } = frame;
     const domain = scales.y.domain() as [number, number];
     const labels = group.selectAll<SVGTextElement, TData>('.bar-label')
       .data(data, (d) => String(d[dataMapping.x]));
@@ -356,7 +346,8 @@ export class BarChart<TData extends DataPoint = DataPoint> {
   }
 
   private _drawBaseline(
-    group: d3.Selection<SVGGElement, unknown, null, undefined>
+    group: d3.Selection<SVGGElement, unknown, null, undefined>,
+    frame: ChartConfig
   ): void {
     const scales = this._scaleManager.getScales();
     if (!scales) {
@@ -372,7 +363,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .attr('x2', x1)
       .attr('y1', y0)
       .attr('y2', y0)
-      .attr('stroke', this._config.colors.text)
+      .attr('stroke', frame.colors.text)
       .attr('stroke-opacity', 0.2)
       .attr('stroke-width', 1);
   }
@@ -391,9 +382,10 @@ export class BarChart<TData extends DataPoint = DataPoint> {
   }
 
   private _addHoverInteractions(
-    bars: d3.Selection<SVGRectElement, Spoken<TData>, SVGGElement, unknown>
+    bars: d3.Selection<SVGRectElement, Spoken<TData>, SVGGElement, unknown>,
+    frame: ChartConfig
   ): void {
-    const { colors, dataMapping, interaction } = this._config;
+    const { colors, dataMapping, interaction } = frame;
     const host = this._host;
     const scales = this._scaleManager.getScales();
     const domain = (scales?.y.domain() as [number, number] | undefined) ?? [0, 1];
@@ -437,22 +429,17 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     });
   }
 
-  private _addClickInteractions(
-    bars: d3.Selection<SVGRectElement, Spoken<TData>, SVGGElement, unknown>
-  ): void {
-    bars.on('click', (_event: MouseEvent, _item: Spoken<TData>) => {});
-  }
-
   private _addAccessibilityAttributes(
-    bars: d3.Selection<SVGRectElement, Spoken<TData>, SVGGElement, unknown>
+    bars: d3.Selection<SVGRectElement, Spoken<TData>, SVGGElement, unknown>,
+    frame: ChartConfig
   ): void {
     bars
       .attr('role', 'graphics-symbol')
       .attr('aria-roledescription', 'bar')
       .attr('aria-label', (item) => item.speak.aria)
-      .attr('tabindex', this._config.accessibility.keyboardNavigation ? 0 : -1);
+      .attr('tabindex', frame.accessibility.keyboardNavigation ? 0 : -1);
 
-    if (this._config.accessibility.keyboardNavigation) {
+    if (frame.accessibility.keyboardNavigation) {
       bars.on('keydown', (event: KeyboardEvent, item) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();

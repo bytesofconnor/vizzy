@@ -155,11 +155,7 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
         return false;
       }
 
-      // A null or non-finite y is an empty slot the category axis still names.
-      if (
-        this._config.chart.type === 'bar' &&
-        (yValue === null || (typeof yValue === 'number' && !Number.isFinite(yValue)))
-      ) {
+      if (this._config.chart.type === 'bar' && this._emptyBarY(yValue)) {
         return true;
       }
 
@@ -180,6 +176,10 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
       
       return true;
     });
+  }
+
+  private _emptyBarY(yValue: unknown): boolean {
+    return yValue === null || (typeof yValue === 'number' && !Number.isFinite(yValue));
   }
 
   private _shouldBeNumeric(axis: 'x' | 'y'): boolean {
