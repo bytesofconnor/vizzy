@@ -24,6 +24,88 @@ export function yearlyOfficialRows(rows: ResolvedSeries['rows']): boolean {
   return years >= Math.ceil(rows.length * 0.7);
 }
 
+const YEARLY_GRAIN = /\b(per year|each year|every year|by year|year by year|yearly|annually|annual)\b/i;
+const YEARLY_CHANGE = /\b(year-over-year|year to year|yoy)\b/i;
+const CHANGE_WORD = /\b(changes?|delta|difference)\b/i;
+const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
+
+function wantsYearlyChange(asked: string): boolean {
+  return YEARLY_CHANGE.test(asked) || (CHANGE_WORD.test(asked) && YEARLY_GRAIN.test(asked));
+}
+
+function wantsYearlyGrain(asked: string): boolean {
+  return wantsYearlyChange(asked) || YEARLY_GRAIN.test(asked);
+}
+
+function monthStamp(value: string): { year: number; month: number } | null {
+  const text = value.trim();
+  const iso = text.match(/^((?:19|20)\d{2})[-/.](\d{1,2})(?:[-/.]\d{1,2})?$/);
+  if (iso) {
+    const month = Number(iso[2]);
+    if (month >= 1 && month <= 12) {
+      return { year: Number(iso[1]), month };
+    }
+  }
+  const named = text.match(/^([A-Za-z]+)\s+((?:19|20)\d{2})$/);
+  if (!named) {
+    return null;
+  }
+  const month = MONTH_NAMES.findIndex((item) => named[1]!.toLowerCase().startsWith(item));
+  if (month < 0) {
+    return null;
+  }
+  return { year: Number(named[2]), month: month + 1 };
+}
+
+function round3(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function yearlyLevels(rows: Array<{ x: string | number; y: number }>): Array<{ year: number; y: number }> {
+  const byYear = new Map<number, number>();
+  for (const row of rows) {
+    const stamp = monthStamp(String(row.x));
+    if (!stamp || !Number.isFinite(row.y)) {
+      continue;
+    }
+    byYear.set(stamp.year, row.y);
+  }
+  return [...byYear.entries()]
+    .sort((left, right) => left[0] - right[0])
+    .map(([year, y]) => ({ year, y }));
+}
+
+function applyYearlyCut(asked: string, rows: ResolvedSeries['rows']): Array<{ x: string; y: number }> | null {
+  if (!wantsYearlyGrain(asked) || rows.length < 2) {
+    return null;
+  }
+  const monthlyCount = rows.filter((row) => monthStamp(String(row.x))).length;
+  const monthly = monthlyCount >= Math.ceil(rows.length * 0.7);
+  let levels: Array<{ year: number; y: number }>;
+  if (monthly) {
+    levels = yearlyLevels(rows);
+  } else if (wantsYearlyChange(asked) && yearlyOfficialRows(rows)) {
+    levels = rows
+      .map((row) => ({ year: Number(String(row.x).trim()), y: row.y }))
+      .filter((row) => Number.isFinite(row.year) && Number.isFinite(row.y));
+  } else {
+    return null;
+  }
+  if (levels.length < 2) {
+    return null;
+  }
+  if (!wantsYearlyChange(asked)) {
+    return levels.map((level) => ({ x: String(level.year), y: round3(level.y) }));
+  }
+  const deltas: Array<{ x: string; y: number }> = [];
+  for (let index = 1; index < levels.length; index += 1) {
+    const current = levels[index]!;
+    const previous = levels[index - 1]!;
+    deltas.push({ x: String(current.year), y: round3(current.y - previous.y) });
+  }
+  return deltas.length >= 2 ? deltas : null;
+}
+
 const CLASH_WORDS = ['poverty', 'population', 'death', 'pew', 'gallup'] as const;
 
 export function textClashesWithSeries(
@@ -69,15 +151,23 @@ export function titleFromAsked(asked: string, series: ResolvedSeries): string {
 
 /** Chart an official series without a drafting model. */
 export function mintFromOfficial(asked: string, series: ResolvedSeries): MintResult {
-  const rows =
+  const capped =
     series.rows.length > MAX_OFFICIAL_ROWS ? series.rows.slice(-MAX_OFFICIAL_ROWS) : series.rows;
+  const cut = applyYearlyCut(asked, capped);
+  const rows = cut ?? capped;
   const yearly = yearlyOfficialRows(rows);
   const chartType = fitChartType(yearly ? 'line' : 'bar', rows, asked);
+  const xLabel = cut ? 'Year' : series.xLabel;
+  const yLabel =
+    cut && wantsYearlyChange(asked) && !/^change in /i.test(series.yLabel)
+      ? `Change in ${series.yLabel}`
+      : series.yLabel;
+  const titled = { ...series, rows, xLabel, yLabel };
   const title = honestTitle({
     asked,
-    title: titleFromAsked(asked, series),
-    xLabel: series.xLabel,
-    yLabel: series.yLabel,
+    title: titleFromAsked(asked, titled),
+    xLabel,
+    yLabel,
     rows,
     note: series.sourceLabel,
     sourceLabel: series.sourceLabel,
@@ -88,8 +178,8 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     { x: 'x', y: 'y' },
     {
       axes: {
-        x: { label: series.xLabel },
-        y: { label: series.yLabel },
+        x: { label: xLabel },
+        y: { label: yLabel },
       },
       accessibility: {
         title,

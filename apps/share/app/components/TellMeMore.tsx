@@ -22,8 +22,19 @@ const LAYER_KICKER = [
 
 export const FILL_COMPOSE_PROMPT = 'vizzy:fill-prompt';
 
-export function fillComposePrompt(prompt: string, fresh = false) {
-  window.dispatchEvent(new CustomEvent(FILL_COMPOSE_PROMPT, { detail: { prompt, fresh } }));
+export type FillComposeResult = 'started' | 'filled' | 'busy' | 'absent';
+
+export type FillComposeDetail = {
+  prompt: string;
+  fresh: boolean;
+  submit: boolean;
+  result: FillComposeResult;
+};
+
+export function fillComposePrompt(prompt: string, fresh = false, submit = false): FillComposeResult {
+  const detail: FillComposeDetail = { prompt, fresh, submit, result: 'absent' };
+  window.dispatchEvent(new CustomEvent(FILL_COMPOSE_PROMPT, { detail }));
+  return detail.result;
 }
 
 function seedKey(seed: ChartSeed): string {
@@ -110,6 +121,7 @@ export function TellMeMore({
   const [lessonBusy, setLessonBusy] = useState(false);
   const [fail, setFail] = useState(false);
   const [lessonFail, setLessonFail] = useState(false);
+  const [fillNote, setFillNote] = useState('');
   const [open, setOpen] = useState(true);
   const onInsightRef = useRef(onInsight);
   const seedRef = useRef(seed);
@@ -193,6 +205,21 @@ export function TellMeMore({
     setLessonBusy(false);
   }
 
+  function keepLearning(tryNext: string) {
+    const result = fillComposePrompt(tryNext, true, true);
+    if (result === 'busy') {
+      setFillNote('Still making a chart. Try again when it finishes.');
+      return;
+    }
+    if (result === 'absent') {
+      setFillNote('No composer on this page.');
+      return;
+    }
+    if (fillNote) {
+      setFillNote('');
+    }
+  }
+
   const bodyId = useId();
 
   return (
@@ -240,13 +267,18 @@ export function TellMeMore({
                   <button
                     type="button"
                     className="tell-more-next"
-                    onClick={() => fillComposePrompt(lesson.tryNext, true)}
+                    onClick={() => keepLearning(lesson.tryNext)}
                   >
                     Keep learning
                     <span>{lesson.tryNext}</span>
                   </button>
                 </div>
               ))}
+              {fillNote ? (
+                <p className="tell-more-fail" role="status">
+                  {fillNote}
+                </p>
+              ) : null}
               {canGoDeeper ? (
                 <>
                   <button

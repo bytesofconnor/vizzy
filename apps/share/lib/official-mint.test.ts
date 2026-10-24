@@ -66,7 +66,61 @@ describe('mintFromOfficial', () => {
     expect(minted.ok).toBe(true);
     if (minted.ok) {
       expect(minted.piece.config.chart.type).toBe('line');
+      expect(minted.piece.config.axes.x.label).toBe('Month');
+      expect(String(minted.piece.data[0]?.x)).toBe('2000-01');
+      expect(minted.piece.title).toBe('Fed funds since 2000');
     }
+  });
+
+  it('draws yearly changes when a monthly rate is asked for changes per year', () => {
+    const rows = [
+      { x: '2000-01', y: 5.5 },
+      { x: '2000-12', y: 6.5 },
+      { x: '2001-12', y: 1.75 },
+      { x: '2002-12', y: 1.25 },
+      { x: '2003-12', y: 1 },
+    ];
+    const minted = mintFromOfficial('Plot federal funds rate changes per year from 2000 to 2026', {
+      ...co2,
+      rows,
+      xLabel: 'Month',
+      yLabel: 'Rate %',
+    });
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(minted.piece.data.map((row) => row.x)).toEqual(['2001', '2002', '2003']);
+    expect(minted.piece.data.map((row) => row.y)).toEqual([-4.75, -0.5, -0.25]);
+    expect(minted.piece.config.axes.x.label).toBe('Year');
+    expect(minted.piece.config.axes.y.label).toBe('Change in Rate %');
+    expect(minted.piece.title.toLowerCase()).not.toContain('month');
+    expect(minted.piece.title).toBe('Change in Rate % by Year');
+    expect(minted.piece.config.chart.type).toBe('line');
+  });
+
+  it('rolls a monthly rate up to one point per year when asked by year', () => {
+    const rows = [
+      { x: '2000-06', y: 5 },
+      { x: '2000-12', y: 6 },
+      { x: '2001-12', y: 2 },
+    ];
+    const minted = mintFromOfficial('Show the federal funds rate by year', {
+      ...co2,
+      rows,
+      xLabel: 'Month',
+      yLabel: 'Rate %',
+    });
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(minted.piece.data).toEqual([
+      { x: '2000', y: 6 },
+      { x: '2001', y: 2 },
+    ]);
+    expect(minted.piece.title).toBe('Rate % by Year');
+    expect(minted.piece.config.axes.y.label).toBe('Rate %');
   });
 
   it('does not title world population as extreme poverty', () => {
