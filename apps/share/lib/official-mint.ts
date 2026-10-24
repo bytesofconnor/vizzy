@@ -1,4 +1,5 @@
 import type { ResolvedSeries } from '@vizzy/resolve';
+import { honestTitle } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
 import { looksLikeInstruction, remixFollowUp } from './remix-prompt';
 import { studioChart } from './theme';
@@ -40,7 +41,15 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   const rows =
     series.rows.length > MAX_OFFICIAL_ROWS ? series.rows.slice(-MAX_OFFICIAL_ROWS) : series.rows;
   const yearly = yearlyOfficialRows(rows);
-  const title = titleFromAsked(asked, series);
+  const title = honestTitle({
+    asked,
+    title: titleFromAsked(asked, series),
+    xLabel: series.xLabel,
+    yLabel: series.yLabel,
+    rows,
+    note: series.sourceLabel,
+    sourceLabel: series.sourceLabel,
+  });
   const config = studioChart(
     yearly ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
     { x: 'x', y: 'y' },
