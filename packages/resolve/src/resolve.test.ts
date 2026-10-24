@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { datasetsForTopic, matchPrompt, rankDatasets } from './catalog';
-import { notesFromResolved, resolvePrompt } from './resolve';
+import { notesFromResolved, resolvePrompt, rowsForAsked } from './resolve';
 import { parseFredCsv } from './parse/fred';
 import { parseNoaaCo2 } from './parse/noaa';
 import { parseUsgsGeojson } from './parse/usgs';
@@ -413,6 +413,17 @@ describe('resolvePrompt', () => {
     expect(series?.rows.map((row) => row.x)).toEqual(['2019-06', '2020-01']);
     expect(notesFromResolved(series!)).toContain('sourceMethod official');
     expect(notesFromResolved(series!)).toContain('fred.stlouisfed.org');
+  });
+
+  it('reapplies a year span to rows that were stored past the prompt', () => {
+    const rows = [
+      { x: '-10000', y: 4501152 },
+      { x: '1990', y: 43.414 },
+      { x: '2023', y: 10.475 },
+      { x: '2026', y: 9.8 },
+    ];
+    const windowed = rowsForAsked(rows, 'Extreme poverty 1990-2023');
+    expect(windowed.map((row) => row.x)).toEqual(['1990', '2023']);
   });
 
   it('downsamples long series', () => {

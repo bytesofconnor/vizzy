@@ -50,7 +50,11 @@ export async function fetchRecipe(
   return parseWikiApi(body, spec);
 }
 
-export async function resolvePrompt(
+export function rowsForAsked(rows: SeriesRow[], asked: string): SeriesRow[] {
+  return downsample(windowSpan(rows, yearSpanFromAsked(asked)));
+}
+
+export async function fetchMatched(
   asked: string,
   options: { get?: HttpGet; now?: number } = {}
 ): Promise<ResolvedSeries | null> {
@@ -58,8 +62,7 @@ export async function resolvePrompt(
   if (!recipe) {
     return null;
   }
-  const fetched = await fetchRecipe(recipe, options.get ?? defaultGet);
-  const rows = downsample(windowSpan(fetched, yearSpanFromAsked(asked)));
+  const rows = await fetchRecipe(recipe, options.get ?? defaultGet);
   if (rows.length < 2) {
     return null;
   }
@@ -74,6 +77,21 @@ export async function resolvePrompt(
     yLabel: recipe.yLabel,
     rows,
   };
+}
+
+export async function resolvePrompt(
+  asked: string,
+  options: { get?: HttpGet; now?: number } = {}
+): Promise<ResolvedSeries | null> {
+  const full = await fetchMatched(asked, options);
+  if (!full) {
+    return null;
+  }
+  const rows = rowsForAsked(full.rows, asked);
+  if (rows.length < 2) {
+    return null;
+  }
+  return { ...full, rows };
 }
 
 export function notesFromResolved(series: {

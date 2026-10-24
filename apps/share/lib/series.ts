@@ -1,4 +1,4 @@
-import { matchPrompt, notesFromResolved, resolvePrompt, type ResolvedSeries } from '@vizzy/resolve';
+import { fetchMatched, matchPrompt, notesFromResolved, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
 
 type ConvexResult<T> = { status: 'success'; value: T } | { status: 'error'; errorMessage?: string };
 
@@ -34,6 +34,14 @@ async function convexCall<T>(kind: 'query' | 'mutation', path: string, args: Rec
   }
 }
 
+function windowCached(series: ResolvedSeries, asked: string): ResolvedSeries | null {
+  const rows = rowsForAsked(series.rows, asked);
+  if (rows.length < 2) {
+    return null;
+  }
+  return { ...series, rows };
+}
+
 async function record(
   outcome: 'hit' | 'miss' | 'error',
   extra: { family?: string; seriesId?: string; fromCache: boolean }
@@ -61,27 +69,33 @@ export async function gatherOfficialSeries(
     now,
     maxAgeMs: DAY_MS,
   });
-  if (cached && cached.rows.length >= 2) {
+  const fromCache = cached ? windowCached(cached, asked) : null;
+  if (fromCache) {
     await record('hit', { family: recipe.family, seriesId: recipe.seriesId, fromCache: true });
-    return { notes: notesFromResolved(cached), urls: [cached.sourceUrl], series: cached };
+    return { notes: notesFromResolved(fromCache), urls: [fromCache.sourceUrl], series: fromCache };
   }
 
   try {
-    const series = await resolvePrompt(asked, { now });
-    if (!series) {
+    const full = await fetchMatched(asked, { now });
+    if (!full) {
       await record('error', { family: recipe.family, seriesId: recipe.seriesId, fromCache: false });
       return null;
     }
     await convexCall('mutation', 'resolve:putCached', {
-      family: series.family,
-      seriesId: series.seriesId,
-      sourceLabel: series.sourceLabel,
-      sourceUrl: series.sourceUrl,
-      retrieved: series.retrieved,
-      xLabel: series.xLabel,
-      yLabel: series.yLabel,
-      rows: series.rows,
+      family: full.family,
+      seriesId: full.seriesId,
+      sourceLabel: full.sourceLabel,
+      sourceUrl: full.sourceUrl,
+      retrieved: full.retrieved,
+      xLabel: full.xLabel,
+      yLabel: full.yLabel,
+      rows: full.rows,
     });
+    const series = windowCached(full, asked);
+    if (!series) {
+      await record('error', { family: recipe.family, seriesId: recipe.seriesId, fromCache: false });
+      return null;
+    }
     await record('hit', { family: series.family, seriesId: series.seriesId, fromCache: false });
     return { notes: notesFromResolved(series), urls: [series.sourceUrl], series };
   } catch {
