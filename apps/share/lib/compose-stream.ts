@@ -10,6 +10,14 @@ export type ComposeCall = {
   disposition?: ComposeDisposition;
 };
 
+function parsedProgressEvent(payload: string): ComposeProgressEvent | undefined {
+  try {
+    return JSON.parse(payload) as ComposeProgressEvent;
+  } catch {
+    return undefined;
+  }
+}
+
 function parseSseChunk(buffer: string): { events: ComposeProgressEvent[]; rest: string } {
   const events: ComposeProgressEvent[] = [];
   const parts = buffer.split('\n\n');
@@ -27,10 +35,9 @@ function parseSseChunk(buffer: string): { events: ComposeProgressEvent[]; rest: 
     if (!payload) {
       continue;
     }
-    try {
-      events.push(JSON.parse(payload) as ComposeProgressEvent);
-    } catch {
-      // ignore malformed chunks
+    const event = parsedProgressEvent(payload);
+    if (event) {
+      events.push(event);
     }
   }
 

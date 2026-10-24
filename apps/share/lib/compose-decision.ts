@@ -95,8 +95,7 @@ function bareWordAsk(text: string): ClarifyAsk | undefined {
   );
 }
 
-function clarifyOrMint(trimmed: string, seed: ChartSeed | undefined, ask: ClarifyAsk): ComposeDecision {
-  // An option prompt over 4000 characters would be rejected on the next POST.
+function clarifyUnlessChipExceedsMax(trimmed: string, seed: ChartSeed | undefined, ask: ClarifyAsk): ComposeDecision {
   if (ask.options.some((option) => option.prompt.length > PROMPT_MAX)) {
     return mintOrder(trimmed, seed);
   }
@@ -135,11 +134,11 @@ export function decideCompose(input: DecideInput): ComposeDecision {
 
   const economy = economyAsk(trimmed);
   if (economy) {
-    return clarifyOrMint(trimmed, input.seed, economy);
+    return clarifyUnlessChipExceedsMax(trimmed, input.seed, economy);
   }
   const bare = bareWordAsk(trimmed);
   if (bare) {
-    return clarifyOrMint(trimmed, input.seed, bare);
+    return clarifyUnlessChipExceedsMax(trimmed, input.seed, bare);
   }
   return mintOrder(trimmed);
 }

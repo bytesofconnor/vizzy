@@ -1,6 +1,5 @@
 import { publicOrigin } from './site';
 
-/** Copied into ChatGPT / Claude. Always vizzy.run so the model hits production. */
 export function agentPastePrompt(): string {
   const origin = publicOrigin();
   return [
