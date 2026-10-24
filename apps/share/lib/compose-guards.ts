@@ -67,7 +67,7 @@ export function pastedNumberSeries(asked: string): number[] | undefined {
   return undefined;
 }
 
-export function applyPastedNumberSeries<T extends { y: number }>(rows: T[], ys: number[]): T[] {
+export function applyPastedNumberSeries<T extends { y: number | null }>(rows: T[], ys: number[]): T[] {
   if (ys.length < 2 || rows.length < ys.length) {
     return rows;
   }
@@ -100,7 +100,7 @@ const RATE_PART = /\b(rates?|percent(?:age)?s?)\b|%/i;
 const COUNT_PART = /\b(?:counts?|jobs|payrolls?|births|workers|population|people(?!'))\b/i;
 const PART_SPLIT = /\s+(?:and|&|vs\.?|versus)\s+|\s*[,;/]\s*/i;
 
-type EncodingRow = { x: string | number; y: number };
+type EncodingRow = { x: string | number; y: number | null };
 
 type EncodingResult =
   | { ok: true; rows: EncodingRow[]; yLabel: string; note: string }
@@ -180,8 +180,14 @@ function isRankLadder(rows: EncodingRow[]): boolean {
   if (rows.length < 3) {
     return false;
   }
-  const ys = rows.map((row) => row.y);
-  if (!ys.every((y) => Number.isInteger(y) && y >= 1 && y <= rows.length)) {
+  const ys: number[] = [];
+  for (const row of rows) {
+    if (typeof row.y !== 'number' || !Number.isInteger(row.y)) {
+      return false;
+    }
+    ys.push(row.y);
+  }
+  if (!ys.every((y) => y >= 1 && y <= rows.length)) {
     return false;
   }
   const unique = new Set(ys);

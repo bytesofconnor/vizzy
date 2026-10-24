@@ -4,7 +4,7 @@ import {
   MAX_LESSON_LAYERS,
   type LessonPrior,
 } from '../../../lib/chart-insight';
-import { parseChartSeed, type ChartSeed } from '../../../lib/seed';
+import { parseChartSeed, parseSeedY, type ChartSeed } from '../../../lib/seed';
 
 function parseInsightSeed(value: unknown): ChartSeed | undefined {
   const seed = parseChartSeed(value);
@@ -26,9 +26,9 @@ function parseInsightSeed(value: unknown): ChartSeed | undefined {
     if (typeof row !== 'object' || row === null || !('x' in row) || !('y' in row)) {
       continue;
     }
-    const y = Number((row as { y: unknown }).y);
+    const y = parseSeedY((row as { y: unknown }).y);
     const x = (row as { x: unknown }).x;
-    if (!Number.isFinite(y) || (typeof x !== 'string' && typeof x !== 'number')) {
+    if (y === undefined || (typeof x !== 'string' && typeof x !== 'number')) {
       continue;
     }
     rows.push({ x, y });

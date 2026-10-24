@@ -1,6 +1,6 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
-import { forecastStartIndex } from '@vizzy/core';
+import { forecastStartIndex, seriesIsSketch } from '@vizzy/core';
 import { datasetForSourceUrl, matchPrompt } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
@@ -46,6 +46,7 @@ import {
   normalizeInventedSource,
   sourceLabelFor,
   sourceMethodFor,
+  type ChartSource,
 } from './source';
 
 const DraftSchema = z.object({
@@ -366,55 +367,6 @@ export function mintDraft(
   from?: ChartSeed
 ): MintResult {
   const pastedYs = pastedNumberSeries(asked);
-  const foundSeries = lookupFoundSeries(gathered.notes);
-  const pasteOnly = Boolean(!from && (pastedYs || pastedATable(asked)) && !foundSeries);
-  let estimated = output.sourceMethod === 'estimate' || output.sourceMethod === 'example';
-  if (!from && !foundSeries && !pasteOnly) {
-    estimated = true;
-  }
-  if (pasteOnly) {
-    estimated = false;
-  }
-  const lookedUp = foundSeries && gathered.urls.length > 0 && !estimated;
-  if (from && estimated && !lookedUp) {
-    estimated = false;
-  }
-  if (estimated) {
-    const basis = estimateBasisEvidence(output.evidence, {
-      asked,
-      lookupNotes: gathered.notes,
-      lookupUrls: gathered.urls,
-    });
-    if (basis.length < 20) {
-      return {
-        ok: false,
-        error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
-        issues: [],
-      };
-    }
-  }
-  const keepSource = Boolean(from) && !lookedUp && !estimated;
-  const sourceUrl = keepSource
-    ? from?.sourceUrl
-    : firstPromptUrl(asked) ?? (estimated ? undefined : gathered.urls[0] ?? from?.sourceUrl);
-  const method = keepSource
-    ? from!.sourceMethod
-    : estimated
-      ? 'estimate'
-      : pasteOnly
-        ? 'manual'
-        : lookedUp && output.sourceMethod === 'unknown'
-          ? 'scraped'
-          : output.sourceMethod === 'unknown' && sourceUrl
-            ? 'scraped'
-            : output.sourceMethod;
-  if (!from && !estimated && !sourceUrl && !meaningfulSourceLabel(output.sourceLabel)) {
-    return {
-      ok: false,
-      error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
-      issues: [],
-    };
-  }
   const tidied = tidyComparison(
     output.rows.map((row) => ({
       x: output.chartType === 'scatter' ? row.x : String(row.x),
@@ -481,11 +433,22 @@ export function mintDraft(
   const forecastAt = chartType === 'line' ? forecastStartIndex(rows, 'x') : -1;
   const forecastFrom = forecastAt >= 0 ? String(rows[forecastAt]?.x ?? '') : '';
 
-  const draftedSource = {
-    label: keepSource ? from!.sourceLabel : sourceLabelFor(sourceUrl, output.sourceLabel),
-    url: sourceUrl,
-  };
-  const drawn = datasetForSourceUrl(draftedSource.url);
+  const finished = finishSeries({
+    asked,
+    gathered,
+    output,
+    from: from ?? null,
+    rows,
+    chartType,
+  });
+  if (!finished.ok) {
+    return finished;
+  }
+  rows = finished.rows;
+  const source = finished.source;
+  const sketch = seriesIsSketch(source);
+
+  const drawn = datasetForSourceUrl(source.url);
   let title = honored?.title ?? titleForChart({ drafted: output.title, asked, previous: from?.title });
   let note = honored?.note ?? encoded.note;
   if (
@@ -506,18 +469,8 @@ export function mintDraft(
     xLabel = drawn.xLabel;
     yLabel = drawn.yLabel;
   }
-  title = alignAttribution(title, draftedSource);
-  note = alignAttribution(note, draftedSource);
-
-  const source = normalizeInventedSource(
-    {
-      label: alignAttribution(draftedSource.label, draftedSource),
-      method: keepSource ? method : sourceMethodFor(sourceUrl, method),
-      evidence: keepSource ? from!.evidence || output.evidence : output.evidence,
-      url: sourceUrl,
-    },
-    { asked, lookupNotes: gathered.notes, lookupUrls: gathered.urls }
-  );
+  title = alignAttribution(title, source);
+  note = alignAttribution(note, source);
 
   return mintPiece({
     title: honestTitle({
@@ -530,7 +483,7 @@ export function mintDraft(
       sourceLabel: source.label,
       notes: gathered.notes,
     }),
-    kicker: estimated ? output.kicker || 'Illustrative' : output.kicker,
+    kicker: sketch ? output.kicker || 'Illustrative' : output.kicker,
     note,
     data: rows,
     source,
@@ -538,7 +491,7 @@ export function mintDraft(
     config: {
       chart: {
         type: chartType,
-        ...(chartType === 'bar' ? { barPadding: 0.32, ...(estimated ? { showValues: false } : {}) } : {}),
+        ...(chartType === 'bar' ? { barPadding: 0.32, ...(sketch ? { showValues: false } : {}) } : {}),
         ...(chartType === 'line' && output.area ? { area: true, curve: 'linear' } : {}),
         ...(forecastFrom ? { forecastFrom } : {}),
       },
@@ -546,8 +499,8 @@ export function mintDraft(
       axes: {
         x: { show: true, grid: false, label: xLabel.slice(0, 40) },
         y: {
-          show: !estimated,
-          grid: !estimated,
+          show: !sketch,
+          grid: !sketch,
           gridOpacity: 0.55,
           tickCount: 5,
           label: yLabel.slice(0, 40),
@@ -555,6 +508,194 @@ export function mintDraft(
       },
     },
   });
+}
+
+const PUBLISHED_MISS =
+  'Could not find published numbers for that. Paste a table or put a source URL in your prompt.';
+
+type FinishRow = { x: string | number; y: number | null; series?: string };
+
+type FinishResult =
+  | { ok: true; source: ChartSource; rows: FinishRow[] }
+  | { ok: false; error: string; issues: [] };
+
+function finishSeries(input: {
+  asked: string;
+  gathered: { notes: string; urls: string[] };
+  output: { sourceMethod: ChartSource['method']; sourceLabel: string; evidence?: string };
+  from: ChartSeed | null;
+  rows: FinishRow[];
+  chartType: 'bar' | 'line' | 'scatter';
+}): FinishResult {
+  const foundSeries = lookupFoundSeries(input.gathered.notes);
+  const lookupUrls = input.gathered.urls;
+  const lookupHit = foundSeries && lookupUrls.length > 0;
+  const pasted = Boolean(pastedNumberSeries(input.asked) || pastedATable(input.asked));
+  const pasteWins = pasted && (!foundSeries || input.from !== null);
+  const prior = input.from;
+  const priorSketch = prior
+    ? seriesIsSketch({ method: prior.sourceMethod, url: prior.sourceUrl })
+    : false;
+  const modelMethod = input.output.sourceMethod;
+  const modelSketch = modelMethod === 'estimate' || modelMethod === 'example';
+  const context = {
+    asked: input.asked,
+    lookupNotes: input.gathered.notes,
+    lookupUrls,
+  };
+
+  let method: ChartSource['method'];
+  let url: string | undefined;
+  let keepPrior = false;
+
+  if (pasteWins) {
+    method = 'manual';
+    url = firstPromptUrl(input.asked);
+  } else if (!prior && !foundSeries) {
+    method = 'estimate';
+    url = undefined;
+  } else if (!prior && modelSketch) {
+    method = modelMethod;
+    url = undefined;
+  } else if (!prior) {
+    url = firstPromptUrl(input.asked) ?? lookupUrls[0];
+    method = modelMethod === 'unknown' && url ? 'scraped' : modelMethod;
+  } else if (priorSketch && lookupHit) {
+    method = 'scraped';
+    url = lookupUrls[0];
+  } else if (priorSketch) {
+    keepPrior = true;
+    method = prior.sourceMethod;
+    url = prior.sourceUrl;
+  } else if (lookupHit && !modelSketch) {
+    method = modelMethod === 'unknown' ? 'scraped' : modelMethod;
+    url = lookupUrls[0];
+  } else {
+    keepPrior = true;
+    method = prior.sourceMethod;
+    url = prior.sourceUrl;
+  }
+
+  let source: ChartSource;
+  if (keepPrior && prior) {
+    source = {
+      label: prior.sourceLabel,
+      method: prior.sourceMethod,
+      ...(prior.evidence ? { evidence: prior.evidence } : {}),
+      ...(prior.sourceUrl ? { url: prior.sourceUrl } : {}),
+    };
+  } else {
+    const drafted: ChartSource = {
+      label: alignAttribution(sourceLabelFor(url, input.output.sourceLabel), {
+        label: input.output.sourceLabel,
+        url,
+      }),
+      method: sourceMethodFor(url, method),
+      ...(input.output.evidence ? { evidence: input.output.evidence } : {}),
+      ...(url ? { url } : {}),
+    };
+    source = normalizeInventedSource(drafted, context);
+  }
+
+  if (seriesIsSketch(source)) {
+    const basis = estimateBasisEvidence(source.evidence, context);
+    if (basis.length < 20) {
+      return { ok: false, error: PUBLISHED_MISS, issues: [] };
+    }
+  }
+
+  if (!prior && !seriesIsSketch(source) && !source.url && !meaningfulSourceLabel(source.label)) {
+    return { ok: false, error: PUBLISHED_MISS, issues: [] };
+  }
+
+  return {
+    ok: true,
+    source,
+    rows: attestBarSlots(input.rows, {
+      chartType: input.chartType,
+      notes: input.gathered.notes,
+      pastedYs: pastedNumberSeries(input.asked),
+      prior: prior ? prior.rows.map((row) => ({ x: row.x, y: row.y })) : null,
+      sketch: seriesIsSketch(source),
+    }),
+  };
+}
+
+function attestBarSlots(
+  rows: FinishRow[],
+  ctx: {
+    chartType: 'bar' | 'line' | 'scatter';
+    notes: string;
+    pastedYs: number[] | undefined;
+    prior: Array<{ x: string | number; y: number | null }> | null;
+    sketch: boolean;
+  }
+): FinishRow[] {
+  if (ctx.chartType !== 'bar') {
+    return rows;
+  }
+  return rows.map((row, index) => {
+    if (row.y !== 0) {
+      return row;
+    }
+    return { ...row, y: attestedZero(row.x, index, ctx) };
+  });
+}
+
+function attestedZero(
+  x: string | number,
+  index: number,
+  ctx: {
+    notes: string;
+    pastedYs: number[] | undefined;
+    prior: Array<{ x: string | number; y: number | null }> | null;
+    sketch: boolean;
+  }
+): number | null {
+  if (ctx.pastedYs?.[index] === 0) {
+    return 0;
+  }
+  if (notesAttestZero(ctx.notes, String(x))) {
+    return 0;
+  }
+  const prior = ctx.prior?.find((row) => String(row.x) === String(x));
+  if (prior?.y === 0) {
+    return 0;
+  }
+  if (prior?.y === null) {
+    return null;
+  }
+  if (ctx.sketch) {
+    return null;
+  }
+  if (ctx.notes.trim() === '' && ctx.prior) {
+    return 0;
+  }
+  return null;
+}
+
+function notesAttestZero(notes: string, category: string): boolean {
+  const name = category.trim();
+  if (!name) {
+    return false;
+  }
+  for (const line of notes.split('\n')) {
+    if (!line.includes(name)) {
+      continue;
+    }
+    const cells = line
+      .split('|')
+      .map((cell) => cell.trim())
+      .filter((cell) => cell.length > 0);
+    if (cells.some((cell) => /^(?:0|0\.0+|0%)$/.test(cell))) {
+      return true;
+    }
+    const rest = line.split(name).join(' ');
+    if (/(?:^|[^\d.])0(?:\.0+)?%?(?:$|[^\d.])/.test(rest)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function rowProgressMessage(chartType: 'bar' | 'line' | 'scatter', count: number): string {
@@ -679,7 +820,7 @@ function uniqueNames(names: string[]): string[] {
   return out;
 }
 
-type DraftRow = { x: string | number; y: number };
+type DraftRow = { x: string | number; y: number | null };
 
 export function tidyComparison(
   rows: DraftRow[],

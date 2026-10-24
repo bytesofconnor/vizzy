@@ -1,4 +1,4 @@
-import type { ChartConfig } from '@vizzy/core';
+import { seriesIsSketch, type ChartConfig } from '@vizzy/core';
 
 export type ChartSource = NonNullable<ChartConfig['source']>;
 
@@ -152,7 +152,7 @@ export function sourceLine(source: ChartSource): string {
   const host = sourceHost(source.url);
   if (host) {
     parts.push(host);
-  } else if (isInventedSource(source)) {
+  } else if (seriesIsSketch(source)) {
     parts.push('not a live source');
   }
   if (source.retrieved) {
@@ -170,7 +170,7 @@ export function sourceCardLine(source: ChartSource): string {
   const host = sourceHost(source.url);
   if (host) {
     parts.push(host);
-  } else if (isInventedSource(source)) {
+  } else if (seriesIsSketch(source)) {
     parts.push('no published page');
   }
   if (isInventedSource(source) && source.evidence) {

@@ -1,4 +1,4 @@
-import type { ChartSeed } from './seed';
+import { figureRows, rankFigures, type ChartSeed } from './seed';
 
 function formatX(value: string | number): string {
   const text = String(value).trim();
@@ -38,7 +38,7 @@ export function heuristicRevisionPrompts(seed: ChartSeed): string[] {
     return ['Make it a line chart.', 'Sort by value.', 'Drop the smallest bar.'];
   }
 
-  const sorted = [...rows].sort((a, b) => b.y - a.y);
+  const sorted = figureRows(rankFigures(rows));
   const top = sorted[0];
   const bottom = sorted[sorted.length - 1];
   const prompts: string[] = [];

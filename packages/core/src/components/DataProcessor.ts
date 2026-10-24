@@ -150,9 +150,16 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
     return this._data.filter((row, _index) => {
       const xValue = row[this._config.dataMapping.x];
       const yValue = row[this._config.dataMapping.y];
-      
-      // Remove rows with null/undefined required values
-      if (xValue == null || yValue == null) {
+
+      if (xValue == null) {
+        return false;
+      }
+
+      if (this._config.chart.type === 'bar' && this._emptyBarY(yValue)) {
+        return true;
+      }
+
+      if (yValue == null) {
         return false;
       }
       
@@ -169,6 +176,10 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
       
       return true;
     });
+  }
+
+  private _emptyBarY(yValue: unknown): boolean {
+    return yValue === null || (typeof yValue === 'number' && !Number.isFinite(yValue));
   }
 
   private _shouldBeNumeric(axis: 'x' | 'y'): boolean {
@@ -317,6 +328,8 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
     let yDomain: [number, number] | string[];
     if (axes.y.domain) {
       yDomain = axes.y.domain as [number, number];
+    } else if (this._config.chart.type === 'bar' && !stats.yStats) {
+      yDomain = [0, 1];
     } else if (stats.yStats) {
       const padding = Math.max((stats.yStats.max - stats.yStats.min) * 0.08, 1);
       const barFromZero =

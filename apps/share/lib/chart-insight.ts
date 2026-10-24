@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { isAiGatewayConfigured } from './ai-gateway';
 import { logAiFromResult } from './ai-usage';
 import { GATEWAY_NO_RETRY, isGatewayRateLimited } from './gateway-errors';
-import { seedBriefing, type ChartSeed } from './seed';
+import { figureRows, rankFigures, seedBriefing, type ChartSeed } from './seed';
 import { alignAttribution } from './source';
 
 /** OpenAI first — Google Flash-lite shares the Gateway free-tier RPM with compose. */
@@ -148,7 +148,7 @@ export function coerceLesson(raw: unknown): ChartLesson | null {
 }
 
 export function heuristicInsight(seed: ChartSeed): string {
-  const sorted = [...seed.rows].sort((a, b) => b.y - a.y);
+  const sorted = figureRows(rankFigures(seed.rows));
   const top = sorted[0];
   const bottom = sorted[sorted.length - 1];
   const y = yWord(seed);
@@ -165,7 +165,7 @@ export function heuristicInsight(seed: ChartSeed): string {
 }
 
 export function heuristicLesson(seed: ChartSeed, layer = 1): ChartLesson {
-  const sorted = [...seed.rows].sort((a, b) => b.y - a.y);
+  const sorted = figureRows(rankFigures(seed.rows));
   const top = sorted[0];
   const bottom = sorted[sorted.length - 1];
   const mid = sorted[Math.floor(sorted.length / 2)];
