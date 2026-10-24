@@ -4,12 +4,28 @@ import type { SeriesRow } from './types';
 export const MAX_ROWS = 24;
 
 export function windowSince(rows: SeriesRow[], sinceYear: number | undefined): SeriesRow[] {
-  if (!sinceYear) {
+  return windowSpan(rows, sinceYear === undefined ? {} : { since: sinceYear });
+}
+
+export function windowSpan(
+  rows: SeriesRow[],
+  span: { since?: number; until?: number }
+): SeriesRow[] {
+  if (span.since === undefined && span.until === undefined) {
     return rows;
   }
   return rows.filter((row) => {
     const year = yearOfX(row.x);
-    return year === undefined || year >= sinceYear;
+    if (year === undefined) {
+      return true;
+    }
+    if (span.since !== undefined && year < span.since) {
+      return false;
+    }
+    if (span.until !== undefined && year > span.until) {
+      return false;
+    }
+    return true;
   });
 }
 

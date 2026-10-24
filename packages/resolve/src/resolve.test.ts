@@ -5,7 +5,7 @@ import { parseFredCsv } from './parse/fred';
 import { parseNoaaCo2 } from './parse/noaa';
 import { parseUsgsGeojson } from './parse/usgs';
 import { parseOwidCsv, parseOwidOzone } from './parse/owid';
-import { parseWikiTables, parseWikiUnVotes } from './parse/wiki';
+import { parseWikiTables, parseWikiUnVotes, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank } from './parse/worldbank';
 import { downsample } from './window';
 
@@ -115,6 +115,8 @@ describe('matchPrompt', () => {
     expect(
       matchPrompt('Named Atlantic hurricanes per decade since 1960 — are the busy seasons bunching together?')?.seriesId
     ).toBe('atlantic_hurricanes');
+    expect(matchPrompt('Hurricane deaths by storm 2024')?.seriesId).toBe('hurricane_storm_deaths');
+    expect(matchPrompt('Hurricane deaths by storm 2024')?.yLabel).toBe('Deaths');
     expect(matchPrompt('World population since 1800 — when did the curve go vertical?')?.seriesId).toBe('world_population');
     expect(matchPrompt('Deaths in state-based armed conflicts since 1946 — did the post-Cold War peace actually hold?')?.seriesId).toBe(
       'conflict_deaths'
@@ -352,6 +354,56 @@ describe('parsers', () => {
 });
 
 describe('resolvePrompt', () => {
+  it('charts extreme poverty for 1990-2023, not the population column', async () => {
+    const csv = [
+      'Entity,Code,Year,Population,Share of population in poverty ($3 a day)',
+      'World,OWID_WRL,-10000,4501152,',
+      'World,OWID_WRL,1990,5327803106,43.414',
+      'World,OWID_WRL,2023,8091000000,8.5',
+      'World,OWID_WRL,2026,8200000000,9.8',
+    ].join('\n');
+    const series = await resolvePrompt('Extreme poverty 1990-2023', {
+      get: async () => csv,
+      now: Date.UTC(2026, 9, 24),
+    });
+    expect(series?.seriesId).toBe('extreme_poverty');
+    expect(series?.yLabel.toLowerCase()).toContain('poverty');
+    const years = (series?.rows ?? []).map((row) => Number(row.x));
+    expect(Math.min(...years)).toBeGreaterThanOrEqual(1990);
+    expect(Math.max(...years)).toBeLessThanOrEqual(2023);
+    expect(series?.rows.find((row) => row.x === '1990')?.y).toBe(43.414);
+    expect(series?.rows.some((row) => row.y > 1000)).toBe(false);
+  });
+
+  it('charts 2024 hurricane deaths by storm', async () => {
+    const html = `
+      <table class="wikitable">
+        <tr><th>Storm name</th><th>Dates active</th><th>Storm category at peak intensity</th><th>Deaths</th></tr>
+        <tr><td>Alberto</td><td>June 19–20</td><td>Tropical storm</td><td>2 (4)</td></tr>
+        <tr><td>Beryl</td><td>June 28 – July 9</td><td>Category 5 hurricane</td><td>66</td></tr>
+        <tr><td>Helene</td><td>September 24–27</td><td>Category 4 hurricane</td><td>177</td></tr>
+        <tr><td>Kirk</td><td>September 29 – October 7</td><td>Category 4 hurricane</td><td>1</td></tr>
+        <tr><td>Nadine</td><td>October 19–20</td><td>Tropical storm</td><td>13</td></tr>
+        <tr><td>18 systems</td><td>Season</td><td></td><td>317</td></tr>
+      </table>`;
+    const spec = WIKI_SPEC.hurricane_storm_deaths;
+    expect(spec?.valueHeader.test('Deaths')).toBe(true);
+    const parsed = parseWikiTables(html, spec!);
+    expect(parsed.map((row) => row.x)).not.toContain('18 systems');
+    expect(parsed.map((row) => row.x)).not.toContain('Alberto');
+    expect(parsed.map((row) => row.x)).not.toContain('Nadine');
+    expect(parsed.find((row) => row.x === 'Helene')?.y).toBe(177);
+    const series = await resolvePrompt('Hurricane deaths by storm 2024', {
+      get: async () => JSON.stringify({ parse: { text: { '*': html } } }),
+      now: Date.UTC(2026, 9, 24),
+    });
+    expect(series?.seriesId).toBe('hurricane_storm_deaths');
+    expect(series?.yLabel).toBe('Deaths');
+    expect(series?.rows.find((row) => row.x === 'Helene')?.y).toBe(177);
+    expect(series?.rows.some((row) => row.x === '1851' || row.x === '18 systems')).toBe(false);
+    expect(series?.rows.some((row) => row.x === 'Alberto' || row.x === 'Nadine')).toBe(false);
+  });
+
   it('windows FRED since a year and writes compose notes', async () => {
     const csv = ['DATE,UNRATE', '2018-01-01,4.0', '2019-06-01,3.6', '2020-01-01,3.5'].join('\n');
     const series = await resolvePrompt('US unemployment rate since 2019', {

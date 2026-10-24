@@ -20,6 +20,23 @@ export function sinceYearFromAsked(asked: string): number | undefined {
   return year;
 }
 
+export function yearSpanFromAsked(asked: string): { since?: number; until?: number } {
+  const range = foldAsked(asked).match(
+    /\b((?:1[89]|20)\d{2})\s*(?:-|–|—|to|through)\s*((?:1[89]|20)\d{2})\b/
+  );
+  if (range) {
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    const since = Math.min(start, end);
+    const until = Math.max(start, end);
+    if (since >= 1800 && until <= 2100) {
+      return { since, until };
+    }
+  }
+  const since = sinceYearFromAsked(asked);
+  return since === undefined ? {} : { since };
+}
+
 export function yearOfX(x: string): number | undefined {
   const match = String(x).match(/^(-?\d{1,6})/);
   if (!match) {

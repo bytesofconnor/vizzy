@@ -6,6 +6,7 @@ import { isAiGatewayConfigured } from './ai-gateway';
 import { logAiFromResult } from './ai-usage';
 import { GATEWAY_NO_RETRY, isGatewayRateLimited } from './gateway-errors';
 import { seedBriefing, type ChartSeed } from './seed';
+import { alignAttribution } from './source';
 
 /** OpenAI first — Google Flash-lite shares the Gateway free-tier RPM with compose. */
 export const INSIGHT_MODELS = ['openai/gpt-4.1-mini', 'openai/gpt-4o-mini'] as const;
@@ -34,7 +35,8 @@ Write exactly two paragraphs separated by a blank line.
 Paragraph 1: what the trend shows in plain words and why it matters.
 Paragraph 2: how trustworthy the numbers likely are (source quality, gaps, caveats) plus one plausible driver or mechanism — no hype, no invented precision.
 Use short sentences. No bullet points. No "In conclusion". Max 120 words total.
-If sourceMethod is estimate or example, say so honestly. Do not invent URLs or statistics not in the chart.`;
+If sourceMethod is estimate or example, say so honestly. Do not invent URLs or statistics not in the chart.
+Name the series in the y label and the source. Do not call it a different measure or a different publisher.`;
 
 const LessonSchema = z.object({
   notice: z.string().describe('One concrete thing in these rows a hurried reader would miss'),
@@ -158,7 +160,8 @@ export function heuristicInsight(seed: ChartSeed): string {
       : seed.sourceMethod === 'estimate' || seed.sourceMethod === 'example'
         ? 'These rows are an estimate or example. Do not treat them as a complete official series.'
         : `The source is listed as ${seed.sourceLabel || 'unspecified'}. Gaps and definitions still matter.`;
-  return `${lead}${low}. ${seed.note ? `${seed.note} ` : ''}The shape is the story — not a single bar in isolation.\n\n${method} A plausible driver is how ${y} is counted, who is missing from the ${seed.xLabel || 'axis'}, or a lag between cause and what got published.`;
+  const text = `${lead}${low}. ${seed.note ? `${seed.note} ` : ''}The shape is the story — not a single bar in isolation.\n\n${method} A plausible driver is how ${y} is counted, who is missing from the ${seed.xLabel || 'axis'}, or a lag between cause and what got published.`;
+  return alignAttribution(text, { label: seed.sourceLabel, url: seed.sourceUrl });
 }
 
 export function heuristicLesson(seed: ChartSeed, layer = 1): ChartLesson {
@@ -267,10 +270,11 @@ const cachedChartInsight = unstable_cache(
 );
 
 export async function chartInsightForSeed(seed: ChartSeed): Promise<string> {
+  const source = { label: seed.sourceLabel, url: seed.sourceUrl };
   try {
-    return await cachedChartInsight(insightFingerprint(seed), JSON.stringify(seed));
+    return alignAttribution(await cachedChartInsight(insightFingerprint(seed), JSON.stringify(seed)), source);
   } catch {
-    return heuristicInsight(seed);
+    return alignAttribution(heuristicInsight(seed), source);
   }
 }
 

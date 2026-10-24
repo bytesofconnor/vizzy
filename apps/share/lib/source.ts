@@ -60,6 +60,29 @@ export function sourceMethodFor(
   return method;
 }
 
+const OUTLETS = [
+  { name: 'Pew', token: /\bPew\b/gi, url: /pewresearch\.org/i, label: /\bpew\b/i },
+  { name: 'Gallup', token: /\bGallup\b/gi, url: /gallup\.com/i, label: /\bgallup\b/i },
+] as const;
+
+export function alignAttribution(text: string, source: { label?: string; url?: string }): string {
+  const url = source.url ?? '';
+  const label = source.label ?? '';
+  const home =
+    OUTLETS.find((outlet) => outlet.url.test(url)) ?? OUTLETS.find((outlet) => outlet.label.test(label));
+  if (!home) {
+    return text;
+  }
+  let next = text;
+  for (const outlet of OUTLETS) {
+    if (outlet.name === home.name) {
+      continue;
+    }
+    next = next.replace(outlet.token, home.name);
+  }
+  return next;
+}
+
 export function cleanSourceLabel(label: string): string {
   const stripped = label.replace(/https?:\/\/\S+/gi, '').replace(/\s+/g, ' ').trim();
   return stripped || 'Source';
