@@ -35,6 +35,7 @@ import {
   pastedNumberSeries,
   settleEncoding,
 } from './compose-guards';
+import { honorNamedSeries } from './named-series';
 import { lookupDetail, reportProgress, type ComposeProgressReporter } from './compose-progress';
 import {
   alignAttribution,
@@ -62,6 +63,10 @@ const DraftSchema = z.object({
       z.object({
         x: z.union([z.string(), z.number()]).describe('Category, year, or numeric x'),
         y: z.number().describe('Numeric y'),
+        series: z
+          .string()
+          .optional()
+          .describe('Series name when the user named more than one. The same x repeats once per series.'),
       })
     )
     .min(2)
@@ -83,7 +88,8 @@ Named categories cap around 15. Sequential series may be longer.
 If y is a calendar year, keep it as the year. Do not convert it to a count from zero.
 Keep category names short enough to sit under a bar: August Schell, not August Schell Brewing Company.
 x is the name of each thing (skill, team, city, country). Never Rank 1, #3, Country A, or a place index. A top-10 chart still labels each bar with the name. For a country chart with no lookup, pick diverse real countries the reader recognizes.
-One comparison per chart. Each x value is one thing, once. Never "Claude Code (Rank)" and "Claude Code (usage %)". Pick one metric for y. Rank (lower is better) and a percentage (higher is better) must never share a chart.
+One metric per chart. Each x value is one thing, once. Never "Claude Code (Rank)" and "Claude Code (usage %)". Rank and a percentage must never share a y axis.
+When the user names several series (Germany, France, and Spain; Netflix versus Disney+; nuclear, coal, and gas), set series on every row and keep every named series the notes contain. Do not collapse them into one line. If the notes only have some of those names, the title must name the series and the range you drew, such as "mostly Germany, 2015-2023" or "Austin 2025".
 If CURRENT CHART is in the prompt, this is a second pass on that chart. Keep those rows unless the follow-up asks to drop, add, sort, change numbers, or widen the time window. Honor the follow-up. If they ask for more years than CURRENT CHART has, use LOOKED-UP NOTES for the longer series — do not keep the short window. Do not switch subjects. Keep the existing source unless LOOKED-UP NOTES contain a new published series. Never set sourceMethod to estimate just because the user filtered or restyled the current rows.`;
 
 export function publicComposeError(error: unknown): string {
@@ -466,7 +472,19 @@ export function mintDraft(
   }
   rows = encoded.rows;
   let yLabel = encoded.yLabel;
-  const chartType = fitChartType(output.chartType, rows, asked);
+  const honored = honorNamedSeries({
+    asked,
+    notes: gathered.notes,
+    rows: output.rows.map((row) => ({
+      x: output.chartType === 'scatter' ? row.x : String(row.x),
+      y: row.y,
+      ...(row.series?.trim() ? { series: row.series.trim() } : {}),
+    })),
+  });
+  if (honored) {
+    rows = honored.rows;
+  }
+  const chartType = honored?.multi ? 'line' : fitChartType(output.chartType, rows, asked);
   let xLabel = named.xLabel;
   if (chartType === 'line' && /^(name|category)$/i.test(xLabel.trim())) {
     xLabel = 'Year';
@@ -479,8 +497,8 @@ export function mintDraft(
     url: sourceUrl,
   };
   const drawn = datasetForSourceUrl(draftedSource.url);
-  let title = titleForChart({ drafted: output.title, asked, previous: from?.title });
-  let note = encoded.note;
+  let title = honored?.title ?? titleForChart({ drafted: output.title, asked, previous: from?.title });
+  let note = honored?.note ?? encoded.note;
   if (
     drawn &&
     textClashesWithSeries(`${asked}\n${title}\n${note}`, {
@@ -535,7 +553,7 @@ export function mintDraft(
         ...(chartType === 'line' && output.area ? { area: true, curve: 'linear' } : {}),
         ...(forecastFrom ? { forecastFrom } : {}),
       },
-      dataMapping: { x: 'x', y: 'y' },
+      dataMapping: { x: 'x', y: 'y', ...(honored?.multi ? { color: 'series' as const } : {}) },
       axes: {
         x: { show: true, grid: false, label: xLabel.slice(0, 40) },
         y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 5, label: yLabel.slice(0, 40) },

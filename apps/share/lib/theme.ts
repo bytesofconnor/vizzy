@@ -76,6 +76,7 @@ export function studioChart(
   delete rest.legend;
   const xLabel = typeof extraAxes?.x?.label === 'string' ? extraAxes.x.label : undefined;
   const yLabel = typeof extraAxes?.y?.label === 'string' ? extraAxes.y.label : undefined;
+  const seriesColor = Boolean(mapping.color && mapping.color !== 'tone');
   const resolvedChart =
     chart.type === 'bar'
       ? {
@@ -96,7 +97,7 @@ export function studioChart(
       width: 1100,
       height: 400,
       margin: {
-        top: 40,
+        top: seriesColor ? 56 : 40,
         right: 40,
         bottom: xLabel ? 96 : 64,
         left: yLabel ? 70 : 48,
@@ -115,7 +116,11 @@ export function studioChart(
     },
     animation: { enabled: false, duration: 0 },
     interaction: { hover: false, tooltip: false },
-    legend: { show: false, ...extraLegend },
+    legend: {
+      show: seriesColor,
+      ...(seriesColor ? { position: 'top' as const, orientation: 'horizontal' as const } : {}),
+      ...extraLegend,
+    },
     axes: {
       x: { show: true, grid: false, ...extraAxes?.x },
       y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 5, ...extraAxes?.y },

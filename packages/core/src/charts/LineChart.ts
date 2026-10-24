@@ -14,6 +14,11 @@ type LineSeriesOptions = Partial<
   >
 >;
 
+function seriesMark(prefix: string, key: string): string {
+  const token = `${prefix}-${key}`.replace(/[^A-Za-z0-9_-]/g, '-').replace(/-+/g, '-');
+  return token || prefix;
+}
+
 export class LineChart<TData extends DataPoint = DataPoint> {
   private _config: ChartConfig;
   private _scaleManager!: ScaleManager;
@@ -178,12 +183,16 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     const forecast = cut > 0 ? lineData.values.slice(cut - 1) : cut === 0 ? lineData.values : [];
 
     // Render area if enabled
+    const areaMark = seriesMark('area', lineData.key);
+    const lineMark = seriesMark('line', lineData.key);
+    const forecastMark = seriesMark('line-forecast', lineData.key);
+
     if (area && chartConfig.area) {
-      let areaPath = group.select(`.area-${lineData.key}`);
+      let areaPath = group.select(`.${areaMark}`);
       
       if (areaPath.empty()) {
         areaPath = group.append('path')
-          .attr('class', `area area-${lineData.key}`)
+          .attr('class', `area ${areaMark}`)
           .attr('fill', this._areaFill(group, lineData.key))
           .attr('opacity', 1)
           .attr('d', area(published));
@@ -200,8 +209,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       }
     }
 
-    this._drawLinePath(group, `.line-${lineData.key}`, `line line-${lineData.key}`, line, published, lineColor, chartConfig, false);
-    this._drawLinePath(group, `.line-forecast-${lineData.key}`, `line line-forecast line-forecast-${lineData.key}`, line, forecast, lineColor, chartConfig, true);
+    this._drawLinePath(group, `.${lineMark}`, `line ${lineMark}`, line, published, lineColor, chartConfig, false);
+    this._drawLinePath(group, `.${forecastMark}`, `line line-forecast ${forecastMark}`, line, forecast, lineColor, chartConfig, true);
     this._labelForecast(group, forecast, lineData.key);
 
     if (chartConfig.showPoints) {
@@ -226,7 +235,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       seriesCount
     );
 
-    const linePath = group.select(`.line-${lineData.key}`);
+    const linePath = group.select(`.${lineMark}`);
     if (this._config.interaction.hover && !linePath.empty()) {
       this._addLineInteractions(linePath as any, lineData);
     }
@@ -289,14 +298,15 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     key: string
   ): void {
     const mark = forecast[Math.max(forecast.length - 1, 0)];
-    const labels = group.selectAll(`.forecast-label-${key}`).data(mark && forecast.length >= 2 ? [mark] : []);
+    const forecastLabel = seriesMark('forecast-label', key);
+    const labels = group.selectAll(`.${forecastLabel}`).data(mark && forecast.length >= 2 ? [mark] : []);
     labels.exit().remove();
     if (!mark || forecast.length < 2) {
       return;
     }
     const { dataMapping, colors } = this._config;
     labels.join('text')
-      .attr('class', `forecast-label forecast-label-${key}`)
+      .attr('class', `forecast-label ${forecastLabel}`)
       .attr('x', this._scaleManager.getXValue(mark[dataMapping.x]))
       .attr('y', this._scaleManager.getYValue(mark[dataMapping.y]) - 14)
       .attr('text-anchor', 'end')
@@ -320,7 +330,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     const pointRadius = chartConfig.pointRadius || 4;
 
     // Bind data to points
-    const points = group.selectAll(`.point-${lineData.key}`)
+    const pointMark = seriesMark('point', lineData.key);
+    const points = group.selectAll(`.${pointMark}`)
       .data(lineData.values, (d: any) => d[dataMapping.x]);
 
     // Remove old points
@@ -333,7 +344,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     // Add new points
     const pointsEnter = points.enter()
       .append('circle')
-      .attr('class', `point point-${lineData.key}`)
+      .attr('class', `point ${pointMark}`)
       .attr('cx', (d: TData) => this._scaleManager.getXValue(d[dataMapping.x]))
       .attr('cy', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
       .attr('r', 0)
@@ -594,15 +605,17 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     const scales = this._scaleManager.getScales();
     const domain = (scales?.y.domain() ?? [0, 1]) as [number, number];
 
-    group.selectAll(`.end-cap-${lineData.key}`).data([last]).join('circle')
-      .attr('class', `end-cap end-cap-${lineData.key}`)
+    const endCap = seriesMark('end-cap', lineData.key);
+    const endLabel = seriesMark('end-label', lineData.key);
+    group.selectAll(`.${endCap}`).data([last]).join('circle')
+      .attr('class', `end-cap ${endCap}`)
       .attr('cx', x)
       .attr('cy', y)
       .attr('r', chartConfig.pointRadius ?? 3)
       .attr('fill', color)
       .attr('stroke', 'none');
 
-    const labels = group.selectAll(`.end-label-${lineData.key}`).data(withLabel ? [last] : []);
+    const labels = group.selectAll(`.${endLabel}`).data(withLabel ? [last] : []);
     labels.exit().remove();
     if (!withLabel) {
       return;
@@ -619,7 +632,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     });
 
     labels.join('text')
-      .attr('class', `end-label end-label-${lineData.key}`)
+      .attr('class', `end-label ${endLabel}`)
       .attr('x', placement.x)
       .attr('y', placement.y)
       .attr('text-anchor', placement.textAnchor)
