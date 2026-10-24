@@ -1,10 +1,13 @@
 import * as d3 from 'd3';
+import { barSpeak, seriesIsSketch, sketchFrame, type BarSpeak } from '../bar-reading';
 import { bindChartTip, formatTipNumber, seriesTipLabel } from '../chart-tip';
 import { formatDataValue } from '../format';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
 import { DataProcessor, ProcessedData } from '../components/DataProcessor';
+
+type Spoken<TData> = { row: TData; speak: BarSpeak };
 
 export class BarChart<TData extends DataPoint = DataPoint> {
   private _config: ChartConfig;
@@ -33,28 +36,27 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     context: RenderContext,
     data: TData[]
   ): Promise<void> {
+    const stored = this._config;
+    const frame = sketchFrame(stored);
+    const storedContext = context.config;
+    this._config = frame;
+    context.config = frame;
     try {
       this._host = context.container;
-      // Process data
       this._processedData = this._dataProcessor.process(data);
-      
-      // Initialize scale manager with dimensions
+
       this._scaleManager = new ScaleManager(this._config, context.dimensions);
       const scales = this._scaleManager.createScales(this._processedData.domains);
-      
-      // Update render context with scales
+
       context.scales = scales;
-      
-      // Initialize render engine
+
       this._renderEngine = new RenderEngine('svg', this._config);
       this._renderEngine.setContext(context);
-      
-      // Render chart components
+
       await this._renderEngine.renderGrid();
       await this._renderBars(context);
       await this._renderEngine.renderAxes();
-      
-      // Render legend if needed
+
       if (this._config.legend.show && this._processedData.statistics.colorStats) {
         const legendData = this._processedData.statistics.colorStats.unique.map(value => ({
           label: value,
@@ -62,13 +64,15 @@ export class BarChart<TData extends DataPoint = DataPoint> {
         }));
         await this._renderEngine.renderLegend(legendData);
       }
-      
     } catch (error) {
       throw new VizzyError(
         'BAR_CHART_RENDER_ERROR',
         'Failed to render bar chart',
         { originalError: error instanceof Error ? error.message : String(error) }
       );
+    } finally {
+      this._config = stored;
+      context.config = storedContext;
     }
   }
 
@@ -103,13 +107,31 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     data: TData[]
   ): Promise<void> {
     const { dataMapping, chart, colors, animation } = this._config;
-    const chartConfig = chart as any;
-    
-    // Bind data to bars
-    const bars = group.selectAll('.bar')
-      .data(data, (d: any) => d[dataMapping.x]);
+    const chartConfig = chart as { cornerRadius?: number };
+    const spoken: Array<Spoken<TData>> = data.map((row) => ({
+      row,
+      speak: barSpeak(row[dataMapping.x], row[dataMapping.y], this._config.source),
+    }));
+    const drawn = spoken.filter((item) => item.speak.mark !== 'none');
+    const fillFor = (row: TData) => {
+      if (dataMapping.color && row[dataMapping.color]) {
+        return this._scaleManager.getColorValue(String(row[dataMapping.color]));
+      }
+      return colors.primary;
+    };
+    const barX = (row: TData) => {
+      const xValue = this._scaleManager.getXValue(row[dataMapping.x]);
+      const bandwidth = (this._scaleManager.getScales()?.x as { bandwidth?: () => number }).bandwidth?.() || 0;
+      return xValue - bandwidth / 2;
+    };
+    const barWidth = () => {
+      const scales = this._scaleManager.getScales();
+      return (scales?.x as { bandwidth?: () => number }).bandwidth?.() || 20;
+    };
 
-    // Remove old bars
+    const bars = group.selectAll<SVGRectElement, Spoken<TData>>('.bar')
+      .data(drawn, (item) => String(item.row[dataMapping.x]));
+
     bars.exit()
       .transition()
       .duration(animation.enabled ? animation.duration : 0)
@@ -117,59 +139,42 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .attr('y', this._plotFloor())
       .remove();
 
-    // Add new bars
     const barsEnter = bars.enter()
       .append('rect')
-      .attr('class', 'bar')
-      .attr('x', (d: TData) => {
-        const xValue = this._scaleManager.getXValue(d[dataMapping.x]);
-        const bandwidth = (this._scaleManager.getScales()?.x as any).bandwidth?.() || 0;
-        return xValue - bandwidth / 2;
-      })
+      .attr('x', (item) => barX(item.row))
       .attr('y', this._plotFloor())
-      .attr('width', () => {
-        const scales = this._scaleManager.getScales();
-        return (scales?.x as any).bandwidth?.() || 20;
-      })
-      .attr('height', 0)
-      .attr('fill', (d: TData) => {
-        if (dataMapping.color && d[dataMapping.color]) {
-          return this._scaleManager.getColorValue(String(d[dataMapping.color]));
-        }
-        return colors.primary;
-      })
-      .attr('stroke', 'none')
+      .attr('width', barWidth)
+      .attr('height', 0);
+
+    const barsUpdate = barsEnter.merge(bars);
+
+    barsUpdate
+      .attr('class', (item) => (item.speak.mark === 'outline' ? 'bar bar-sketch' : 'bar'))
+      .attr('fill', (item) => (item.speak.mark === 'outline' ? 'none' : fillFor(item.row)))
+      .attr('stroke', (item) => (item.speak.mark === 'outline' ? fillFor(item.row) : 'none'))
+      .attr('stroke-width', (item) => (item.speak.mark === 'outline' ? 1.5 : null))
+      .attr('stroke-dasharray', (item) => (item.speak.mark === 'outline' ? '1.5 5' : null))
       .attr('rx', chartConfig.cornerRadius || 0)
       .attr('ry', chartConfig.cornerRadius || 0);
-
-    // Update all bars
-    const barsUpdate = barsEnter.merge(bars as any);
 
     if (animation.enabled) {
       barsUpdate
         .transition()
         .duration(animation.duration)
-        .delay((_d, i) => i * animation.stagger)
+        .delay((_item, index) => index * animation.stagger)
         .ease(d3.easeQuadOut)
-        .attr('x', (d: TData) => {
-          const xValue = this._scaleManager.getXValue(d[dataMapping.x]);
-          const bandwidth = (this._scaleManager.getScales()?.x as any).bandwidth?.() || 0;
-          return xValue - bandwidth / 2;
-        })
-        .attr('y', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
-        .attr('height', (d: TData) => this._barHeight(d[dataMapping.y]));
+        .attr('x', (item) => barX(item.row))
+        .attr('width', barWidth)
+        .attr('y', (item) => this._scaleManager.getYValue(item.row[dataMapping.y]))
+        .attr('height', (item) => this._barHeight(item.row[dataMapping.y]));
     } else {
       barsUpdate
-        .attr('x', (d: TData) => {
-          const xValue = this._scaleManager.getXValue(d[dataMapping.x]);
-          const bandwidth = (this._scaleManager.getScales()?.x as any).bandwidth?.() || 0;
-          return xValue - bandwidth / 2;
-        })
-        .attr('y', (d: TData) => this._scaleManager.getYValue(d[dataMapping.y]))
-        .attr('height', (d: TData) => this._barHeight(d[dataMapping.y]));
+        .attr('x', (item) => barX(item.row))
+        .attr('width', barWidth)
+        .attr('y', (item) => this._scaleManager.getYValue(item.row[dataMapping.y]))
+        .attr('height', (item) => this._barHeight(item.row[dataMapping.y]));
     }
 
-    // Add interactions
     if (this._config.interaction.hover) {
       this._addHoverInteractions(barsUpdate);
     }
@@ -183,7 +188,101 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     }
 
     this._drawBaseline(group);
-    this._renderBarLabels(group, data);
+    this._renderSlotCopy(group, spoken);
+    this._renderBarLabels(
+      group,
+      spoken
+        .filter((item) => item.speak.mark === 'solid' && item.speak.glyph !== '0')
+        .map((item) => item.row)
+    );
+  }
+
+  private _renderSlotCopy(
+    group: d3.Selection<SVGGElement, unknown, null, undefined>,
+    spoken: Array<Spoken<TData>>
+  ): void {
+    const { dataMapping, colors, accessibility, interaction } = this._config;
+    const blanks = spoken.filter((item) => item.speak.mark === 'none');
+    const zeros = spoken.filter((item) => item.speak.glyph === '0');
+    const mono = 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace';
+
+    const blankSel = group
+      .selectAll<SVGTextElement, Spoken<TData>>('.bar-blank')
+      .data(blanks, (item) => String(item.row[dataMapping.x]));
+    blankSel.exit().remove();
+    const blankMerged = blankSel.enter().append('text').attr('class', 'bar-blank').merge(blankSel);
+    blankMerged
+      .attr('x', (item) => this._scaleManager.getXValue(item.row[dataMapping.x]))
+      .attr('y', this._plotFloor() - 12)
+      .attr('text-anchor', 'middle')
+      .style('fill', colors.text)
+      .style('font-size', '10px')
+      .style('font-family', mono)
+      .text((item) => item.speak.glyph ?? '');
+    if (accessibility.enabled) {
+      blankMerged.attr('aria-label', (item) => item.speak.aria);
+    }
+
+    const zeroSel = group
+      .selectAll<SVGTextElement, Spoken<TData>>('.bar-zero')
+      .data(zeros, (item) => String(item.row[dataMapping.x]));
+    zeroSel.exit().remove();
+    zeroSel
+      .enter()
+      .append('text')
+      .attr('class', 'bar-zero')
+      .merge(zeroSel)
+      .attr('x', (item) => this._scaleManager.getXValue(item.row[dataMapping.x]))
+      .attr('y', this._plotFloor() - 2)
+      .attr('text-anchor', 'middle')
+      .style('fill', colors.text)
+      .style('font-size', '10px')
+      .style('font-family', mono)
+      .style('pointer-events', 'none')
+      .text('0');
+
+    const showStamp = seriesIsSketch(this._config.source);
+    const stamp = group.selectAll<SVGTextElement, number>('.bar-sketch-stamp').data(showStamp ? [0] : []);
+    stamp.exit().remove();
+    if (showStamp) {
+      const range = (this._scaleManager.getScales()?.x.range() as [number, number] | undefined) ?? [0, 0];
+      stamp
+        .enter()
+        .append('text')
+        .attr('class', 'bar-sketch-stamp')
+        .merge(stamp)
+        .attr('x', (range[0] + range[1]) / 2)
+        .attr('y', 16)
+        .attr('text-anchor', 'middle')
+        .style('fill', colors.text)
+        .style('font-size', '11px')
+        .style('letter-spacing', '0.08em')
+        .style('font-family', mono)
+        .style('pointer-events', 'none')
+        .text('Unfinished');
+    }
+    this._bindBlankTips(blankMerged, interaction.hover);
+  }
+
+  private _bindBlankTips(
+    nodes: d3.Selection<SVGTextElement, Spoken<TData>, SVGGElement, unknown>,
+    hover: boolean
+  ): void {
+    const host = this._host;
+    if (!hover || !host || this._config.interaction.tooltip === false) {
+      return;
+    }
+    const { dataMapping } = this._config;
+    nodes.each((item, index, list) => {
+      const node = list[index];
+      if (!node) {
+        return;
+      }
+      bindChartTip(host, node, () => ({
+        title: String(item.row[dataMapping.x] ?? ''),
+        value: item.speak.tip,
+      }));
+    });
   }
 
   private async _renderGroupedBars(
@@ -292,7 +391,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
   }
 
   private _addHoverInteractions(
-    bars: d3.Selection<SVGRectElement, TData, SVGGElement, unknown>
+    bars: d3.Selection<SVGRectElement, Spoken<TData>, SVGGElement, unknown>
   ): void {
     const { colors, dataMapping, interaction } = this._config;
     const host = this._host;
@@ -304,59 +403,60 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .style('cursor', 'default')
       .style('pointer-events', 'all')
       .on('mouseenter', function (this: SVGRectElement) {
-        d3.select(this).attr('opacity', 0.82).attr('stroke', colors.text).attr('stroke-width', 1);
+        const node = d3.select(this);
+        node.attr('opacity', 0.82);
+        if (!this.classList.contains('bar-sketch')) {
+          node.attr('stroke', colors.text).attr('stroke-width', 1);
+        }
       })
       .on('mouseleave', function (this: SVGRectElement) {
-        d3.select(this).attr('opacity', 1).attr('stroke', 'none');
+        const node = d3.select(this);
+        node.attr('opacity', 1);
+        if (!this.classList.contains('bar-sketch')) {
+          node.attr('stroke', 'none');
+        }
       });
 
     if (!host || interaction.tooltip === false) {
       return;
     }
 
-    bars.each((d, index, nodes) => {
+    bars.each((item, index, nodes) => {
       const node = nodes[index];
       if (!node) {
         return;
       }
       bindChartTip(host, node, () => ({
-        title: String(d[dataMapping.x] ?? ''),
-        value: formatTipNumber(d[dataMapping.y], domain),
-        series: groupField ? seriesTipLabel(d[groupField]) : undefined,
+        title: String(item.row[dataMapping.x] ?? ''),
+        value:
+          item.speak.mark === 'solid'
+            ? formatTipNumber(item.row[dataMapping.y], domain)
+            : item.speak.tip,
+        series: groupField ? seriesTipLabel(item.row[groupField]) : undefined,
       }));
     });
   }
 
   private _addClickInteractions(
-    bars: d3.Selection<SVGRectElement, TData, SVGGElement, unknown>
+    bars: d3.Selection<SVGRectElement, Spoken<TData>, SVGGElement, unknown>
   ): void {
-    bars.on('click', (_event: MouseEvent, _d: TData) => {
-      // Emit click event (would be handled by the chart engine)
-      // console.log('Bar clicked:', d);
-    });
+    bars.on('click', (_event: MouseEvent, _item: Spoken<TData>) => {});
   }
 
   private _addAccessibilityAttributes(
-    bars: d3.Selection<SVGRectElement, TData, SVGGElement, unknown>
+    bars: d3.Selection<SVGRectElement, Spoken<TData>, SVGGElement, unknown>
   ): void {
-    const { dataMapping } = this._config;
-    
     bars
       .attr('role', 'graphics-symbol')
       .attr('aria-roledescription', 'bar')
-      .attr('aria-label', (d: TData) => {
-        const xValue = d[dataMapping.x];
-        const yValue = d[dataMapping.y];
-        return `${xValue}: ${yValue}`;
-      })
+      .attr('aria-label', (item) => item.speak.aria)
       .attr('tabindex', this._config.accessibility.keyboardNavigation ? 0 : -1);
 
     if (this._config.accessibility.keyboardNavigation) {
-      bars.on('keydown', (event: KeyboardEvent, d: TData) => {
+      bars.on('keydown', (event: KeyboardEvent, item) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          // Trigger click event
-          (bars as any).dispatch('click', { detail: d });
+          (bars as any).dispatch('click', { detail: item.row });
         }
       });
     }

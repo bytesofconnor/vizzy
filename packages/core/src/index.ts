@@ -18,6 +18,7 @@ export { compileChart } from './compile';
 export type { CompileInput, CompileResult, CompileSnippet } from './compile';
 export { renderToSVG } from './render-svg';
 export { forecastStartIndex } from './forecast';
+export { seriesIsSketch } from './bar-reading';
 export {
   xAxisRoom,
   xTickRotate,

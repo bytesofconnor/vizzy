@@ -120,11 +120,45 @@ describe('DataProcessor', () => {
         { category: 'B', value: null },
         { category: 'C', value: undefined },
         { category: 'D', value: 20 },
+        { category: null, value: 7 },
       ];
 
       const result = processor.process(dataWithNulls);
 
-      expect(result.processed).toHaveLength(2); // Only valid entries
+      expect(result.processed.map((row) => row.category)).toEqual(['A', 'B', 'D']);
+      expect(result.statistics.yStats?.min).toBe(10);
+      expect(result.statistics.yStats?.max).toBe(20);
+      expect(result.statistics.yStats?.mean).toBe(15);
+      expect(result.domains.x).toEqual(['A', 'B', 'D']);
+      expect(result.domains.y[0]).toBe(0);
+    });
+
+    it('drops a null y on line and scatter', () => {
+      const rows = [
+        { category: 1, value: 10 },
+        { category: 2, value: null },
+        { category: 3, value: 4 },
+      ];
+      for (const type of ['line', 'scatter'] as const) {
+        const next = new DataProcessor({
+          ...config,
+          chart: { type },
+        });
+        const result = next.process(rows);
+        expect(result.processed.map((row) => row.category)).toEqual([1, 3]);
+      }
+    });
+
+    it('uses a numeric domain when every bar slot is empty', () => {
+      const result = processor.process([
+        { category: 'A', value: null },
+        { category: 'B', value: null },
+      ]);
+
+      expect(result.processed).toHaveLength(2);
+      expect(result.statistics.yStats).toBeNull();
+      expect(result.domains.y).toEqual([0, 1]);
+      expect(result.domains.x).toEqual(['A', 'B']);
     });
 
     it('should calculate correct statistics', () => {
