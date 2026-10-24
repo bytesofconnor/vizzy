@@ -159,6 +159,12 @@ describe('matchPrompt', () => {
     expect(matchPrompt('Atmospheric methane concentration globally since 1984 — is CH₄ still climbing?')?.seriesId).toBe(
       'ch4_annmean_gl'
     );
+    expect(matchPrompt('Compare US vs China vs India GDP growth since 2000')?.seriesId).toBe('gdp_growth');
+    expect(matchPrompt('Compare US vs China vs India GDP growth since 2000')?.seriesId).not.toBe(
+      'marine_protected'
+    );
+    expect(matchPrompt('Antarctic sea ice extent 1979-2023 NSIDC')?.seriesId).toBe('antarctic_sea_ice');
+    expect(matchPrompt('Antarctic sea ice extent 1979-2023 NSIDC')?.seriesId).not.toBe('arctic_sea_ice');
   });
 
   it('does not keep culture leftovers', () => {
@@ -413,6 +419,72 @@ describe('resolvePrompt', () => {
     expect(series?.rows.map((row) => row.x)).toEqual(['2019-06', '2020-01']);
     expect(notesFromResolved(series!)).toContain('sourceMethod official');
     expect(notesFromResolved(series!)).toContain('fred.stlouisfed.org');
+  });
+
+  it('charts US, China, and India GDP growth since 2000', async () => {
+    const csv = [
+      'Entity,Code,Year,Annual GDP growth (%)',
+      'United States,USA,1999,4.8',
+      'United States,USA,2000,4.08',
+      'United States,USA,2024,2.79',
+      'China,CHN,1999,7.7',
+      'China,CHN,2000,8.59',
+      'China,CHN,2024,4.98',
+      'India,IND,1999,8.5',
+      'India,IND,2000,3.84',
+      'India,IND,2024,6.49',
+      'France,FRA,2000,3.9',
+      'France,FRA,2024,1.1',
+      'World,OWID_WRL,2000,4.4',
+      'World,OWID_WRL,2024,3.2',
+    ].join('\n');
+    const series = await resolvePrompt('Compare US vs China vs India GDP growth since 2000', {
+      get: async () => csv,
+      now: Date.UTC(2026, 9, 24),
+    });
+    expect(series?.seriesId).toBe('gdp_growth');
+    expect(series?.yLabel.toLowerCase()).toContain('gdp');
+    const names = [...new Set((series?.rows ?? []).map((row) => row.series))].sort();
+    expect(names).toEqual(['China', 'India', 'United States']);
+    const years = (series?.rows ?? []).map((row) => Number(row.x));
+    expect(Math.min(...years)).toBeGreaterThanOrEqual(2000);
+    expect(series?.rows.find((row) => row.series === 'United States' && row.x === '2000')?.y).toBe(4.08);
+    expect(series?.rows.some((row) => row.series === 'France' || row.x === '1999')).toBe(false);
+  });
+
+  it('charts Antarctic sea ice through 2023, not the Arctic series', async () => {
+    const csv = [
+      'Entity,Code,Year,Maximum (September),Minimum (February)',
+      'Antarctica,ATA,1978,18.0,3.0',
+      'Antarctica,ATA,1979,18.196,3.141',
+      'Antarctica,ATA,2023,16.891,1.978',
+      'Antarctica,ATA,2026,17.322,2.912',
+      'Arctic Ocean,,1979,7.0,6.0',
+      'Arctic Ocean,,2026,4.0,3.0',
+    ].join('\n');
+    const series = await resolvePrompt('Antarctic sea ice extent 1979-2023 NSIDC', {
+      get: async () => csv,
+      now: Date.UTC(2026, 9, 24),
+    });
+    expect(series?.seriesId).toBe('antarctic_sea_ice');
+    expect(series?.sourceLabel.toLowerCase()).toMatch(/\bantarctic\b/);
+    expect(series?.sourceLabel.toLowerCase()).not.toMatch(/\barctic\b/);
+    const years = (series?.rows ?? []).map((row) => Number(row.x));
+    expect(Math.min(...years)).toBeGreaterThanOrEqual(1979);
+    expect(Math.max(...years)).toBeLessThanOrEqual(2023);
+    expect(series?.rows.find((row) => row.x === '2023')?.y).toBe(1.978);
+  });
+
+  it('windows the federal funds rate from 2020, including a cached wider series', () => {
+    const rows = [];
+    for (let year = 1954; year <= 2026; year += 1) {
+      rows.push({ x: `${year}-01`, y: year });
+    }
+    const windowed = rowsForAsked(rows, 'US federal funds rate since 2020');
+    const years = windowed.map((row) => Number(String(row.x).slice(0, 4)));
+    expect(Math.min(...years)).toBeGreaterThanOrEqual(2020);
+    expect(windowed.some((row) => String(row.x).startsWith('2000'))).toBe(false);
+    expect(windowed.at(-1)?.x).toBe('2026-01');
   });
 
   it('reapplies a year span to rows that were stored past the prompt', () => {

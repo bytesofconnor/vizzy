@@ -185,6 +185,88 @@ describe('mintFromOfficial', () => {
     }
   });
 
+  it('does not title an Arctic series as Antarctic', () => {
+    const arctic: ResolvedSeries = {
+      ...co2,
+      family: 'owid',
+      seriesId: 'arctic_sea_ice',
+      sourceLabel: 'Our World in Data — Arctic sea ice (NSIDC)',
+      sourceUrl: 'https://ourworldindata.org/grapher/arctic-sea-ice',
+      xLabel: 'Year',
+      yLabel: 'September minimum (million km²)',
+      rows: [
+        { x: '1979', y: 7.2 },
+        { x: '2023', y: 4.3 },
+        { x: '2026', y: 4.1 },
+      ],
+    };
+    const minted = mintFromOfficial('Antarctic sea ice extent 1979-2023 NSIDC', arctic);
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(minted.piece.title.toLowerCase()).toMatch(/\barctic\b/);
+    expect(minted.piece.title.toLowerCase()).not.toMatch(/\bantarctic\b/);
+    expect(minted.piece.note.toLowerCase()).toMatch(/\barctic\b/);
+    expect(minted.piece.note.toLowerCase()).not.toMatch(/\bantarctic\b/);
+  });
+
+  it('draws US, China, and India GDP growth as separate lines', () => {
+    const gdp: ResolvedSeries = {
+      ...co2,
+      family: 'owid',
+      seriesId: 'gdp_growth',
+      sourceLabel: 'Our World in Data — annual GDP growth',
+      sourceUrl: 'https://ourworldindata.org/grapher/annual-gdp-growth',
+      xLabel: 'Year',
+      yLabel: 'GDP growth %',
+      rows: [
+        { x: '2000', y: 4.08, series: 'United States' },
+        { x: '2024', y: 2.79, series: 'United States' },
+        { x: '2000', y: 8.59, series: 'China' },
+        { x: '2024', y: 4.98, series: 'China' },
+        { x: '2000', y: 3.84, series: 'India' },
+        { x: '2024', y: 6.49, series: 'India' },
+      ] as ResolvedSeries['rows'],
+    };
+    const minted = mintFromOfficial('Compare US vs China vs India GDP growth since 2000', gdp);
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const names = [...new Set(minted.piece.data.map((row) => String(row.series ?? '')))].filter(Boolean).sort();
+    expect(names).toEqual(['China', 'India', 'United States']);
+    expect(minted.piece.config.dataMapping.color).toBe('series');
+    expect(minted.piece.config.chart.type).toBe('line');
+    expect(minted.piece.title.toLowerCase()).not.toContain('protected');
+    expect(minted.piece.data.some((row) => Number(row.x) < 2000)).toBe(false);
+  });
+
+  it('draws the federal funds rate since 2020 as a line, not bars from 2000', () => {
+    const rows = [];
+    for (let year = 1998; year <= 2026; year += 1) {
+      rows.push({ x: `${year}-06`, y: 2 + (year % 5) });
+    }
+    const minted = mintFromOfficial('US federal funds rate since 2020', {
+      ...co2,
+      family: 'fred',
+      seriesId: 'FEDFUNDS',
+      sourceLabel: 'FRED — federal funds rate',
+      sourceUrl: 'https://fred.stlouisfed.org/series/FEDFUNDS',
+      xLabel: 'Month',
+      yLabel: 'Rate %',
+      rows,
+    });
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const years = minted.piece.data.map((row) => Number(String(row.x).slice(0, 4)));
+    expect(Math.min(...years)).toBeGreaterThanOrEqual(2020);
+    expect(minted.piece.config.chart.type).toBe('line');
+    expect(minted.piece.title.toLowerCase()).not.toContain('2000');
+  });
+
   it('says country ranking when a since-year place series is a country snapshot', () => {
     const deforestation: ResolvedSeries = {
       ...co2,
