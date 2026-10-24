@@ -6,49 +6,57 @@ import { parseFredCsv, fredCsvUrl } from './parse/fred';
 import { parseNoaaCo2, NOAA_CO2_URL, NOAA_CH4_URL } from './parse/noaa';
 import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
 import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
-import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
+import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, wikiSnapshotYear, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
 import type { HttpGet, Recipe, ResolvedSeries, SeriesRow } from './types';
 import { downsample, windowSpan } from './window';
+
+type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string };
+
+async function loadRecipe(recipe: Recipe, get: HttpGet): Promise<LoadedRecipe> {
+  if (recipe.family === 'fred') {
+    return { rows: parseFredCsv(await get(fredCsvUrl(recipe.seriesId))) };
+  }
+  if (recipe.family === 'noaa') {
+    if (recipe.seriesId === 'ozone_hole_area') {
+      return { rows: parseOwidOzone(await get(OWID_OZONE_URL)) };
+    }
+    if (recipe.seriesId === 'ch4_annmean_gl') {
+      return { rows: parseNoaaCo2(await get(NOAA_CH4_URL)) };
+    }
+    return { rows: parseNoaaCo2(await get(NOAA_CO2_URL)) };
+  }
+  if (recipe.family === 'owid') {
+    const spec = OWID_SPEC[recipe.seriesId];
+    if (!spec) {
+      return { rows: [] };
+    }
+    return { rows: parseOwidCsv(await get(owidCsvUrl(spec.slug)), spec) };
+  }
+  if (recipe.family === 'usgs') {
+    return { rows: parseUsgsGeojson(await get(USGS_M8_URL)) };
+  }
+  if (recipe.family === 'worldbank') {
+    return {
+      rows: parseWorldBank(await get(worldBankUrl(recipe.seriesId)), recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high'),
+    };
+  }
+  const spec = WIKI_SPEC[recipe.seriesId];
+  if (!spec) {
+    return { rows: [] };
+  }
+  const body = await get(wikiParseUrl(spec.page));
+  if (recipe.seriesId === 'un_votes_ukraine') {
+    return { rows: parseWikiUnVotes(body) };
+  }
+  return { rows: parseWikiApi(body, spec), snapshotYear: wikiSnapshotYear(body, spec) };
+}
 
 export async function fetchRecipe(
   recipe: Recipe,
   get: HttpGet = defaultGet
 ): Promise<SeriesRow[]> {
-  if (recipe.family === 'fred') {
-    return parseFredCsv(await get(fredCsvUrl(recipe.seriesId)));
-  }
-  if (recipe.family === 'noaa') {
-    if (recipe.seriesId === 'ozone_hole_area') {
-      return parseOwidOzone(await get(OWID_OZONE_URL));
-    }
-    if (recipe.seriesId === 'ch4_annmean_gl') {
-      return parseNoaaCo2(await get(NOAA_CH4_URL));
-    }
-    return parseNoaaCo2(await get(NOAA_CO2_URL));
-  }
-  if (recipe.family === 'owid') {
-    const spec = OWID_SPEC[recipe.seriesId];
-    if (!spec) {
-      return [];
-    }
-    return parseOwidCsv(await get(owidCsvUrl(spec.slug)), spec);
-  }
-  if (recipe.family === 'usgs') {
-    return parseUsgsGeojson(await get(USGS_M8_URL));
-  }
-  if (recipe.family === 'worldbank') {
-    return parseWorldBank(await get(worldBankUrl(recipe.seriesId)), recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high');
-  }
-  const spec = WIKI_SPEC[recipe.seriesId];
-  if (!spec) {
-    return [];
-  }
-  const body = await get(wikiParseUrl(spec.page));
-  if (recipe.seriesId === 'un_votes_ukraine') {
-    return parseWikiUnVotes(body);
-  }
-  return parseWikiApi(body, spec);
+  return (await loadRecipe(recipe, get)).rows;
 }
 
 export function rowsForAsked(rows: SeriesRow[], asked: string): SeriesRow[] {
@@ -75,20 +83,24 @@ export async function fetchMatched(
   if (!recipe) {
     return null;
   }
-  const rows = await fetchRecipe(recipe, options.get ?? defaultGet);
-  if (rows.length < 2) {
+  const loaded = await loadRecipe(recipe, options.get ?? defaultGet);
+  if (loaded.rows.length < 2) {
     return null;
   }
+  const sourceLabel =
+    loaded.snapshotYear && !recipe.sourceLabel.includes(loaded.snapshotYear)
+      ? `${recipe.sourceLabel}, ${loaded.snapshotYear}`
+      : recipe.sourceLabel;
   return {
     family: recipe.family,
     seriesId: recipe.seriesId,
-    sourceLabel: recipe.sourceLabel,
+    sourceLabel,
     sourceUrl: recipe.sourceUrl,
     method: 'official',
     retrieved: options.now ?? Date.now(),
     xLabel: recipe.xLabel,
     yLabel: recipe.yLabel,
-    rows,
+    rows: loaded.rows,
   };
 }
 

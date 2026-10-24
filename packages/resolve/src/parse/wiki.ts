@@ -8,6 +8,12 @@ export type WikiTableSpec = {
   mode?: 'rank' | 'year';
   categoryHeader?: RegExp;
   categoryKeep?: RegExp;
+  yearHeader?: RegExp;
+};
+
+type ParsedWiki = {
+  rows: SeriesRow[];
+  snapshotYear?: string;
 };
 
 function stripTags(html: string): string {
@@ -61,13 +67,32 @@ function eachRow(html: string): { cells: string[]; after: number; html: string }
   return out;
 }
 
-export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] {
+function cellYear(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const years = [...value.matchAll(/\b((?:19|20)\d{2})\b/g)].map((match) => match[1] ?? '');
+  const unique = [...new Set(years.filter(Boolean))];
+  return unique.length === 1 ? unique[0] : undefined;
+}
+
+function oneSnapshotYear(years: Array<string | undefined>): string | undefined {
+  if (years.length === 0 || years.some((year) => !year)) {
+    return undefined;
+  }
+  const unique = [...new Set(years)];
+  return unique.length === 1 ? unique[0] : undefined;
+}
+
+function parseWikiTablesDetailed(html: string, spec: WikiTableSpec): ParsedWiki {
   const collected: SeriesRow[] = [];
+  const yearHeader = spec.yearHeader ?? /^year$/i;
   for (const table of tableChunks(html)) {
     const rowsHtml = eachRow(table);
     let nameCol = -1;
     let valueCol = -1;
     let categoryCol = -1;
+    let yearCol = -1;
     let start = 0;
     for (let i = 0; i < rowsHtml.length; i += 1) {
       const names = rowsHtml[i]?.cells ?? [];
@@ -76,6 +101,10 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
       if (nextName >= 0 && nextValue >= 0) {
         nameCol = nextName;
         valueCol = nextValue;
+        yearCol = names.findIndex((name) => yearHeader.test(name));
+        if (yearCol === nameCol || yearCol === valueCol) {
+          yearCol = -1;
+        }
         if (spec.categoryHeader) {
           categoryCol = names.findIndex((name) => spec.categoryHeader?.test(name));
         }
@@ -86,7 +115,7 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
     if (nameCol < 0 || valueCol < 0) {
       continue;
     }
-    const rows: SeriesRow[] = [];
+    const paired: Array<{ row: SeriesRow; year?: string }> = [];
     for (const row of rowsHtml.slice(start)) {
       const name = row.cells[nameCol];
       const value = row.cells[valueCol];
@@ -106,15 +135,22 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
           continue;
         }
       }
-      rows.push({ x: name.slice(0, 40), y });
+      paired.push({
+        row: { x: name.slice(0, 40), y },
+        year: yearCol >= 0 ? cellYear(row.cells[yearCol]) : undefined,
+      });
     }
+    const rows = paired.map((item) => item.row);
     if (spec.mode === 'year') {
       collected.push(...rows);
       continue;
     }
     if (rows.length >= 3) {
-      rows.sort((a, b) => b.y - a.y);
-      return rows.slice(0, 15);
+      const kept = [...paired].sort((a, b) => b.row.y - a.row.y).slice(0, 15);
+      return {
+        rows: kept.map((item) => item.row),
+        snapshotYear: oneSnapshotYear(kept.map((item) => item.year)),
+      };
     }
   }
   if (spec.mode === 'year') {
@@ -126,11 +162,17 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
       }
       byYear.set(year, row.y);
     }
-    return [...byYear.entries()]
-      .sort((a, b) => Number(a[0]) - Number(b[0]))
-      .map(([x, y]) => ({ x, y }));
+    return {
+      rows: [...byYear.entries()]
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .map(([x, y]) => ({ x, y })),
+    };
   }
-  return [];
+  return { rows: [] };
+}
+
+export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] {
+  return parseWikiTablesDetailed(html, spec).rows;
 }
 
 export function parseWikiUnVotes(source: string): SeriesRow[] {
@@ -187,12 +229,20 @@ function wikiHtml(jsonText: string): string {
   return typeof text === 'string' ? text : text?.['*'] ?? '';
 }
 
-export function parseWikiApi(jsonText: string, spec: WikiTableSpec): SeriesRow[] {
-  const html = wikiHtml(jsonText);
+function wikiPage(source: string, spec: WikiTableSpec): ParsedWiki {
+  const html = source.trimStart().startsWith('{') ? wikiHtml(source) : source;
   if (!html) {
-    return [];
+    return { rows: [] };
   }
-  return parseWikiTables(html, spec);
+  return parseWikiTablesDetailed(html, spec);
+}
+
+export function parseWikiApi(jsonText: string, spec: WikiTableSpec): SeriesRow[] {
+  return wikiPage(jsonText, spec).rows;
+}
+
+export function wikiSnapshotYear(source: string, spec: WikiTableSpec): string | undefined {
+  return wikiPage(source, spec).snapshotYear;
 }
 
 export function wikiParseUrl(page: string): string {
