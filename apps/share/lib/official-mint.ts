@@ -1,4 +1,5 @@
 import type { ResolvedSeries } from '@vizzy/resolve';
+import { fitChartType } from './compose-guards';
 import { honestTitle } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
 import { looksLikeInstruction, remixFollowUp } from './remix-prompt';
@@ -41,6 +42,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   const rows =
     series.rows.length > MAX_OFFICIAL_ROWS ? series.rows.slice(-MAX_OFFICIAL_ROWS) : series.rows;
   const yearly = yearlyOfficialRows(rows);
+  const chartType = fitChartType(yearly ? 'line' : 'bar', rows, asked);
   const title = honestTitle({
     asked,
     title: titleFromAsked(asked, series),
@@ -51,7 +53,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     sourceLabel: series.sourceLabel,
   });
   const config = studioChart(
-    yearly ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
+    chartType === 'line' ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
     { x: 'x', y: 'y' },
     {
       axes: {

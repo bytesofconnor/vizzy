@@ -33,6 +33,7 @@ import {
   fitChartType,
   lookupFoundSeries,
   pastedNumberSeries,
+  settleEncoding,
 } from './compose-guards';
 import { lookupDetail, reportProgress, type ComposeProgressReporter } from './compose-progress';
 import {
@@ -355,7 +356,7 @@ async function draftChartOnce(model: (typeof COMPOSE_MODELS)[number], prompt: st
   return result.output;
 }
 
-function mintDraft(
+export function mintDraft(
   asked: string,
   gathered: { notes: string; urls: string[] },
   output: z.infer<typeof DraftSchema>,
@@ -444,12 +445,24 @@ function mintDraft(
   if (output.chartType !== 'scatter' && mostlyRankIndex(rows) && from) {
     rows = from.rows.map((row) => ({ x: row.x, y: row.y }));
   }
+  const encoded = settleEncoding({
+    asked,
+    notes: gathered.notes,
+    note: output.note,
+    yLabel: tidied.yLabel,
+    chartType: output.chartType,
+    rows,
+  });
+  if (!encoded.ok) {
+    return { ok: false, error: encoded.error, issues: [] };
+  }
+  rows = encoded.rows;
+  const yLabel = encoded.yLabel;
   const chartType = fitChartType(output.chartType, rows, asked);
   let xLabel = named.xLabel;
   if (chartType === 'line' && /^(name|category)$/i.test(xLabel.trim())) {
     xLabel = 'Year';
   }
-  const yLabel = tidied.yLabel;
   const forecastAt = chartType === 'line' ? forecastStartIndex(rows, 'x') : -1;
   const forecastFrom = forecastAt >= 0 ? String(rows[forecastAt]?.x ?? '') : '';
 
@@ -477,7 +490,7 @@ function mintDraft(
       notes: gathered.notes,
     }),
     kicker: estimated ? output.kicker || 'Illustrative' : output.kicker,
-    note: output.note,
+    note: encoded.note,
     data: rows,
     source,
     printGrayscale: wantsPrintGrayscale(asked),

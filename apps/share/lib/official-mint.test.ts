@@ -42,6 +42,33 @@ describe('mintFromOfficial', () => {
     }
   });
 
+  it('keeps a named country ranking as bars', () => {
+    const rows = ['India', 'Nepal', 'Bangladesh', 'Bhutan'].map((x, index) => ({ x, y: 3000 - index * 100 }));
+    const minted = mintFromOfficial('Wild tigers by country', {
+      ...co2,
+      rows,
+      xLabel: 'Country',
+      yLabel: 'Tigers',
+    });
+    expect(minted.ok).toBe(true);
+    if (minted.ok) {
+      expect(minted.piece.config.chart.type).toBe('bar');
+    }
+  });
+
+  it('draws a line for a monthly official series such as fed funds since 2000', () => {
+    const rows = Array.from({ length: 24 }, (_, index) => {
+      const month = String((index % 12) + 1).padStart(2, '0');
+      const year = 2000 + Math.floor(index / 12);
+      return { x: `${year}-${month}`, y: 5 - index * 0.1 };
+    });
+    const minted = mintFromOfficial('Fed funds since 2000', { ...co2, rows, xLabel: 'Month', yLabel: 'Rate %' });
+    expect(minted.ok).toBe(true);
+    if (minted.ok) {
+      expect(minted.piece.config.chart.type).toBe('line');
+    }
+  });
+
   it('does not use a revise command as a title', () => {
     const minted = mintFromOfficial(
       'Add the missing comparison that would change how Tanzania looks',
