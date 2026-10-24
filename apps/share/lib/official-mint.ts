@@ -3,6 +3,7 @@ import { fitChartType } from './compose-guards';
 import { honestTitle } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
 import { looksLikeInstruction, remixFollowUp } from './remix-prompt';
+import { sourceMethodFor } from './source';
 import { studioChart } from './theme';
 
 const FAMILY_KICKER: Record<ResolvedSeries['family'], string> = {
@@ -135,6 +136,17 @@ export function honestSeriesTitle(series: {
   return series.sourceLabel;
 }
 
+function titleWithSnapshotYear(title: string, sourceLabel: string): string {
+  if (/\b(?:19|20)\d{2}\b/.test(title)) {
+    return title;
+  }
+  const years = [...new Set([...sourceLabel.matchAll(/\b(?:19|20)\d{2}\b/g)].map((match) => match[0]))];
+  if (years.length !== 1) {
+    return title;
+  }
+  return `${title}, ${years[0]}`;
+}
+
 export function titleFromAsked(asked: string, series: ResolvedSeries): string {
   if (textClashesWithSeries(asked, series)) {
     return honestSeriesTitle(series);
@@ -164,15 +176,18 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
       ? `Change in ${series.yLabel}`
       : series.yLabel;
   const titled = { ...series, rows, xLabel, yLabel };
-  const title = honestTitle({
-    asked,
-    title: titleFromAsked(asked, titled),
-    xLabel,
-    yLabel,
-    rows,
-    note: series.sourceLabel,
-    sourceLabel: series.sourceLabel,
-  });
+  const title = titleWithSnapshotYear(
+    honestTitle({
+      asked,
+      title: titleFromAsked(asked, titled),
+      xLabel,
+      yLabel,
+      rows,
+      note: series.sourceLabel,
+      sourceLabel: series.sourceLabel,
+    }),
+    series.sourceLabel
+  );
   const note = textClashesWithSeries(asked, series) ? title : series.sourceLabel;
   const config = studioChart(
     chartType === 'line' ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
@@ -189,6 +204,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     }
   );
 
+  const method = sourceMethodFor(series.sourceUrl, series.method);
   return mintPiece({
     title,
     kicker: FAMILY_KICKER[series.family],
@@ -202,9 +218,9 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     source: {
       label: series.sourceLabel,
       url: series.sourceUrl,
-      method: 'official',
+      method,
       retrieved: new Date(series.retrieved).toISOString().slice(0, 10),
-      evidence: `Official ${series.family}:${series.seriesId}`,
+      evidence: method === 'official' ? `Official ${series.family}:${series.seriesId}` : `${series.family}:${series.seriesId}`,
     },
   });
 }

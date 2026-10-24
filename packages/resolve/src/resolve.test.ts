@@ -410,6 +410,23 @@ describe('resolvePrompt', () => {
     expect(series?.rows.some((row) => row.x === 'Alberto' || row.x === 'Nadine')).toBe(false);
   });
 
+  it('puts a shared tiger census year on the source label', async () => {
+    const html = `
+      <table class="wikitable">
+        <tr><th>Country</th><th>Year</th><th>Estimate</th></tr>
+        <tr><td>India</td><td>2022</td><td>3,167–3,682</td></tr>
+        <tr><td>Russia</td><td>2022</td><td>573–600</td></tr>
+        <tr><td>Nepal</td><td>2022</td><td>316–355</td></tr>
+      </table>`;
+    const series = await resolvePrompt('Wild tigers by country', {
+      get: async () => JSON.stringify({ parse: { text: { '*': html } } }),
+      now: Date.UTC(2026, 9, 24),
+    });
+    expect(series?.seriesId).toBe('wild_tigers');
+    expect(series?.sourceLabel).toBe('Wikipedia — wild tiger population by country, 2022');
+    expect(series?.rows.map((row) => row.x)).toEqual(['India', 'Russia', 'Nepal']);
+  });
+
   it('windows FRED since a year and writes compose notes', async () => {
     const csv = ['DATE,UNRATE', '2018-01-01,4.0', '2019-06-01,3.6', '2020-01-01,3.5'].join('\n');
     const series = await resolvePrompt('US unemployment rate since 2019', {

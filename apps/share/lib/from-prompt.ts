@@ -538,14 +538,20 @@ export function mintDraft(
     config: {
       chart: {
         type: chartType,
-        ...(chartType === 'bar' ? { barPadding: 0.32 } : {}),
+        ...(chartType === 'bar' ? { barPadding: 0.32, ...(estimated ? { showValues: false } : {}) } : {}),
         ...(chartType === 'line' && output.area ? { area: true, curve: 'linear' } : {}),
         ...(forecastFrom ? { forecastFrom } : {}),
       },
       dataMapping: { x: 'x', y: 'y', ...(honored?.multi ? { color: 'series' as const } : {}) },
       axes: {
         x: { show: true, grid: false, label: xLabel.slice(0, 40) },
-        y: { show: true, grid: true, gridOpacity: 0.55, tickCount: 5, label: yLabel.slice(0, 40) },
+        y: {
+          show: !estimated,
+          grid: !estimated,
+          gridOpacity: 0.55,
+          tickCount: 5,
+          label: yLabel.slice(0, 40),
+        },
       },
     },
   });
