@@ -1,6 +1,6 @@
 import { matchPrompt } from './catalog';
 import { defaultGet } from './http';
-import { sinceYearFromAsked } from './normalize';
+import { yearSpanFromAsked } from './normalize';
 import { parseFredCsv, fredCsvUrl } from './parse/fred';
 import { parseNoaaCo2, NOAA_CO2_URL, NOAA_CH4_URL } from './parse/noaa';
 import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
@@ -8,7 +8,7 @@ import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
 import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
 import type { HttpGet, Recipe, ResolvedSeries, SeriesRow } from './types';
-import { downsample, windowSince } from './window';
+import { downsample, windowSpan } from './window';
 
 export async function fetchRecipe(
   recipe: Recipe,
@@ -59,8 +59,7 @@ export async function resolvePrompt(
     return null;
   }
   const fetched = await fetchRecipe(recipe, options.get ?? defaultGet);
-  const since = sinceYearFromAsked(asked);
-  const rows = downsample(windowSince(fetched, since));
+  const rows = downsample(windowSpan(fetched, yearSpanFromAsked(asked)));
   if (rows.length < 2) {
     return null;
   }

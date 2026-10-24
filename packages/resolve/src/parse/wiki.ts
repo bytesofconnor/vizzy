@@ -6,6 +6,8 @@ export type WikiTableSpec = {
   nameHeader: RegExp;
   valueHeader: RegExp;
   mode?: 'rank' | 'year';
+  categoryHeader?: RegExp;
+  categoryKeep?: RegExp;
 };
 
 function stripTags(html: string): string {
@@ -65,6 +67,7 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
     const rowsHtml = eachRow(table);
     let nameCol = -1;
     let valueCol = -1;
+    let categoryCol = -1;
     let start = 0;
     for (let i = 0; i < rowsHtml.length; i += 1) {
       const names = rowsHtml[i]?.cells ?? [];
@@ -73,6 +76,9 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
       if (nextName >= 0 && nextValue >= 0) {
         nameCol = nextName;
         valueCol = nextValue;
+        if (spec.categoryHeader) {
+          categoryCol = names.findIndex((name) => spec.categoryHeader?.test(name));
+        }
         start = i + 1;
         break;
       }
@@ -91,8 +97,14 @@ export function parseWikiTables(html: string, spec: WikiTableSpec): SeriesRow[] 
       if (y === undefined) {
         continue;
       }
-      if (/^rank$|^#|^total$|^world$|^european union$/i.test(name)) {
+      if (/^rank$|^#|^total$|^world$|^european union$|\bsystems\b/i.test(name)) {
         continue;
+      }
+      if (spec.categoryKeep && categoryCol >= 0) {
+        const category = row.cells[categoryCol] ?? '';
+        if (!spec.categoryKeep.test(category)) {
+          continue;
+        }
       }
       rows.push({ x: name.slice(0, 40), y });
     }
@@ -234,6 +246,13 @@ export const WIKI_SPEC: Record<string, WikiTableSpec> = {
     nameHeader: /^year$/i,
     valueHeader: /^h$/i,
     mode: 'year',
+  },
+  hurricane_storm_deaths: {
+    page: '2024_Atlantic_hurricane_season',
+    nameHeader: /storm name/i,
+    valueHeader: /^deaths$/i,
+    categoryHeader: /storm category/i,
+    categoryKeep: /hurricane/i,
   },
   wars_death_toll: {
     page: 'List_of_wars_by_death_toll',

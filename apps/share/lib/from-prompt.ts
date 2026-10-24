@@ -1,10 +1,10 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex } from '@vizzy/core';
-import { matchPrompt } from '@vizzy/resolve';
+import { datasetForSourceUrl, matchPrompt } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
-import { mintFromOfficial } from './official-mint';
+import { honestSeriesTitle, mintFromOfficial, textClashesWithSeries } from './official-mint';
 import { clarifyingQuestion, honestTitle } from './honor-prompt';
 import { titleForChart } from './remix-prompt';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
@@ -37,6 +37,7 @@ import {
 } from './compose-guards';
 import { lookupDetail, reportProgress, type ComposeProgressReporter } from './compose-progress';
 import {
+  alignAttribution,
   estimateBasisEvidence,
   firstPromptUrl,
   meaningfulSourceLabel,
@@ -203,17 +204,24 @@ export async function pieceFromPrompt(
     .filter(Boolean)
     .join('\n\n');
 
-  if (!from && gathered.official && gathered.official.rows.length >= 2) {
-    reportProgress(onProgress, {
-      stage: 'mint',
-      progress: 86,
-      message: 'Building chart…',
-      barCount: gathered.official.rows.length,
-    });
-    const minted = mintFromOfficial(asked, gathered.official);
-    if (minted.ok) {
-      return minted;
+  if (!from && matchPrompt(lookupAsked)) {
+    if (gathered.official && gathered.official.rows.length >= 2) {
+      reportProgress(onProgress, {
+        stage: 'mint',
+        progress: 86,
+        message: 'Building chart…',
+        barCount: gathered.official.rows.length,
+      });
+      const minted = mintFromOfficial(asked, gathered.official);
+      if (minted.ok) {
+        return minted;
+      }
     }
+    return {
+      ok: false,
+      error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
+      issues: [],
+    };
   }
 
   reportProgress(onProgress, {
@@ -457,7 +465,7 @@ export function mintDraft(
     return { ok: false, error: encoded.error, issues: [] };
   }
   rows = encoded.rows;
-  const yLabel = encoded.yLabel;
+  let yLabel = encoded.yLabel;
   const chartType = fitChartType(output.chartType, rows, asked);
   let xLabel = named.xLabel;
   if (chartType === 'line' && /^(name|category)$/i.test(xLabel.trim())) {
@@ -466,11 +474,37 @@ export function mintDraft(
   const forecastAt = chartType === 'line' ? forecastStartIndex(rows, 'x') : -1;
   const forecastFrom = forecastAt >= 0 ? String(rows[forecastAt]?.x ?? '') : '';
 
+  const draftedSource = {
+    label: keepSource ? from!.sourceLabel : sourceLabelFor(sourceUrl, output.sourceLabel),
+    url: sourceUrl,
+  };
+  const drawn = datasetForSourceUrl(draftedSource.url);
+  let title = titleForChart({ drafted: output.title, asked, previous: from?.title });
+  let note = encoded.note;
+  if (
+    drawn &&
+    textClashesWithSeries(`${asked}\n${title}\n${note}`, {
+      seriesId: drawn.seriesId,
+      sourceLabel: drawn.sourceLabel,
+      yLabel: drawn.yLabel,
+    })
+  ) {
+    const honest = honestSeriesTitle({
+      seriesId: drawn.seriesId,
+      sourceLabel: drawn.sourceLabel,
+      rows: rows.map((row) => ({ x: row.x })),
+    });
+    title = honest;
+    note = honest;
+    xLabel = drawn.xLabel;
+    yLabel = drawn.yLabel;
+  }
+  title = alignAttribution(title, draftedSource);
+  note = alignAttribution(note, draftedSource);
+
   const source = normalizeInventedSource(
     {
-      label: keepSource
-        ? from!.sourceLabel
-        : sourceLabelFor(sourceUrl, output.sourceLabel),
+      label: alignAttribution(draftedSource.label, draftedSource),
       method: keepSource ? method : sourceMethodFor(sourceUrl, method),
       evidence: keepSource ? from!.evidence || output.evidence : output.evidence,
       url: sourceUrl,
@@ -481,16 +515,16 @@ export function mintDraft(
   return mintPiece({
     title: honestTitle({
       asked,
-      title: titleForChart({ drafted: output.title, asked, previous: from?.title }),
+      title,
       xLabel,
       yLabel,
       rows,
-      note: output.note,
+      note,
       sourceLabel: source.label,
       notes: gathered.notes,
     }),
     kicker: estimated ? output.kicker || 'Illustrative' : output.kicker,
-    note: encoded.note,
+    note,
     data: rows,
     source,
     printGrayscale: wantsPrintGrayscale(asked),

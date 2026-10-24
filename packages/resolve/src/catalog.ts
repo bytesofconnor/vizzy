@@ -426,6 +426,17 @@ export const DATASETS: readonly Dataset[] = [
     yLabel: 'Hurricanes',
     topics: ['climate', 'geography'],
     aliases: ['atlantic hurricane', 'named atlantic', 'hurricane seasons', 'named hurricanes'],
+    avoid: ['death', 'deaths', 'by storm'],
+  },
+  {
+    family: 'wiki',
+    seriesId: 'hurricane_storm_deaths',
+    sourceLabel: 'Wikipedia — 2024 Atlantic hurricane deaths by storm',
+    sourceUrl: 'https://en.wikipedia.org/wiki/2024_Atlantic_hurricane_season',
+    xLabel: 'Storm',
+    yLabel: 'Deaths',
+    topics: ['climate', 'geography'],
+    aliases: ['hurricane deaths by storm 2024', 'deaths by storm 2024'],
   },
   {
     family: 'owid',
@@ -436,7 +447,7 @@ export const DATASETS: readonly Dataset[] = [
     yLabel: 'People',
     topics: ['history', 'demography'],
     aliases: ['world population', 'human population', 'global population'],
-    avoid: ['density', '65', 'urban', 'fertility', 'aged'],
+    avoid: ['density', '65', 'urban', 'fertility', 'aged', 'poverty'],
   },
   {
     family: 'owid',
@@ -601,6 +612,14 @@ export function rankDatasets(asked: string): Array<{ dataset: Dataset; score: nu
   }
   ranked.sort((a, b) => b.score - a.score);
   return ranked;
+}
+
+export function datasetForSourceUrl(url: string | undefined): Dataset | undefined {
+  if (!url) {
+    return undefined;
+  }
+  const clean = url.split('?')[0]?.replace(/\.csv$/i, '').replace(/\/$/, '') ?? '';
+  return DATASETS.find((dataset) => dataset.sourceUrl.replace(/\/$/, '') === clean);
 }
 
 export function matchPrompt(asked: string): Recipe | null {

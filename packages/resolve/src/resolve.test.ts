@@ -378,16 +378,20 @@ describe('resolvePrompt', () => {
   it('charts 2024 hurricane deaths by storm', async () => {
     const html = `
       <table class="wikitable">
-        <tr><th>Storm name</th><th>Dates active</th><th>Deaths</th></tr>
-        <tr><td>Alberto</td><td>June 19–20</td><td>2 (4)</td></tr>
-        <tr><td>Beryl</td><td>June 28 – July 9</td><td>66</td></tr>
-        <tr><td>Helene</td><td>September 24–27</td><td>177</td></tr>
-        <tr><td>18 systems</td><td>Season</td><td>317</td></tr>
+        <tr><th>Storm name</th><th>Dates active</th><th>Storm category at peak intensity</th><th>Deaths</th></tr>
+        <tr><td>Alberto</td><td>June 19–20</td><td>Tropical storm</td><td>2 (4)</td></tr>
+        <tr><td>Beryl</td><td>June 28 – July 9</td><td>Category 5 hurricane</td><td>66</td></tr>
+        <tr><td>Helene</td><td>September 24–27</td><td>Category 4 hurricane</td><td>177</td></tr>
+        <tr><td>Kirk</td><td>September 29 – October 7</td><td>Category 4 hurricane</td><td>1</td></tr>
+        <tr><td>Nadine</td><td>October 19–20</td><td>Tropical storm</td><td>13</td></tr>
+        <tr><td>18 systems</td><td>Season</td><td></td><td>317</td></tr>
       </table>`;
     const spec = WIKI_SPEC.hurricane_storm_deaths;
     expect(spec?.valueHeader.test('Deaths')).toBe(true);
     const parsed = parseWikiTables(html, spec!);
     expect(parsed.map((row) => row.x)).not.toContain('18 systems');
+    expect(parsed.map((row) => row.x)).not.toContain('Alberto');
+    expect(parsed.map((row) => row.x)).not.toContain('Nadine');
     expect(parsed.find((row) => row.x === 'Helene')?.y).toBe(177);
     const series = await resolvePrompt('Hurricane deaths by storm 2024', {
       get: async () => JSON.stringify({ parse: { text: { '*': html } } }),
@@ -397,6 +401,7 @@ describe('resolvePrompt', () => {
     expect(series?.yLabel).toBe('Deaths');
     expect(series?.rows.find((row) => row.x === 'Helene')?.y).toBe(177);
     expect(series?.rows.some((row) => row.x === '1851' || row.x === '18 systems')).toBe(false);
+    expect(series?.rows.some((row) => row.x === 'Alberto' || row.x === 'Nadine')).toBe(false);
   });
 
   it('windows FRED since a year and writes compose notes', async () => {
