@@ -69,3 +69,15 @@ If the parent commit is missing, the build runs.
 Dependabot opens one npm pull request and one GitHub Actions pull request each week, including major updates.
 
 PR bodies need Summary, Verification, Blast Radius headings (checked in CI; Dependabot exempt).
+
+## Roadmap
+
+Before product work, read `ROADMAP.md`.
+
+The same pull request that ships, starts, or drops a roadmap item updates that file. Bump `Updated`. When an item ships, move it from Open to Shipped with the date and the pull request link. When an item is dropped, move it to Not doing with a one-line reason. Renumber Open so the ranks stay contiguous from 1.
+
+A chat or a wording change that changes priority also lands in a pull request. It squash-merges when `checks` passes.
+
+Dependabot, and a pure infra or docs pull request that does not change product direction, leave the Open list alone. Bump `Updated` only when that pull request edits `ROADMAP.md`.
+
+Mark an item Shipped only when its check is met. Do not invent progress.
