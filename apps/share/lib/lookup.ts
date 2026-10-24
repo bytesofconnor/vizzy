@@ -63,7 +63,7 @@ export async function gatherFacts(
     maxRetries: 0,
     stopWhen: isStepCount(3),
     system:
-      'You look up public numbers for a chart. Call search, then read_page on the best official or stats page. Aim for about 15 real rows on a ranking. A season or monthly series can be the full published set. Return a markdown table with the NAME in the first column (country, skill, team, city) and one metric. Never use Rank 1 or Country A as the name. Never the same name under Rank and under usage %. Plus the page URL. Do not stop at a top-3 highlight. If the page only has a few numbers, say so. Do not invent a table.',
+      'You look up public numbers for a chart. Call search, then read_page on the best official or stats page. Aim for about 15 real rows on a ranking. A season or monthly series can be the full published set. Return a markdown table with the NAME in the first column (country, skill, team, city) and one metric. When the user names several series (countries, companies, cities, or fuels), return every one of them: a year column plus one column per series, or a long table with a series column. If a named series is missing from the page, say which series you found. Never use Rank 1 or Country A as the name. Never the same name under Rank and under usage %. Plus the page URL. Do not stop at a top-3 highlight. If the page only has a few numbers, say so. Do not invent a table.',
     prompt: asked,
     tools: {
       search: tool({
@@ -121,7 +121,7 @@ async function gatherWithSonar(asked: string): Promise<Gathered | null> {
     const result = await generateText({
       model: sonarModel,
       maxRetries: 0,
-      prompt: `Find the latest public numbers for this chart request. Aim for about 15 real rows on a ranking. A season or monthly series can be the full published set. Return a markdown table with the NAME in the first column (skill, team, city) and one metric. Never use Rank 1 as the name. Never the same name under Rank and under usage %. Include the exact source URL. Do not summarize a ranking as its top 3 unless the user asked for a top N. If the page only publishes a few numbers, return those and say the list is short. Do not invent rows.\n\n${asked}`,
+      prompt: `Find the latest public numbers for this chart request. Aim for about 15 real rows on a ranking. A season or monthly series can be the full published set. Return a markdown table with the NAME in the first column (skill, team, city) and one metric. When the user names several series (countries, companies, cities, or fuels), return every one of them: a year column plus one column per series, or a long table with a series column. If a named series is missing from the page, say which series you found. Never use Rank 1 as the name. Never the same name under Rank and under usage %. Include the exact source URL. Do not summarize a ranking as its top 3 unless the user asked for a top N. If the page only publishes a few numbers, return those and say the list is short. Do not invent rows.\n\n${asked}`,
     });
     await logAiFromResult('lookup_sonar', sonarModel, result.usage, result.totalUsage);
     const urls = urlsFromUnknown(result.sources).concat(urlsInText(result.text));
