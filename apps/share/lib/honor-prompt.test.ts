@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pieceFromPrompt } from './from-prompt';
-import { clarifyingQuestion, honestTitle } from './honor-prompt';
+import { honestTitle } from './honor-prompt';
 
 describe('honestTitle', () => {
   it('names new capacity when the ask said installed and the series is new', () => {
@@ -85,26 +84,5 @@ describe('honestTitle', () => {
       ],
     });
     expect(title).toBe(asked);
-  });
-});
-
-describe('clarifyingQuestion', () => {
-  it('asks which measure for a bare economy question', () => {
-    const question = clarifyingQuestion('Is the economy doing better?');
-    expect(question?.toLowerCase()).toContain('which measure');
-    expect(question ?? '').not.toMatch(/sep(?:tember)?\s+2026/i);
-  });
-
-  it('does not ask when the prompt already names a measure', () => {
-    expect(clarifyingQuestion('US unemployment since 2019 — is the economy doing better?')).toBeNull();
-  });
-
-  it('does not mint a Sep 2026 title for a bare economy question', async () => {
-    const result = await pieceFromPrompt('Is the economy doing better?');
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.toLowerCase()).toContain('which measure');
-      expect(result.error).not.toMatch(/sep(?:tember)?\s+2026/i);
-    }
   });
 });

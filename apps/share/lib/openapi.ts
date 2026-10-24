@@ -1,3 +1,4 @@
+import { COMPOSE_DISPOSITIONS } from './compose-outcome';
 import { PACK_CREDITS, PACK_PRICE_LABEL } from './pack';
 import { SITE_DESCRIPTION } from './site';
 
@@ -34,6 +35,33 @@ const minted = {
     url: { type: 'string', format: 'uri' },
     png: { type: 'string', format: 'uri' },
     token: { type: 'string' },
+  },
+} as const;
+
+const clarify = {
+  type: 'object',
+  required: ['clarify'],
+  properties: {
+    clarify: {
+      type: 'object',
+      required: ['question', 'options'],
+      properties: {
+        question: { type: 'string' },
+        options: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 3,
+          items: {
+            type: 'object',
+            required: ['label', 'prompt'],
+            properties: {
+              label: { type: 'string' },
+              prompt: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
   },
 } as const;
 
@@ -88,6 +116,11 @@ export function openApiSpec(origin: string) {
                   required: ['prompt'],
                   properties: {
                     prompt: { type: 'string', examples: ['ARR by quarter, last two years'] },
+                    disposition: {
+                      type: 'string',
+                      enum: COMPOSE_DISPOSITIONS,
+                      description: 'ask is the default. send mints this prompt and does not ask.',
+                    },
                     seed: { type: 'object', description: 'Optional chart seed from a paste page.' },
                   },
                 },
@@ -96,8 +129,9 @@ export function openApiSpec(origin: string) {
           },
           responses: {
             '200': {
-              description: 'Minted paste URL and PNG. HTML clients are redirected.',
-              content: { 'application/json': { schema: minted } },
+              description:
+                'Minted paste URL and PNG, or a clarify question and options. HTML clients are redirected for a minted chart.',
+              content: { 'application/json': { schema: { oneOf: [minted, clarify] } } },
             },
             '400': {
               description: 'Prompt or compiled config failed.',

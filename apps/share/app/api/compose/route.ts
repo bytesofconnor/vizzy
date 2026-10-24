@@ -1,4 +1,5 @@
 import { consumeSlot, refundSlot } from '../../../lib/billing';
+import { decideCompose, type MintOrder } from '../../../lib/compose-decision';
 import { reportProgress, clientPiece, type ComposeProgressReporter } from '../../../lib/compose-progress';
 import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
 import { pasteHref } from '../../../lib/paste';
@@ -11,21 +12,32 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 90;
 
-async function readCompose(request: Request): Promise<{ prompt: string; seed?: ChartSeed }> {
+type ComposeRequest = {
+  prompt: unknown;
+  disposition: unknown;
+  seed?: ChartSeed;
+};
+
+async function readCompose(request: Request): Promise<ComposeRequest> {
   const type = request.headers.get('content-type') ?? '';
   if (type.includes('application/json')) {
     const body: unknown = await request.json();
-    if (typeof body !== 'object' || body === null || !('prompt' in body) || typeof body.prompt !== 'string') {
-      return { prompt: '' };
+    if (typeof body !== 'object' || body === null) {
+      return { prompt: undefined, disposition: undefined };
     }
+    const record = body as Record<string, unknown>;
     return {
-      prompt: body.prompt,
-      seed: 'seed' in body ? parseChartSeed(body.seed) : undefined,
+      prompt: record.prompt,
+      disposition: record.disposition,
+      seed: 'seed' in record ? parseChartSeed(record.seed) : undefined,
     };
   }
   const form = await request.formData();
-  const value = form.get('prompt');
-  return { prompt: typeof value === 'string' ? value : '' };
+  const disposition = form.get('disposition');
+  return {
+    prompt: form.get('prompt'),
+    disposition: typeof disposition === 'string' ? disposition : undefined,
+  };
 }
 
 function wantsHtml(request: Request): boolean {
@@ -43,11 +55,10 @@ function sseLine(event: Record<string, unknown>): string {
 async function runCompose(
   origin: string,
   request: Request,
-  prompt: string,
-  seed: ChartSeed | undefined,
+  order: MintOrder,
   onProgress?: ComposeProgressReporter
 ) {
-  const minted = await pieceFromPrompt(prompt, seed, onProgress);
+  const minted = await pieceFromPrompt(order, onProgress);
   if (!minted.ok) {
     return { ok: false as const, minted };
   }
@@ -88,8 +99,7 @@ async function runCompose(
 function streamCompose(
   origin: string,
   request: Request,
-  prompt: string,
-  seed: ChartSeed | undefined,
+  order: MintOrder,
   slot: Awaited<ReturnType<typeof consumeSlot>>
 ): Response {
   const encoder = new TextEncoder();
@@ -101,7 +111,7 @@ function streamCompose(
       };
 
       try {
-        const result = await runCompose(origin, request, prompt, seed, send);
+        const result = await runCompose(origin, request, order, send);
         if (!result.ok) {
           if (slot.via === 'credit' || slot.via === 'free') {
             await refundSlot(request, slot.via);
@@ -148,7 +158,7 @@ export async function GET() {
   const origin = siteUrl();
   return Response.json({
     ok: true,
-    use: 'POST a text prompt as JSON { prompt, seed? } or form field prompt. No voice API. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page. Shares the publish meter. Accept text/event-stream for live progress.',
+    use: 'POST a text prompt as JSON { prompt, seed?, disposition? } or form field prompt. disposition is ask or send. No voice API. Humans get a chart page. Machines get { url, png }. Pass seed to revise the chart on the page. Shares the publish meter. Accept text/event-stream for live progress. A compose body with clarify has a question and options, spends no slot, and has no paste URL. POST an option prompt, or POST the same prompt with "disposition": "send".',
     schema: `${origin}/schema/chart-config.v1.json`,
     docs: `${origin}/llms.txt`,
     agents: `${origin}/agents`,
@@ -159,17 +169,29 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const origin = new URL(request.url).origin;
-  let prompt = '';
-  let seed: ChartSeed | undefined;
+  let input: ComposeRequest;
   try {
-    const body = await readCompose(request);
-    prompt = body.prompt;
-    seed = body.seed;
+    input = await readCompose(request);
   } catch {
     if (wantsHtml(request)) {
       return Response.redirect(`${origin}/?error=Say+what+to+chart`, 303);
     }
     return Response.json({ ok: false, error: 'prompt required' }, { status: 400 });
+  }
+
+  const decision = decideCompose({
+    prompt: input.prompt,
+    disposition: input.disposition,
+    seed: input.seed,
+  });
+  if (decision.kind === 'clarify') {
+    return Response.json({ clarify: decision.ask });
+  }
+  if (decision.kind === 'reject') {
+    if (wantsHtml(request)) {
+      return Response.redirect(`${origin}/?error=${encodeURIComponent(decision.error)}`, 303);
+    }
+    return Response.json({ ok: false, error: decision.error, issues: [] }, { status: 400 });
   }
 
   let slot: Awaited<ReturnType<typeof consumeSlot>>;
@@ -192,11 +214,11 @@ export async function POST(request: Request) {
   }
 
   if (wantsStream(request) && !wantsHtml(request)) {
-    return streamCompose(origin, request, prompt, seed, slot);
+    return streamCompose(origin, request, decision, slot);
   }
 
   try {
-    const result = await runCompose(origin, request, prompt, seed);
+    const result = await runCompose(origin, request, decision);
     if (!result.ok) {
       if (slot.via === 'credit' || slot.via === 'free') {
         await refundSlot(request, slot.via);

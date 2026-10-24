@@ -1788,6 +1788,61 @@ a.compose-hero-submit.is-amber:focus-visible {
   margin: 12px 0 0;
 }
 
+.compose-clarify {
+  display: grid;
+  gap: 8px;
+  padding: 12px 22px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 6%, var(--rule));
+}
+
+.compose-clarify-question {
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.compose-clarify-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compose-clarify-chip,
+.compose-clarify-skip {
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, var(--rule));
+  background: color-mix(in srgb, var(--paper) 70%, white);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.compose-clarify-skip {
+  background: transparent;
+  color: var(--mute);
+}
+
+.compose-clarify-chip:hover,
+.compose-clarify-chip:focus-visible,
+.compose-clarify-skip:hover,
+.compose-clarify-skip:focus-visible {
+  border-color: color-mix(in srgb, var(--ink) 32%, var(--rule));
+  outline: 2px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  outline-offset: 2px;
+}
+
+.compose-clarify-chip:disabled,
+.compose-clarify-skip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .compose-studio,
 .compose-studio-inner {
   width: min(40rem, 100%);
@@ -4144,6 +4199,11 @@ html:not(.is-inked) .compose-hero-card {
   .compose-hero .compose-hero-bar,
   .compose-studio .compose-hero-bar {
     padding: 12px 26px 14px;
+  }
+
+  .compose-clarify {
+    padding-right: 26px;
+    padding-left: 26px;
   }
 }
 

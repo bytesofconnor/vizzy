@@ -1,10 +1,14 @@
 'use client';
 
-import type { ComposeProgressEvent, ClientPiece } from './compose-progress';
+import type { ComposeProgressEvent } from './compose-progress';
+import { readComposeOutcome, type ComposeDisposition, type ComposeOutcome } from './compose-outcome';
+import type { ChartSeed } from './seed';
 
-export type ComposeStreamResult =
-  | { ok: true; url: string; png?: string; token?: string; piece?: ClientPiece }
-  | { ok: false; error: string; pay?: boolean };
+export type ComposeCall = {
+  prompt: string;
+  seed?: ChartSeed;
+  disposition?: ComposeDisposition;
+};
 
 function parseSseChunk(buffer: string): { events: ComposeProgressEvent[]; rest: string } {
   const events: ComposeProgressEvent[] = [];
@@ -33,10 +37,30 @@ function parseSseChunk(buffer: string): { events: ComposeProgressEvent[]; rest: 
   return { events, rest };
 }
 
+function chartFromEvent(event: ComposeProgressEvent): ComposeOutcome | undefined {
+  if (event.stage === 'done' && event.url) {
+    return {
+      kind: 'chart',
+      url: event.url,
+      ...(event.png ? { png: event.png } : {}),
+      ...(event.token ? { token: event.token } : {}),
+      ...(event.piece ? { piece: event.piece } : {}),
+    };
+  }
+  if (event.stage === 'error') {
+    return {
+      kind: 'fail',
+      error: event.error ?? 'Could not generate that chart',
+      ...(event.pay ? { pay: true } : {}),
+    };
+  }
+  return undefined;
+}
+
 export async function composeWithProgress(
-  body: { prompt: string; seed?: unknown },
+  body: ComposeCall,
   onProgress: (event: ComposeProgressEvent) => void
-): Promise<ComposeStreamResult> {
+): Promise<ComposeOutcome> {
   const response = await fetch('/api/compose', {
     method: 'POST',
     headers: {
@@ -49,42 +73,25 @@ export async function composeWithProgress(
   const type = response.headers.get('content-type') ?? '';
   if (type.includes('application/json')) {
     const json: unknown = await response.json();
-    if (
-      typeof json === 'object' &&
-      json !== null &&
-      'ok' in json &&
-      json.ok === true &&
-      'url' in json &&
-      typeof json.url === 'string'
-    ) {
-      return {
-        ok: true,
-        url: json.url,
-        png: 'png' in json && typeof json.png === 'string' ? json.png : undefined,
-        token: 'token' in json && typeof json.token === 'string' ? json.token : undefined,
-        piece: 'piece' in json ? (json.piece as ClientPiece) : undefined,
-      };
+    const outcome = readComposeOutcome(json);
+    if (outcome.kind === 'fail' && response.status === 402) {
+      return { kind: 'fail', error: outcome.error, pay: true };
     }
-    const error =
-      typeof json === 'object' && json !== null && 'error' in json && typeof json.error === 'string'
-        ? json.error
-        : 'Could not generate that chart';
-    const pay =
-      typeof json === 'object' &&
-      json !== null &&
-      'pay' in json &&
-      json.pay === true;
-    return { ok: false, error, pay: pay || response.status === 402 };
+    return outcome;
   }
 
   if (!response.ok || !response.body) {
-    return { ok: false, error: 'Could not generate that chart' };
+    return {
+      kind: 'fail',
+      error: 'Could not generate that chart',
+      ...(response.status === 402 ? { pay: true } : {}),
+    };
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let result: ComposeStreamResult = { ok: false, error: 'Could not generate that chart' };
+  let result: ComposeOutcome = { kind: 'fail', error: 'Could not generate that chart' };
 
   while (true) {
     const { done, value } = await reader.read();
@@ -97,21 +104,9 @@ export async function composeWithProgress(
 
     for (const event of parsed.events) {
       onProgress(event);
-      if (event.stage === 'done' && event.url) {
-        result = {
-          ok: true,
-          url: event.url,
-          png: event.png,
-          token: event.token,
-          piece: event.piece,
-        };
-      }
-      if (event.stage === 'error') {
-        result = {
-          ok: false,
-          error: event.error ?? 'Could not generate that chart',
-          pay: event.pay,
-        };
+      const next = chartFromEvent(event);
+      if (next) {
+        result = next;
       }
     }
   }
@@ -120,15 +115,9 @@ export async function composeWithProgress(
     const parsed = parseSseChunk(`${buffer}\n\n`);
     for (const event of parsed.events) {
       onProgress(event);
-      if (event.stage === 'done' && event.url) {
-        result = { ok: true, url: event.url, png: event.png, token: event.token, piece: event.piece };
-      }
-      if (event.stage === 'error') {
-        result = {
-          ok: false,
-          error: event.error ?? 'Could not generate that chart',
-          pay: event.pay,
-        };
+      const next = chartFromEvent(event);
+      if (next) {
+        result = next;
       }
     }
   }

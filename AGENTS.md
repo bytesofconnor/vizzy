@@ -20,6 +20,7 @@ You emit a `ChartConfig`. The runtime draws the SVG. Do not invent D3.
 - Call `publish_chart` to mint a paste URL and PNG. If you have no source, say so — do not invent one.
 - Host with `<VizzyChart config={config} data={data} />` from `@vizzy/react`.
 - After three free charts a day, send the wallet cookie or `Authorization: Bearer` with that token. Compose and publish share the meter. Do not invent a Vizzy API key.
+- A compose body with `clarify` has a question and options, spends no slot, and has no paste URL. POST an option prompt, or POST the same prompt with `"disposition": "send"`.
 
 ## Do not
 

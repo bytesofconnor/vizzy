@@ -19,8 +19,14 @@ export async function GET() {
     compose: {
       method: 'POST',
       path: '/api/compose',
-      body: { prompt: 'string', seed: 'optional chart seed from a paste page' },
+      body: {
+        prompt: 'string',
+        disposition: 'optional ask or send',
+        seed: 'optional chart seed from a paste page',
+      },
       returns: { url: 'paste page', png: 'image', token: 'string' },
+      clarify:
+        'A compose body with clarify has a question and options, spends no slot, and has no paste URL. POST an option prompt, or POST the same prompt with "disposition": "send".',
     },
     publish: {
       method: 'POST',

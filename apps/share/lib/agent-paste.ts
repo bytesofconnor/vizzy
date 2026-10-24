@@ -6,6 +6,7 @@ export function agentPastePrompt(): string {
   return [
     'I need a chart I can paste: a public URL plus a PNG, with the source on the image.',
     `Read ${origin}/llms.txt, then POST ${origin}/api/compose with JSON { "prompt": "<the question>" }.`,
+    'A compose body with clarify has a question and options, spends no slot, and has no paste URL. POST an option prompt, or POST the same prompt with "disposition": "send".',
     'Bar, line, or scatter only. Gather real rows. Do not invent D3 or a source URL.',
   ].join('\n');
 }

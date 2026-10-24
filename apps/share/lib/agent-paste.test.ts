@@ -6,6 +6,7 @@ describe('agentPastePrompt', () => {
     const prompt = agentPastePrompt();
     expect(prompt).toContain('https://vizzy.run/llms.txt');
     expect(prompt).toContain('https://vizzy.run/api/compose');
+    expect(prompt).toContain('clarify');
     expect(prompt).toContain('Do not invent D3');
   });
 });

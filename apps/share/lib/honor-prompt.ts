@@ -1,6 +1,3 @@
-const MEASURE =
-  /\b(gdp|unemployment|inflation|jobs|wages|payrolls?|cpi|prices|recession|stocks|fed(?:eral)? funds|interest rates?|growth|deficit|debt|housing|employment|income|poverty|retail)\b/i;
-
 const TIME_GRAIN = /\b(per year|each year|every year|by year|year by year|since \d{4})\b/i;
 const REPEATED_YEARS = /\b(per year|each year|every year|by year|year by year)\b/i;
 
@@ -22,20 +19,6 @@ type Needs = {
   countryRanking: boolean;
   singleYear: boolean;
 };
-
-export function clarifyingQuestion(asked: string): string | null {
-  const text = asked.replace(/\s+/g, ' ').trim();
-  if (!/\beconom(?:y|ic)\b/i.test(text)) {
-    return null;
-  }
-  if (!/\b(better|worse|improving|improved|stronger|weaker)\b/i.test(text)) {
-    return null;
-  }
-  if (MEASURE.test(text)) {
-    return null;
-  }
-  return 'Which measure should the chart use? GDP, unemployment, or prices?';
-}
 
 export function honestTitle(input: HonorInput): string {
   const needs = readNeeds(input);
