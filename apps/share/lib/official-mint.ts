@@ -229,7 +229,6 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
       url: series.sourceUrl,
       method,
       retrieved: new Date(series.retrieved).toISOString().slice(0, 10),
-      evidence: method === 'official' ? `Official ${series.family}:${series.seriesId}` : `${series.family}:${series.seriesId}`,
     },
   });
 }

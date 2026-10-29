@@ -64,6 +64,72 @@ function alignYearPercents(text: string, rows: ChartSeed['rows']): string {
   );
 }
 
+function closeSentence(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed || /[.!?]["']?$/.test(trimmed)) {
+    return trimmed;
+  }
+  return `${trimmed}.`;
+}
+
+const MONTH_WORD =
+  /^(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i;
+const YEAR_MONTH = /^(?:19|20)\d{2}[-/.](?:0?[1-9]|1[0-2])\b/;
+
+function axisIsMonths(rows: ChartSeed['rows']): boolean {
+  const labels = rows.map((row) => String(row.x).trim()).filter(Boolean);
+  if (labels.length < 2) {
+    return false;
+  }
+  const hits = labels.filter((label) => MONTH_WORD.test(label) || YEAR_MONTH.test(label)).length;
+  return hits >= Math.ceil(labels.length * 0.7);
+}
+
+type Measure = 'temperature' | 'index' | 'per-capita' | 'share' | 'rate' | 'total';
+
+function measureOf(seed: ChartSeed): Measure {
+  const text = `${seed.yLabel} ${seed.title}`.toLowerCase();
+  if (/°\s*[cf]\b|\bcelsius\b|\bfahrenheit\b|\btemperature\b|\banomaly\b/.test(text)) {
+    return 'temperature';
+  }
+  if (/\bindex\b|\bcpi\b/.test(text)) {
+    return 'index';
+  }
+  if (/\bper (?:person|capita|head)\b/.test(text)) {
+    return 'per-capita';
+  }
+  if (/\bshare\b|%\s*of\b/.test(text)) {
+    return 'share';
+  }
+  if (/%|\bpercent\b|\brates?\b|\bratio\b/.test(text)) {
+    return 'rate';
+  }
+  return 'total';
+}
+
+const FITTING_TIP: Record<Measure, (y: string) => string> = {
+  temperature: (y) => `Plot the change in ${y} from the prior year.`,
+  index: (y) => `Plot the change in ${y} from the prior period.`,
+  'per-capita': (y) => `Plot the change in ${y} from the prior period.`,
+  share: (y) => `Plot how ${y} changed over time.`,
+  rate: (y) => `Plot the change in ${y} from the prior period.`,
+  total: (y) => `Show ${y} as a share or per person, not the raw total.`,
+};
+
+function firstTip(seed: ChartSeed, y: string): string {
+  if (axisIsMonths(seed.rows)) {
+    return `Compare ${y} with the same month a year earlier.`;
+  }
+  return FITTING_TIP[measureOf(seed)](y);
+}
+
+function secondTip(seed: ChartSeed, y: string): string {
+  if (measureOf(seed) === 'total') {
+    return `Chart the same ${y} as a rate or a share of the total.`;
+  }
+  return `Compare ${y} with an earlier published point.`;
+}
+
 function citedYearPercent(seed: ChartSeed): { year: number; label: string } | null {
   if (!/%|percent|\bshare\b/i.test(seed.yLabel) || drawnYearSpan(seed.rows) === null) {
     return null;
@@ -118,7 +184,8 @@ export function heuristicInsight(seed: ChartSeed): string {
       : seed.sourceMethod === 'estimate' || seed.sourceMethod === 'example'
         ? 'These rows are an estimate or example. Do not treat them as a complete official series.'
         : `The source is listed as ${seed.sourceLabel || 'unspecified'}. Gaps and definitions still matter.`;
-  const text = `${lead}${low}.${fact ? ` ${fact}` : ''} ${seed.note ? `${seed.note} ` : ''}The shape is the story — not a single bar in isolation.\n\n${method} A plausible driver is how ${y} is counted, who is missing from the ${seed.xLabel || 'axis'}, or a lag between cause and what got published.`;
+  const noted = seed.note.trim() ? ` ${closeSentence(seed.note)}` : '';
+  const text = `${lead}${low}.${fact ? ` ${fact}` : ''}${noted} The shape is the story — not a single bar in isolation.\n\n${method} A plausible driver is how ${y} is counted, who is missing from the ${seed.xLabel || 'axis'}, or a lag between cause and what got published.`;
   return alignContext(text, seed);
 }
 
@@ -137,13 +204,13 @@ export function heuristicLesson(seed: ChartSeed, layer = 1): ChartLesson {
       notice: `${hi} leads on ${y}, well ahead of ${lo}.`,
       teach: `That gap is usually size, timing, or how ${y} is counted — not a simple contest.\n\nA small move in ${hi} would not reorder this chart. A change in units or who is missing from the axis could.`,
       question: `Is ${hi} large, or just measured that way?`,
-      tryNext: `Show ${y} as a share or per person, not the raw total.`,
+      tryNext: firstTip(seed, y),
     },
     {
       notice: `${lo} is easy to skip once ${hi} fills the frame.`,
       teach: `Rankings hide rates. A smaller ${seed.xLabel || 'category'} can be changing faster than the leader.\n\nIf ${y} is a total, size does a lot of the work. Ask what the remaining stock or the denominator would do to ${midLabel}.`,
       question: `Would ${lo} jump if this were a rate?`,
-      tryNext: `Chart the same ${y} as a rate or a share of the total.`,
+      tryNext: secondTip(seed, y),
     },
     {
       notice: `${hi} and ${lo} can fit two different stories at once.`,
