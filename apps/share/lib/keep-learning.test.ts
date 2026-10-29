@@ -232,6 +232,28 @@ describe('Keep learning', () => {
     expect(host.querySelector('[role="status"]')?.textContent).toMatch(/no composer/i);
   });
 
+  it('shows Keep learning as soon as the chart is on screen while insight is still pending', async () => {
+    vi.mocked(fetch).mockImplementation(() => new Promise(() => undefined));
+    vi.useFakeTimers();
+    try {
+      await render(
+        createElement(TellMeMore, {
+          seed,
+          onInsight: () => undefined,
+        })
+      );
+      expect(host.textContent).not.toContain('Reading the chart');
+      expect(keepButton().textContent).toContain('Keep learning');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+      expect(host.textContent).not.toContain('Reading the chart');
+      expect(keepButton().textContent).toContain('Keep learning');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('presses in while the button is held', () => {
     const css = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8');
     expect(css).toMatch(/\.tell-more-next:active\s*\{[^}]*translateY\(1px\)/s);
