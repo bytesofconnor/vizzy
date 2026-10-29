@@ -3,8 +3,10 @@ import { formatDataValue } from '../format';
 import {
   compactAxisLabel,
   looksSequentialX,
+  monthCycleShortLabels,
   rotatedTickDepth,
   shortCategoryNames,
+  ticksFit,
   wrapCategoryLines,
   xTickRotate,
   type XTickRotate,
@@ -609,9 +611,24 @@ export class RenderEngine {
       return { ...item, label, width: Math.max(label.length * 6.6, 10) };
     });
 
-    const sequential = looksSequentialX(items.map((item) => item.name));
+    const names = items.map((item) => item.name);
+    const sequential = looksSequentialX(names);
+    const monthCycle = monthCycleShortLabels(names);
+    if (
+      monthCycle &&
+      !ticksFit(
+        items.map((item) => ({ x: item.x, width: item.width })),
+        items.map(() => true)
+      )
+    ) {
+      items.forEach((item, index) => {
+        const label = monthCycle[index] ?? item.label;
+        item.label = label;
+        item.width = Math.max(label.length * 6.6, 10);
+      });
+    }
     const keep = items.map(() => true);
-    if (sequential) {
+    if (sequential && !monthCycle) {
       keep.fill(false);
       keep[0] = true;
       keep[items.length - 1] = true;

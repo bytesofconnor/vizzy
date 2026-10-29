@@ -38,6 +38,69 @@ export type XTickRotate = 0 | -40 | -65 | -90;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const LABEL_PX = 6.6;
 
+const MONTH_WORD: Array<[RegExp, string]> = [
+  [/^january\b/i, 'Jan'],
+  [/^february\b/i, 'Feb'],
+  [/^march\b/i, 'Mar'],
+  [/^april\b/i, 'Apr'],
+  [/^may\b/i, 'May'],
+  [/^june\b/i, 'Jun'],
+  [/^july\b/i, 'Jul'],
+  [/^august\b/i, 'Aug'],
+  [/^september\b/i, 'Sep'],
+  [/^october\b/i, 'Oct'],
+  [/^november\b/i, 'Nov'],
+  [/^december\b/i, 'Dec'],
+  [/^sept\b/i, 'Sep'],
+  [/^jan\b/i, 'Jan'],
+  [/^feb\b/i, 'Feb'],
+  [/^mar\b/i, 'Mar'],
+  [/^apr\b/i, 'Apr'],
+  [/^jun\b/i, 'Jun'],
+  [/^jul\b/i, 'Jul'],
+  [/^aug\b/i, 'Aug'],
+  [/^sep\b/i, 'Sep'],
+  [/^oct\b/i, 'Oct'],
+  [/^nov\b/i, 'Nov'],
+  [/^dec\b/i, 'Dec'],
+];
+
+const MONTH_TOKEN =
+  /^(january|february|march|april|may|june|july|august|september|october|november|december|sept|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/i;
+
+function monthAbbrev(name: string): string | null {
+  const trimmed = name.trim();
+  for (const [pattern, abbrev] of MONTH_WORD) {
+    if (pattern.test(trimmed)) {
+      return abbrev;
+    }
+  }
+  return null;
+}
+
+function shortMonthLabel(name: string): string | null {
+  const abbrev = monthAbbrev(name);
+  if (!abbrev) {
+    return null;
+  }
+  const rest = name.trim().replace(MONTH_TOKEN, '').trim();
+  return rest ? `${abbrev} ${rest}` : abbrev;
+}
+
+export function monthCycleShortLabels(names: string[]): string[] | null {
+  if (names.length !== 12) {
+    return null;
+  }
+  const short = names.map(shortMonthLabel);
+  if (short.some((label) => label == null)) {
+    return null;
+  }
+  if (new Set(names.map(monthAbbrev)).size !== 12) {
+    return null;
+  }
+  return short as string[];
+}
+
 export function compactAxisLabel(name: string): string {
   const trimmed = name.trim();
   const month = trimmed.match(/^(\d{4})-(\d{2})$/);

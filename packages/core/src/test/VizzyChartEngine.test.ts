@@ -95,7 +95,10 @@ function samplePath(d: string): Array<{ x: number; y: number }> {
   };
 
   while (i < tokens.length) {
-    const token = tokens[i]!;
+    const token = tokens[i];
+    if (!token) {
+      break;
+    }
     if (/[a-zA-Z]/.test(token)) {
       cmd = token;
       i += 1;
@@ -179,9 +182,12 @@ function segmentsHitBox(
     [{ x: rect.left, y: rect.bottom }, { x: rect.left, y: rect.top }],
   ];
   for (let index = 1; index < samples.length; index += 1) {
-    const start = samples[index - 1]!;
-    const end = samples[index]!;
-    if (inside(start) || inside(end) || edges.some(([c, d]) => cross(start, end, c!, d!))) {
+    const start = samples[index - 1];
+    const end = samples[index];
+    if (!start || !end) {
+      continue;
+    }
+    if (inside(start) || inside(end) || edges.some(([c, d]) => c && d && cross(start, end, c, d))) {
       return true;
     }
   }
@@ -270,7 +276,10 @@ describe('VizzyChartEngine', () => {
     const solid = chart.container.querySelector('path.line:not(.line-forecast)');
     expect(forecast?.getAttribute('stroke-dasharray')).toBeTruthy();
     expect(label?.textContent).toMatch(/forecast/i);
-    const box = labelBox(label!);
+    if (!(label instanceof Element)) {
+      return;
+    }
+    const box = labelBox(label);
     const stroke = [
       ...samplePath(solid?.getAttribute('d') ?? ''),
       ...samplePath(forecast?.getAttribute('d') ?? ''),
@@ -285,6 +294,46 @@ describe('VizzyChartEngine', () => {
     expect(box.top).toBeGreaterThanOrEqual(clipTop - 1);
     expect(box.right).toBeLessThanOrEqual(clipRight + 1);
     expect(box.bottom).toBeLessThanOrEqual(clipBottom + 1);
+  });
+
+  it('places the forecast label off a rising stroke', async () => {
+    const rising = MONTHS.map((month, index) => ({ month, temp: 8 + index * 6 }));
+    const chart = engine(monthChart('line', 800, 'October'), rising);
+    await chart.render();
+    const forecast = chart.container.querySelector('.line-forecast');
+    const label = chart.container.querySelector('.forecast-label');
+    const solid = chart.container.querySelector('path.line:not(.line-forecast)');
+    expect(label?.textContent).toMatch(/forecast/i);
+    if (!(label instanceof Element)) {
+      return;
+    }
+    const box = labelBox(label);
+    const stroke = [
+      ...samplePath(solid?.getAttribute('d') ?? ''),
+      ...samplePath(forecast?.getAttribute('d') ?? ''),
+    ];
+    expect(segmentsHitBox(stroke, box, 4)).toBe(false);
+  });
+
+  it('dashes months after today when the axis names the open year', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-29T12:00:00Z'));
+    try {
+      const rows = MONTHS.map((month, index) => ({
+        month: `${month} 2026`,
+        temp: MINNEAPOLIS_NORMALS[index] ?? 40,
+      }));
+      const chart = engine(monthChart('line', 800), rows);
+      await chart.render();
+      expect(chart.container.querySelector('.line-forecast')?.getAttribute('stroke-dasharray')).toBeTruthy();
+      const hollow = [...chart.container.querySelectorAll('circle.point')].filter(
+        (node) => (node.getAttribute('stroke') ?? 'none') !== 'none'
+      );
+      expect(hollow).toHaveLength(2);
+      expect(visibleTickText(chart.container, '.x-axis')).toHaveLength(12);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('keeps every named category labeled', async () => {

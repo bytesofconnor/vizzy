@@ -5,7 +5,7 @@ import { RenderEngine, RenderContext } from '../components/RenderEngine';
 import { DataProcessor, ProcessedData } from '../components/DataProcessor';
 import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '../chart-tip';
 import { forecastStartIndex } from '../forecast';
-import { formatDataValue, linePointLabelPlacement } from '../format';
+import { forecastLabelPlacement, formatDataValue, linePointLabelPlacement } from '../format';
 
 type LineSeriesOptions = Partial<
   Pick<
@@ -211,7 +211,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
 
     this._drawLinePath(group, `.${lineMark}`, `line ${lineMark}`, line, published, lineColor, chartConfig, false);
     this._drawLinePath(group, `.${forecastMark}`, `line line-forecast ${forecastMark}`, line, forecast, lineColor, chartConfig, true);
-    this._labelForecast(group, forecast, lineData.key);
+    this._labelForecast(group, forecast, lineData.key, line, lineData.values);
 
     if (chartConfig.showPoints) {
       await this._renderPoints(group, lineData, lineColor, chartConfig, cut);
@@ -295,7 +295,9 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   private _labelForecast(
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
     forecast: TData[],
-    key: string
+    key: string,
+    line: d3.Line<TData>,
+    series: TData[]
   ): void {
     const mark = forecast[Math.max(forecast.length - 1, 0)];
     const forecastLabel = seriesMark('forecast-label', key);
@@ -305,11 +307,37 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       return;
     }
     const { dataMapping, colors } = this._config;
+    const end = {
+      x: this._scaleManager.getXValue(mark[dataMapping.x]),
+      y: this._scaleManager.getYValue(mark[dataMapping.y]),
+    };
+    const prevRow = forecast[forecast.length - 2];
+    if (!prevRow) {
+      return;
+    }
+    const prev = {
+      x: this._scaleManager.getXValue(prevRow[dataMapping.x]),
+      y: this._scaleManager.getYValue(prevRow[dataMapping.y]),
+    };
+    const xRange = (this._scaleManager.getScales()?.x.range() ?? [0, 0]) as number[];
+    const { plotTop, plotBottom } = this._plotYBounds();
+    const placement = forecastLabelPlacement({
+      paths: [line(series) ?? '', line(forecast) ?? ''],
+      end,
+      prev,
+      bounds: {
+        left: Math.min(...xRange) - 16,
+        top: plotTop - 16,
+        right: Math.max(...xRange) + 16,
+        bottom: plotBottom + 16,
+      },
+    });
     labels.join('text')
       .attr('class', `forecast-label ${forecastLabel}`)
-      .attr('x', this._scaleManager.getXValue(mark[dataMapping.x]))
-      .attr('y', this._scaleManager.getYValue(mark[dataMapping.y]) - 14)
-      .attr('text-anchor', 'end')
+      .attr('x', placement.x)
+      .attr('y', placement.y)
+      .attr('text-anchor', placement.textAnchor)
+      .attr('dominant-baseline', placement.dominantBaseline)
       .attr('fill', colors.text)
       .style('opacity', 0.5)
       .style('font-size', '11px')
