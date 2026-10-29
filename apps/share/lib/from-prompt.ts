@@ -79,7 +79,7 @@ const DraftSchema = z.object({
 const SYSTEM = `You emit a Vizzy chart draft. Types: bar, line, scatter only. No pie.
 Use the user's numbers when they paste a table.
 If LOOKED-UP NOTES contain a real series, chart those numbers. Do not invent a different table.
-Aim for about 15 rows on a ranking or named-category bar chart. A year by month is 12. A season is the published games so far. Do not pad past the natural series. Only take a top N when the user asked for one.
+Aim for about 15 rows on a ranking or named-category bar chart. If the user asked for every member of a set, such as every US state, include the whole set, up to 60 rows. Do not stop around 15. A year by month is 12. A season is the published games so far. Do not pad past the natural series. Only take a top N when the user asked for one.
 If the user asked for decades of a yearly series (last 30 years, past 50 years), emit one row per year and prefer a line. Sequential year series may run up to about 50 points.
 If LOOKED-UP NOTES contain real numbers with a page, chart them and set sourceMethod scraped or official. Attach the page in sourceLabel. Put the page URL in SOURCE CANDIDATES on the chart when you have one.
 If lookup failed and the user pasted no numbers, sourceMethod must be estimate, evidence must say lookup failed, and there must be no URL. Never dress a miss as official or scraped. sourceLabel must name what you tried to find. Even then, x must be real names from the question (Japan, Brazil, Arsenal) — never Country A, Team B, Item 1, or Rank 1.
@@ -87,7 +87,7 @@ If the asked year is still in progress, chart published months from the notes an
 Always name xLabel and yLabel in words a reader can trust (Month, Wins, Points). Never leave them as x or y.
 Never invent a source URL. Prefer the looked-up page title in sourceLabel.
 y must be numeric. Keep titles short. Title names the series (Protected waters % by country), not the user's command (Add Tanzania, Sort by share, Make it a line). If CURRENT CHART is in the prompt, keep that title unless the subject of the chart actually changed.
-Named categories cap around 15. Sequential series may be longer.
+Named categories cap around 15, unless the user asked for every member of a set. Then include the whole set, up to 60 rows. Sequential series may be longer.
 If y is a calendar year, keep it as the year. Do not convert it to a count from zero.
 Keep category names short enough to sit under a bar: August Schell, not August Schell Brewing Company.
 x is the name of each thing (skill, team, city, country). Never Rank 1, #3, Country A, or a place index. A top-10 chart still labels each bar with the name. For a country chart with no lookup, pick diverse real countries the reader recognizes.
@@ -247,7 +247,7 @@ export async function pieceFromPrompt(
         });
         const richer = await draftChart(
           model,
-          `${briefing}\n\nThe first draft only used ${output.rows.length} rows. The notes have about ${hinted}. Emit about 15 rows from the notes. One name per row. One metric for y. Do not invent extras.`
+          `${briefing}\n\nThe first draft only used ${output.rows.length} rows. The notes have about ${hinted}. Emit ${categoryRowCap(asked) > 15 ? `the full set, up to ${categoryRowCap(asked)} rows` : 'about 15 rows'} from the notes. One name per row. One metric for y. Do not invent extras.`
         );
         if (richer && richer.rows.length > output.rows.length) {
           output = richer;
@@ -374,13 +374,14 @@ export function mintDraft(
       y: row.y,
     })),
     output.xLabel.trim() || fallbackXLabel(output.chartType),
-    output.yLabel.trim() || 'Value'
+    output.yLabel.trim() || 'Value',
+    asked
   );
   const named = withNamedCategories(tidied.rows, gathered.notes, tidied.xLabel, asked);
   if (output.chartType !== 'scatter' && mostlyRankIndex(named.rows) && !from) {
     return { ok: false, error: 'Could not find named figures to chart', issues: [] };
   }
-  const noteNames = namesFromNotes(gathered.notes);
+  const noteNames = namesFromNotes(gathered.notes, categoryRowCap(asked));
   let rows = relabelGenericCategories(named.rows, noteNames, asked);
   if (pastedYs) {
     rows = applyPastedNumberSeries(rows, pastedYs);
@@ -726,6 +727,22 @@ function isRateLimited(error: unknown): boolean {
 
 const NAMED_METRIC = /^(.+?)\s*\(([^)]+)\)\s*$/;
 const NAMED_CAP = 15;
+const FULL_SET_CAP = 60;
+
+export function categoryRowCap(asked: string): number {
+  return wantsEveryCategory(asked) ? FULL_SET_CAP : NAMED_CAP;
+}
+
+function wantsEveryCategory(asked: string): boolean {
+  if (/\btop\s+\d+\b/i.test(asked)) {
+    return false;
+  }
+  return (
+    /\b(every|each)\b/i.test(asked) ||
+    /\ball\s+(?:\d+\s+|the\s+|of\s+)?(?:us\s+|u\.s\.\s+)?(?:states|countries|nations|teams|cities|counties)\b/i.test(asked)
+  );
+}
+
 const RANK_INDEX = /^(?:#|no\.?|number|rank|place|pos(?:ition)?)\s*#?\s*\d+$/i;
 const BARE_INDEX = /^\d{1,2}$/;
 
@@ -742,7 +759,7 @@ export function mostlyRankIndex(rows: Array<{ x: string | number }>): boolean {
   return hits >= Math.ceil(rows.length * 0.8);
 }
 
-export function namesFromNotes(notes: string): string[] {
+export function namesFromNotes(notes: string, cap = NAMED_CAP): string[] {
   const lines = notes.split('\n').map((line) => line.trim()).filter(Boolean);
   const table = lines.filter((line) => line.includes('|') && !/^[-|:.\s]+$/.test(line));
   if (table.length >= 3) {
@@ -760,7 +777,7 @@ export function namesFromNotes(notes: string): string[] {
         .map((line) => cleanName(cells(line)[index] ?? ''))
         .filter((name) => name && !isRankIndexX(name));
       if (names.length >= 2) {
-        return uniqueNames(names).slice(0, NAMED_CAP);
+        return uniqueNames(names).slice(0, cap);
       }
     }
   }
@@ -775,7 +792,7 @@ export function namesFromNotes(notes: string): string[] {
       listed.push(name);
     }
   }
-  return uniqueNames(listed).slice(0, NAMED_CAP);
+  return uniqueNames(listed).slice(0, cap);
 }
 
 export function withNamedCategories(
@@ -787,7 +804,7 @@ export function withNamedCategories(
   if (!mostlyRankIndex(rows)) {
     return { rows, xLabel };
   }
-  const names = namesFromNotes(notes);
+  const names = namesFromNotes(notes, categoryRowCap(asked));
   if (names.length < 2) {
     return { rows, xLabel };
   }
@@ -834,7 +851,8 @@ type DraftRow = { x: string | number; y: number | null };
 export function tidyComparison(
   rows: DraftRow[],
   xLabel: string,
-  yLabel: string
+  yLabel: string,
+  asked = ''
 ): { rows: DraftRow[]; xLabel: string; yLabel: string } {
   const parsed = rows.map((row) => {
     const raw = String(row.x);
@@ -857,7 +875,7 @@ export function tidyComparison(
     y: row.y,
   }));
   const series = looksLikeSeries(stripped.map((row) => String(row.x)));
-  const capped = series ? stripped.slice(0, 24) : stripped.slice(0, NAMED_CAP);
+  const capped = series ? stripped.slice(0, 24) : stripped.slice(0, categoryRowCap(asked));
   return {
     rows: capped,
     xLabel: chosen ? xLabel.replace(/\s*[&+/|,]\s*metric.*$/i, '').trim() || 'Name' : xLabel,

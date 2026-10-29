@@ -121,10 +121,10 @@ export class ScaleManager {
     const { chart } = this._config;
 
     if (Array.isArray(domain) && typeof domain[0] === 'string') {
-      // Categorical Y scale (rare, but possible for horizontal bar charts)
+      const topDown = chart.type === 'bar' && chart.orientation === 'horizontal';
       return d3.scaleBand<string>()
         .domain(domain as string[])
-        .range([innerHeight, 0])
+        .range(topDown ? [0, innerHeight] : [innerHeight, 0])
         .padding(chart.type === 'bar' ? chart.barPadding : 0.1);
     } else {
       // Numeric Y scale (most common)
@@ -170,7 +170,9 @@ export class ScaleManager {
 
     // Update Y scale range
     if ('range' in this._scales.y) {
-      (this._scales.y as any).range([innerHeight, 0]);
+      const topDown =
+        this._config.chart.type === 'bar' && this._config.chart.orientation === 'horizontal';
+      (this._scales.y as any).range(topDown ? [0, innerHeight] : [innerHeight, 0]);
     }
   }
 

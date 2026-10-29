@@ -33,17 +33,19 @@ export function ticksFit(
   return true;
 }
 
-export type XTickRotate = 0 | -40 | -65;
+export type XTickRotate = 0 | -40 | -65 | -90;
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const LABEL_PX = 6.6;
 
 export function compactAxisLabel(name: string): string {
   const trimmed = name.trim();
-  const fiscal = trimmed.match(/^20(\d{2})\s*[-–/]\s*(?:(\d{2})|20(\d{2}))$/);
-  if (fiscal) {
-    const end = fiscal[3] ?? fiscal[2];
-    return end ? `${fiscal[1]}/${end}` : trimmed;
-  }
-  if (/^20(\d{2})$/.test(trimmed)) {
-    return trimmed.slice(2);
+  const month = trimmed.match(/^(\d{4})-(\d{2})$/);
+  if (month) {
+    const label = MONTHS[Number(month[2]) - 1];
+    if (label) {
+      return `${label} ${month[1]}`;
+    }
   }
   return trimmed;
 }
@@ -86,8 +88,21 @@ export function categoryLabelBox(name: string, slot: number): { lines: number; w
   return { lines: lines.length, width };
 }
 
+function longestLabel(labels: string[]): string {
+  return labels.reduce((best, name) => (name.length > best.length ? name : best), '');
+}
+
+function labelFootprint(label: string, angle: XTickRotate): number {
+  const length = Math.max(label.length * LABEL_PX, 10);
+  if (angle === 0) {
+    return length;
+  }
+  const radians = (Math.abs(angle) * Math.PI) / 180;
+  return length * Math.cos(radians) + 14 * Math.sin(radians);
+}
+
 export function xTickRotate(names: string[], innerWidth: number): XTickRotate {
-  const labels = shortCategoryNames(names).map(compactAxisLabel);
+  const labels = displayNames(names);
   if (looksSequentialX(names) || labels.length === 0) {
     return 0;
   }
@@ -97,15 +112,50 @@ export function xTickRotate(names: string[], innerWidth: number): XTickRotate {
     x: (index + 0.5) * slot,
     width: box.width,
   }));
-  if (ticksFit(items, items.map(() => true)) && wrapped.every((box) => box.lines <= 3)) {
+  if (ticksFit(items, items.map(() => true)) && wrapped.every((box) => box.lines <= 3 && box.width <= slot)) {
     return 0;
   }
-  return labels.length > 12 || labels.some((name) => name.length > 16) ? -65 : -40;
+  const longest = longestLabel(labels);
+  for (const angle of [-40, -65, -90] as const) {
+    if (labelFootprint(longest, angle) <= slot) {
+      return angle;
+    }
+  }
+  return -90;
 }
 
-/** Last names when a crowded set is clearly people. Keeps every bar labeled. */
+export function barsReadHorizontally(names: string[], innerWidth: number): boolean {
+  if (names.length < 8 || looksSequentialX(names)) {
+    return false;
+  }
+  const labels = displayNames(names);
+  const slot = innerWidth / Math.max(labels.length, 1);
+  return labelFootprint(longestLabel(labels), -90) > slot;
+}
+
+function displayNames(names: string[]): string[] {
+  return shortCategoryNames(names).map(compactAxisLabel);
+}
+
+const PLACE_START =
+  /^(?:united|new|san|santa|são|sao|north|south|east|west|great|saint|st\.?|republic|democratic|central|burkina|papua|sri|costa|sierra|el|la|los|las|saudi|czech|dominican|bosnia|trinidad|antigua|isle|cape|hong|puerto|british|french|equatorial|northern|southern|western|eastern)$/i;
+
+const PLACE_PHRASE = /\b(?:of|islands?|republic|states|kingdom|territor(?:y|ies)|province|county)\b/i;
+
+function looksLikePeople(names: string[]): boolean {
+  const multi = names.filter((name) => name.trim().split(/\s+/).filter(Boolean).length >= 2);
+  if (multi.length < Math.ceil(names.length * 0.6)) {
+    return false;
+  }
+  return !names.some((name) => {
+    const first = name.trim().split(/\s+/)[0] ?? '';
+    return PLACE_START.test(first) || PLACE_PHRASE.test(name);
+  });
+}
+
+/** Last names when a crowded set is clearly people. Places stay whole. */
 export function shortCategoryNames(names: string[]): string[] {
-  if (looksSequentialX(names) || names.length < 10) {
+  if (looksSequentialX(names) || names.length < 10 || !looksLikePeople(names)) {
     return names;
   }
 
