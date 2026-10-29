@@ -34,8 +34,8 @@ async function convexCall<T>(kind: 'query' | 'mutation', path: string, args: Rec
   }
 }
 
-function windowCached(series: ResolvedSeries, asked: string): ResolvedSeries | null {
-  const rows = rowsForAsked(series.rows, asked);
+function windowCached(series: ResolvedSeries, asked: string, now: number): ResolvedSeries | null {
+  const rows = rowsForAsked(series.rows, asked, now);
   if (rows.length < 2) {
     return null;
   }
@@ -69,7 +69,7 @@ export async function gatherOfficialSeries(
     now,
     maxAgeMs: DAY_MS,
   });
-  const fromCache = cached ? windowCached(cached, asked) : null;
+  const fromCache = cached ? windowCached(cached, asked, now) : null;
   if (fromCache) {
     await record('hit', { family: recipe.family, seriesId: recipe.seriesId, fromCache: true });
     return { notes: notesFromResolved(fromCache), urls: [fromCache.sourceUrl], series: fromCache };
@@ -91,7 +91,7 @@ export async function gatherOfficialSeries(
       yLabel: full.yLabel,
       rows: full.rows,
     });
-    const series = windowCached(full, asked);
+    const series = windowCached(full, asked, now);
     if (!series) {
       await record('error', { family: recipe.family, seriesId: recipe.seriesId, fromCache: false });
       return null;

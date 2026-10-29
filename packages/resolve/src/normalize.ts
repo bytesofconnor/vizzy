@@ -20,8 +20,9 @@ export function sinceYearFromAsked(asked: string): number | undefined {
   return year;
 }
 
-export function yearSpanFromAsked(asked: string): { since?: number; until?: number } {
-  const range = foldAsked(asked).match(
+export function yearSpanFromAsked(asked: string, now = Date.now()): { since?: number; until?: number } {
+  const folded = foldAsked(asked);
+  const range = folded.match(
     /\b((?:1[89]|20)\d{2})\s*(?:-|–|—|to|through)\s*((?:1[89]|20)\d{2})\b/
   );
   if (range) {
@@ -34,7 +35,17 @@ export function yearSpanFromAsked(asked: string): { since?: number; until?: numb
     }
   }
   const since = sinceYearFromAsked(asked);
-  return since === undefined ? {} : { since };
+  if (since !== undefined) {
+    return { since };
+  }
+  const relative = folded.match(/\b(?:last|past)\s+(\d{1,2})\s+years?\b/);
+  if (relative) {
+    const count = Number(relative[1]);
+    if (count >= 1 && count <= 80) {
+      return { since: new Date(now).getUTCFullYear() - count };
+    }
+  }
+  return {};
 }
 
 export function yearOfX(x: string): number | undefined {

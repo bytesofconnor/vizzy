@@ -166,7 +166,7 @@ export function titleFromAsked(asked: string, series: ResolvedSeries): string {
 }
 
 export function mintFromOfficial(asked: string, series: ResolvedSeries): MintResult {
-  const spanned = rowsForAsked(series.rows, asked);
+  const spanned = rowsForAsked(series.rows, asked, series.retrieved);
   const cut = applyYearlyCut(asked, spanned);
   const rows = cut ?? spanned;
   const multi = new Set(rows.map((row) => row.series).filter(Boolean)).size >= 2;

@@ -675,11 +675,9 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       case 'linear':
         return d3.curveLinear;
       case 'monotone':
-        return d3.curveMonotoneX;
       case 'cardinal':
-        return d3.curveCardinal;
       case 'basis':
-        return d3.curveBasis;
+        return d3.curveMonotoneX;
       case 'step':
         return d3.curveStep;
       default:

@@ -523,3 +523,117 @@ describe('resolvePrompt', () => {
     expect(slim[23]?.x).toBe('1999');
   });
 });
+
+const AS_OF = Date.UTC(2026, 9, 29);
+
+function monthIndex(value: string): number {
+  const [yearText = '0', monthText = '1'] = value.split('-');
+  return Number(yearText) * 12 + Number(monthText);
+}
+
+function expectEveryMonth(rows: Array<{ x: string }>, first: string, last: string) {
+  const stamps = rows.map((row) => row.x);
+  expect(stamps[0]).toBe(first);
+  expect(stamps.at(-1)).toBe(last);
+  expect(new Set(stamps).size).toBe(stamps.length);
+  for (let index = 1; index < stamps.length; index += 1) {
+    const previous = stamps[index - 1];
+    const current = stamps[index];
+    expect(previous).toBeTypeOf('string');
+    expect(current).toBeTypeOf('string');
+    if (typeof previous !== 'string' || typeof current !== 'string') {
+      continue;
+    }
+    expect(monthIndex(current) - monthIndex(previous)).toBe(1);
+  }
+}
+
+function monthlyFred(id: string, start: string, end: string): string {
+  const lines = [`observation_date,${id}`];
+  let year = Number(start.slice(0, 4));
+  let month = Number(start.slice(5, 7));
+  const endYear = Number(end.slice(0, 4));
+  const endMonth = Number(end.slice(5, 7));
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    const stamp = `${year}-${String(month).padStart(2, '0')}`;
+    lines.push(`${stamp}-01,${year + month / 100}`);
+    month += 1;
+    if (month === 13) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return lines.join('\n');
+}
+
+function dailyBitcoin(): string {
+  const lines = ['observation_date,CBBTCUSD'];
+  let cursor = Date.UTC(2018, 0, 1);
+  const end = Date.UTC(2026, 9, 31);
+  while (cursor <= end) {
+    const date = new Date(cursor);
+    const iso = date.toISOString().slice(0, 10);
+    lines.push(`${iso},${10000 + date.getUTCDate()}`);
+    cursor += 24 * 60 * 60 * 1000;
+  }
+  return lines.join('\n');
+}
+
+describe('dense series for the asked window', () => {
+  it('charts bitcoin over the last 5 years as one close per month', async () => {
+    let requested = '';
+    const series = await resolvePrompt('bitcoin price last 5 years', {
+      get: async (url) => {
+        requested = url;
+        return dailyBitcoin();
+      },
+      now: AS_OF,
+    });
+    expect(requested).toContain('CBBTCUSD');
+    expect(series?.seriesId).toBe('CBBTCUSD');
+    const rows = series?.rows ?? [];
+    expect(rows.length).toBeGreaterThan(48);
+    expectEveryMonth(rows, '2021-01', '2026-10');
+    expect(rows.some((row) => row.x.startsWith('2018'))).toBe(false);
+    expect(rows.find((row) => row.x === '2026-02')?.y).toBe(10028);
+    expect(rows.find((row) => row.x === '2026-10')?.y).toBe(10031);
+  });
+
+  it('charts US CPI, including the inflaton typo, as monthly points across a few years', async () => {
+    for (const asked of ['inflaton rate usa', 'inflation rate usa']) {
+      let requested = '';
+      const series = await resolvePrompt(asked, {
+        get: async (url) => {
+          requested = url;
+          return monthlyFred('CPIAUCSL', '1990-01', '2026-10');
+        },
+        now: AS_OF,
+      });
+      expect(requested).toContain('CPIAUCSL');
+      expect(series?.seriesId).toBe('CPIAUCSL');
+      const rows = series?.rows ?? [];
+      expect(rows.length).toBeGreaterThan(36);
+      expect(rows.length).toBeLessThanOrEqual(80);
+      expectEveryMonth(rows, '2021-01', '2026-10');
+      expect(rows.some((row) => row.x.startsWith('1990'))).toBe(false);
+    }
+  });
+
+  it('thins a CPI history longer than the chart can hold', async () => {
+    const series = await resolvePrompt('inflation rate usa since 1990', {
+      get: async () => monthlyFred('CPIAUCSL', '1990-01', '2026-10'),
+      now: AS_OF,
+    });
+    expect(series?.seriesId).toBe('CPIAUCSL');
+    const rows = series?.rows ?? [];
+    expect(rows).toHaveLength(24);
+    expect(rows[0]?.x.startsWith('1990')).toBe(true);
+    expect(rows.at(-1)?.x.startsWith('2026')).toBe(true);
+    const first = rows[0];
+    const second = rows[1];
+    expect(first && second).toBeTruthy();
+    if (first && second) {
+      expect(monthIndex(second.x) - monthIndex(first.x)).toBeGreaterThan(1);
+    }
+  });
+});

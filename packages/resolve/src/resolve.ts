@@ -2,20 +2,21 @@ import { matchPrompt } from './catalog';
 import { defaultGet } from './http';
 import { yearSpanFromAsked } from './normalize';
 import { placesInAsked } from './places';
-import { parseFredCsv, fredCsvUrl } from './parse/fred';
+import { fredCsvUrl, monthlyClose, parseFredCsv } from './parse/fred';
 import { parseNoaaCo2, NOAA_CO2_URL, NOAA_CH4_URL } from './parse/noaa';
 import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
 import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
 import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, wikiSnapshotYear, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
 import type { HttpGet, Recipe, ResolvedSeries, SeriesRow } from './types';
-import { downsample, windowSpan } from './window';
+import { downsample, rowCap, windowSpan } from './window';
 
 type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string };
 
 async function loadRecipe(recipe: Recipe, get: HttpGet): Promise<LoadedRecipe> {
   if (recipe.family === 'fred') {
-    return { rows: parseFredCsv(await get(fredCsvUrl(recipe.seriesId))) };
+    const csv = await get(fredCsvUrl(recipe.seriesId));
+    return { rows: recipe.rollup === 'month' ? monthlyClose(csv) : parseFredCsv(csv) };
   }
   if (recipe.family === 'noaa') {
     if (recipe.seriesId === 'ozone_hole_area') {
@@ -59,9 +60,16 @@ export async function fetchRecipe(
   return (await loadRecipe(recipe, get)).rows;
 }
 
-export function rowsForAsked(rows: SeriesRow[], asked: string): SeriesRow[] {
-  const spanned = windowSpan(rows, yearSpanFromAsked(asked));
-  return downsample(keepAskedPlaces(spanned, asked));
+export function rowsForAsked(rows: SeriesRow[], asked: string, now = Date.now()): SeriesRow[] {
+  let span = yearSpanFromAsked(asked, now);
+  if (span.since === undefined && span.until === undefined) {
+    const recent = matchPrompt(asked)?.recentYears;
+    if (recent) {
+      span = { since: new Date(now).getUTCFullYear() - recent };
+    }
+  }
+  const kept = keepAskedPlaces(windowSpan(rows, span), asked);
+  return downsample(kept, rowCap(kept));
 }
 
 function keepAskedPlaces(rows: SeriesRow[], asked: string): SeriesRow[] {
@@ -112,7 +120,7 @@ export async function resolvePrompt(
   if (!full) {
     return null;
   }
-  const rows = rowsForAsked(full.rows, asked);
+  const rows = rowsForAsked(full.rows, asked, options.now ?? Date.now());
   if (rows.length < 2) {
     return null;
   }
