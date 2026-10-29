@@ -3,9 +3,14 @@
  */
 import { renderToSVG } from '@vizzy/core';
 import { resolvePrompt } from '@vizzy/resolve';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { SourceLine } from '../app/components/SourceLine';
 import { mintDraft } from './from-prompt';
+import { heuristicInsight } from './insight-heuristic';
 import { mintFromOfficial } from './official-mint';
+import { seedFromPiece } from './seed';
 import { sourceCardLine, sourceGrade, sourceLine } from './source';
 
 const TIGER_HTML = `
@@ -77,5 +82,38 @@ describe('source labels stay honest', () => {
     const numbers = printed.filter((text) => /^-?\d/.test(text));
     expect.soft(printed.join(' ').toLowerCase()).toContain('no published page');
     expect.soft(numbers).toEqual([]);
+  });
+
+  it('names Antarctic sea ice with a link, and ends the context sentence', () => {
+    const minted = mintFromOfficial('Antarctic sea ice extent 1979-2023 NSIDC', {
+      family: 'owid',
+      seriesId: 'antarctic_sea_ice',
+      sourceLabel: 'Our World in Data — Antarctic sea ice (NSIDC)',
+      sourceUrl: 'https://ourworldindata.org/grapher/antarctica-sea-ice-extent',
+      method: 'official',
+      retrieved: Date.UTC(2026, 0, 15),
+      xLabel: 'Year',
+      yLabel: 'February minimum (million km²)',
+      rows: [
+        { x: '1979', y: 3.141 },
+        { x: '2001', y: 2.8 },
+        { x: '2023', y: 1.978 },
+      ],
+    });
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const source = minted.piece.config.source!;
+    const html = renderToStaticMarkup(createElement(SourceLine, { source }));
+    const visible = sourceLine(source);
+    expect(visible).not.toMatch(/owid:antarctic_sea_ice/);
+    expect(html).not.toMatch(/owid:antarctic_sea_ice/);
+    expect(visible).toContain('Our World in Data — Antarctic sea ice (NSIDC)');
+    expect(html).toContain('Our World in Data — Antarctic sea ice (NSIDC)');
+    expect(html).toContain('href="https://ourworldindata.org/grapher/antarctica-sea-ice-extent"');
+    const context = heuristicInsight(seedFromPiece(minted.piece));
+    expect(context).toMatch(/\.\s+The shape is the story/);
+    expect(context).not.toMatch(/[^.!?]\s+The shape is the story/);
   });
 });
