@@ -703,6 +703,20 @@ function dailyBitcoin(): string {
   return lines.join('\n');
 }
 
+function dailyIndex(): string {
+  const lines = ['observation_date,SP500'];
+  let cursor = Date.UTC(2016, 0, 4);
+  const end = Date.UTC(2026, 9, 15);
+  while (cursor <= end) {
+    const date = new Date(cursor);
+    const iso = date.toISOString().slice(0, 10);
+    const close = 2000 + (date.getUTCFullYear() - 2016) * 200 + date.getUTCMonth() + date.getUTCDate() / 100;
+    lines.push(`${iso},${close.toFixed(2)}`);
+    cursor += 24 * 60 * 60 * 1000;
+  }
+  return lines.join('\n');
+}
+
 describe('dense series for the asked window', () => {
   it('charts bitcoin over the last 5 years as one close per month', async () => {
     let requested = '';
@@ -721,6 +735,49 @@ describe('dense series for the asked window', () => {
     expect(rows.some((row) => row.x.startsWith('2018'))).toBe(false);
     expect(rows.find((row) => row.x === '2026-02')?.y).toBe(10028);
     expect(rows.find((row) => row.x === '2026-10')?.y).toBe(10031);
+    expect(series?.sourceLabel).not.toMatch(/\[\d+\]/);
+    expect(series?.sourceLabel.toLowerCase()).not.toMatch(/yahoo|coingecko/);
+  });
+
+  it('charts the S&P 500 index, not an annual return', async () => {
+    let requested = '';
+    const series = await resolvePrompt('S&P 500 last 20 years', {
+      get: async (url) => {
+        requested = url;
+        return dailyIndex();
+      },
+      now: AS_OF,
+    });
+    expect(requested).toContain('SP500');
+    expect(series?.seriesId).toBe('SP500');
+    expect(series?.yLabel.toLowerCase()).not.toMatch(/return|%/);
+    expect(series?.sourceLabel).not.toMatch(/\[\d+\]|return/i);
+    const rows = series?.rows ?? [];
+    expect(rows.length).toBeGreaterThan(100);
+    expectEveryMonth(rows, '2016-01', '2026-10');
+    expect(rows.some((row) => row.x.startsWith('2006'))).toBe(false);
+    expect(rows.find((row) => row.x === '2026-10')?.y).toBe(4009.15);
+    expect(rows.every((row) => row.y > 500)).toBe(true);
+  });
+
+  it('charts coffee prices as the IMF commodity price', async () => {
+    let requested = '';
+    const series = await resolvePrompt('coffee prices', {
+      get: async (url) => {
+        requested = url;
+        return monthlyFred('PCOFFOTMUSDM', '2021-01', '2026-10');
+      },
+      now: AS_OF,
+    });
+    expect(requested).toContain('PCOFFOTMUSDM');
+    expect(series?.seriesId).toBe('PCOFFOTMUSDM');
+    expect(series?.sourceLabel.toLowerCase()).toMatch(/imf|fred/);
+    expect(series?.yLabel.toLowerCase()).toMatch(/price|cent/);
+    const rows = series?.rows ?? [];
+    expect(rows.length).toBeGreaterThan(24);
+    expect(rows.every((row) => /^\d{4}-\d{2}$/.test(row.x))).toBe(true);
+    expect(rows.some((row) => /ethiopia|colombia|brazil/i.test(row.x))).toBe(false);
+    expectEveryMonth(rows, '2021-01', '2026-10');
   });
 
   it('charts US CPI, including the inflaton typo, as monthly points across a few years', async () => {

@@ -175,4 +175,71 @@ describe('honest line', () => {
       expect(y).toBeLessThanOrEqual(bottom + 1);
     }
   });
+
+  it('does not draw a curve across a missing month or a multi-year hole', async () => {
+    const rows = [
+      { year: 'Jun 2021', price: 35000 },
+      { year: 'Jul 2021', price: 42000 },
+      { year: 'Oct 2021', price: 61000 },
+      { year: 'Oct 2026', price: 70000 },
+    ];
+    const el = createContainer();
+    containers.push(el);
+    const chart = new VizzyChartEngine(el, lineConfig(), rows);
+    await chart.render();
+    const path = chart.container.querySelector('path.line')?.getAttribute('d') ?? '';
+    const circles = [...chart.container.querySelectorAll('circle.point')];
+    expect(circles).toHaveLength(rows.length);
+
+    const midX = (left: number, right: number) => {
+      const a = Number(circles[left]?.getAttribute('cx'));
+      const b = Number(circles[right]?.getAttribute('cx'));
+      return (a + b) / 2;
+    };
+
+    expect(coversX(path, midX(0, 1))).toBe(true);
+    expect(coversX(path, midX(1, 2))).toBe(false);
+    expect(coversX(path, midX(2, 3))).toBe(false);
+  });
 });
+
+function coversX(path: string, x: number): boolean {
+  const tokens = tokensOf(path);
+  let index = 0;
+  let cx = 0;
+  while (index < tokens.length) {
+    const command = tokens[index];
+    if (command === 'M') {
+      cx = Number(tokens[index + 1]);
+      index += 3;
+      continue;
+    }
+    if (command === 'L') {
+      const x1 = Number(tokens[index + 1]);
+      if (x >= Math.min(cx, x1) - 1 && x <= Math.max(cx, x1) + 1) {
+        return true;
+      }
+      cx = x1;
+      index += 3;
+      continue;
+    }
+    if (command === 'C') {
+      const x1 = Number(tokens[index + 1]);
+      const x2 = Number(tokens[index + 3]);
+      const x3 = Number(tokens[index + 5]);
+      for (let step = 0; step <= 8; step += 1) {
+        const t = step / 8;
+        const rest = 1 - t;
+        const sample = rest ** 3 * cx + 3 * rest ** 2 * t * x1 + 3 * rest * t ** 2 * x2 + t ** 3 * x3;
+        if (Math.abs(sample - x) <= 4) {
+          return true;
+        }
+      }
+      cx = x3;
+      index += 7;
+      continue;
+    }
+    index += 1;
+  }
+  return false;
+}
