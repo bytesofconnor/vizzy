@@ -78,6 +78,20 @@ function economyAsk(text: string): ClarifyAsk | undefined {
   );
 }
 
+function vagueHousing(text: string): boolean {
+  const stripped = text.replace(/[\p{P}\p{S}]+/gu, ' ').replace(/\s+/g, ' ').trim();
+  return /^(?:the\s+)?housing(?:\s+market)?$/i.test(stripped);
+}
+
+function housingAsk(): ClarifyAsk {
+  return chips(
+    'Which housing series should the chart use?',
+    { label: 'Housing starts', prompt: 'US housing starts' },
+    { label: 'Median home price', prompt: 'US median home price' },
+    { label: 'Case-Shiller', prompt: 'US Case-Shiller home price index' }
+  );
+}
+
 function bareWordAsk(text: string): ClarifyAsk | undefined {
   const stripped = text.replace(/[\p{P}\p{S}]+/gu, ' ').replace(/\s+/g, ' ').trim();
   if (!/^\p{L}+$/u.test(stripped)) {
@@ -124,6 +138,13 @@ export function decideCompose(input: DecideInput): ComposeDecision {
   }
 
   const seed = input.seed && keepsChartSubject(trimmed) ? input.seed : undefined;
+
+  if (vagueHousing(trimmed)) {
+    if (disposition === 'send') {
+      return mintOrder('US housing starts');
+    }
+    return clarifyOrMint(trimmed, undefined, housingAsk());
+  }
 
   if (disposition === 'send') {
     return mintOrder(trimmed, seed);

@@ -163,7 +163,14 @@ export function alignContext(text: string, seed: ChartSeed): string {
   );
 }
 
+export function unpublishedSketch(seed: ChartSeed): boolean {
+  return !seed.sourceUrl && (seed.sourceMethod === 'estimate' || seed.sourceMethod === 'example');
+}
+
 export function heuristicInsight(seed: ChartSeed): string {
+  if (unpublishedSketch(seed)) {
+    return 'No published series backs this chart. These rows are not measurements, so this note does not describe them as facts.';
+  }
   const sorted = figureRows(rankFigures(seed.rows));
   const top = sorted[0];
   const bottom = sorted[sorted.length - 1];
@@ -190,6 +197,15 @@ export function heuristicInsight(seed: ChartSeed): string {
 }
 
 export function heuristicLesson(seed: ChartSeed, layer = 1): ChartLesson {
+  if (unpublishedSketch(seed)) {
+    return {
+      notice: 'No published series backs this chart.',
+      teach:
+        'These rows are not measurements. A publisher and a page are what make a series real.\n\nReading a ranking into them would state a fact the chart does not have.',
+      question: 'Which published series should this chart use?',
+      tryNext: 'Chart a published series on this question.',
+    };
+  }
   const sorted = figureRows(rankFigures(seed.rows));
   const top = sorted[0];
   const bottom = sorted[sorted.length - 1];

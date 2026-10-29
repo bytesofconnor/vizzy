@@ -222,6 +222,14 @@ export async function pieceFromPrompt(
     };
   }
 
+  if (!publishedBacking(asked, gathered.notes, from ?? null)) {
+    return {
+      ok: false,
+      error: PUBLISHED_MISS,
+      issues: [],
+    };
+  }
+
   reportProgress(onProgress, {
     stage: 'draft',
     progress: 48,
@@ -523,6 +531,16 @@ export function mintDraft(
 
 const PUBLISHED_MISS =
   'Could not find published numbers for that. Paste a table or put a source URL in your prompt.';
+
+function publishedBacking(asked: string, notes: string, prior: ChartSeed | null): boolean {
+  if (prior) {
+    return true;
+  }
+  if (pastedNumberSeries(asked) || pastedATable(asked)) {
+    return true;
+  }
+  return lookupFoundSeries(notes);
+}
 
 type FinishRow = { x: string | number; y: number | null; series?: string };
 

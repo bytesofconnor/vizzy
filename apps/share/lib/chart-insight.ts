@@ -11,6 +11,7 @@ import {
   heuristicInsight,
   heuristicLesson,
   MAX_LESSON_LAYERS,
+  unpublishedSketch,
   type ChartLesson,
 } from './insight-heuristic';
 
@@ -210,6 +211,9 @@ const cachedChartInsight = unstable_cache(
 );
 
 export async function chartInsightForSeed(seed: ChartSeed): Promise<string> {
+  if (unpublishedSketch(seed)) {
+    return heuristicInsight(seed);
+  }
   try {
     return alignContext(await cachedChartInsight(insightFingerprint(seed), JSON.stringify(seed)), seed);
   } catch {
@@ -288,6 +292,9 @@ export async function chartLessonForSeed(
   prior: LessonPrior[] = []
 ): Promise<ChartLesson> {
   const safeLayer = Math.min(MAX_LESSON_LAYERS, Math.max(1, Math.floor(layer)));
+  if (unpublishedSketch(seed)) {
+    return heuristicLesson(seed, safeLayer);
+  }
   const trimmedPrior = prior.slice(0, safeLayer - 1).map((item) => ({
     notice: item.notice.slice(0, 240),
     question: item.question.slice(0, 140),
