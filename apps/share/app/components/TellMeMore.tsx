@@ -1,16 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import {
+  heuristicInsight,
+  heuristicLesson,
+  MAX_LESSON_LAYERS,
+  type ChartLesson,
+} from '../../lib/chart-insight-heuristics';
 import type { ChartSeed } from '../../lib/seed';
-
-const MAX_LESSON_LAYERS = 5;
-
-type ChartLesson = {
-  notice: string;
-  teach: string;
-  question: string;
-  tryNext: string;
-};
 
 const LAYER_KICKER = [
   'A closer look',
@@ -115,9 +112,13 @@ export function TellMeMore({
   onInsight: (insight: string | null) => void;
   embedded?: boolean;
 }) {
-  const [insight, setInsight] = useState<string | null>(presetInsight ?? null);
-  const [layers, setLayers] = useState<ChartLesson[]>([]);
-  const [busy, setBusy] = useState(!presetInsight);
+  const [insight, setInsight] = useState<string | null>(() =>
+    presetInsight ? presetInsight : heuristicInsight(seed)
+  );
+  const [layers, setLayers] = useState<ChartLesson[]>(() =>
+    presetInsight ? [] : [heuristicLesson(seed, 1)]
+  );
+  const [busy, setBusy] = useState(false);
   const [lessonBusy, setLessonBusy] = useState(false);
   const [fail, setFail] = useState(false);
   const [lessonFail, setLessonFail] = useState(false);
@@ -125,14 +126,19 @@ export function TellMeMore({
   const [open, setOpen] = useState(true);
   const onInsightRef = useRef(onInsight);
   const seedRef = useRef(seed);
+  const insightRef = useRef(insight);
   onInsightRef.current = onInsight;
   seedRef.current = seed;
+  insightRef.current = insight;
   const chartKey = seedKey(seed);
   const canGoDeeper = layers.length < MAX_LESSON_LAYERS;
 
   const loadContext = useCallback(async (signal?: AbortSignal) => {
+    const requestedKey = seedKey(seedRef.current);
     const nextSeed = seedRef.current;
-    setBusy(true);
+    if (!insightRef.current) {
+      setBusy(true);
+    }
     setFail(false);
     try {
       const response = await fetch('/api/insight', {
@@ -142,13 +148,14 @@ export function TellMeMore({
         signal,
       });
       const body: unknown = await response.json();
-      if (signal?.aborted) {
+      if (signal?.aborted || seedKey(seedRef.current) !== requestedKey) {
         return;
       }
       if (isInsightBody(body)) {
+        insightRef.current = body.insight;
         setInsight(body.insight);
         onInsightRef.current(body.insight);
-      } else {
+      } else if (!insightRef.current) {
         setFail(true);
         onInsightRef.current(null);
       }
@@ -156,24 +163,34 @@ export function TellMeMore({
       if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         return;
       }
-      setFail(true);
-      onInsightRef.current(null);
+      if (!insightRef.current) {
+        setFail(true);
+        onInsightRef.current(null);
+      }
     }
     setBusy(false);
   }, []);
 
   useEffect(() => {
-    setLayers([]);
     setLessonFail(false);
     setOpen(true);
     if (presetInsight) {
+      setLayers([]);
+      insightRef.current = presetInsight;
       setInsight(presetInsight);
       setBusy(false);
       setFail(false);
       onInsightRef.current(presetInsight);
       return;
     }
-    setInsight(null);
+    const nextSeed = seedRef.current;
+    const local = heuristicInsight(nextSeed);
+    insightRef.current = local;
+    setInsight(local);
+    setLayers([heuristicLesson(nextSeed, 1)]);
+    setBusy(false);
+    setFail(false);
+    onInsightRef.current(local);
     const controller = new AbortController();
     const wait = window.setTimeout(() => {
       void loadContext(controller.signal);
