@@ -20,7 +20,7 @@ import { downsample, isTimedRows, rowCap, windowSpan } from './window';
 
 type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string };
 
-async function loadRecipe(recipe: Recipe, get: HttpGet): Promise<LoadedRecipe> {
+async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise<LoadedRecipe> {
   if (recipe.family === 'fred') {
     if (recipe.seriesId === 'state_unemployment') {
       const files = await Promise.all(stateUnemploymentUrls().map((url) => get(url)));
@@ -54,9 +54,9 @@ async function loadRecipe(recipe: Recipe, get: HttpGet): Promise<LoadedRecipe> {
     return { rows: parseUsgsGeojson(await get(USGS_M8_URL)) };
   }
   if (recipe.family === 'worldbank') {
-    return {
-      rows: parseWorldBank(await get(worldBankUrl(recipe.seriesId)), recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high'),
-    };
+    const take = recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high';
+    const ranked = parseWorldBank(await get(worldBankUrl(recipe.seriesId)), take);
+    return { rows: preferAskedCountries(ranked, asked) };
   }
   const spec = WIKI_SPEC[recipe.seriesId];
   if (!spec) {
@@ -89,6 +89,19 @@ export function rowsForAsked(rows: SeriesRow[], asked: string, now = Date.now())
   return downsample(kept, rowCap(kept));
 }
 
+const COUNTRY_CAP = 15;
+
+function preferAskedCountries(rows: SeriesRow[], asked?: string): SeriesRow[] {
+  const wanted = new Set(asked ? placesInAsked(asked) : []);
+  if (wanted.size > 0) {
+    const picked = rows.filter((row) => wanted.has(String(row.x)));
+    if (picked.length > 0) {
+      return picked;
+    }
+  }
+  return rows.slice(0, COUNTRY_CAP);
+}
+
 function keepAskedPlaces(rows: SeriesRow[], asked: string): SeriesRow[] {
   if (!rows.some((row) => row.series)) {
     return rows;
@@ -108,7 +121,7 @@ export async function fetchMatched(
   if (!recipe) {
     return null;
   }
-  const loaded = await loadRecipe(recipe, options.get ?? defaultGet);
+  const loaded = await loadRecipe(recipe, options.get ?? defaultGet, asked);
   if (loaded.rows.length < 2) {
     return null;
   }

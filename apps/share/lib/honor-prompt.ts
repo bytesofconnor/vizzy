@@ -34,10 +34,16 @@ export function honestTitle(input: HonorInput): string {
 function readNeeds(input: HonorInput): Needs {
   const header = tableHeader(input.notes);
   const direct = `${input.yLabel}\n${input.note ?? ''}\n${input.sourceLabel ?? ''}`;
-  const newCapacity =
+  const axisNew =
+    !installedStock(input.yLabel) &&
+    (newCapacityText(input.yLabel) || (newCapacityText(header) && !/\binstalled\b/i.test(header)));
+  const proseNew =
     askedInstalled(input.asked) &&
     !installedStock(input.yLabel) &&
     (newCapacityText(direct) || (newCapacityText(header) && !/\binstalled\b/i.test(header)));
+  const newCapacity =
+    (axisNew || proseNew) &&
+    (!titleNamesNewCapacity(input.title) || /\binstalled\b/i.test(input.title));
   const yearSeries = isMultiYearSeries(input.rows);
   const categories = isCategoryChart(input.rows);
   const countryAxis = /\bcountr/i.test(input.xLabel);
@@ -63,6 +69,13 @@ function newCapacityText(text: string): boolean {
   return (
     /\b(new capacity|added capacity|capacity added|additions|newly installed)\b/i.test(text) ||
     (/\b(new|added)\b/i.test(text) && /\bcapacit/i.test(text))
+  );
+}
+
+function titleNamesNewCapacity(title: string): boolean {
+  return (
+    /\b(new capacity|added capacity|capacity additions|newly added|newly installed)\b/i.test(title) ||
+    /\badditions\b/i.test(title)
   );
 }
 
@@ -105,7 +118,7 @@ function tableHeader(notes: string | undefined): string {
 
 function alreadyHonest(title: string, needs: Needs): boolean {
   const text = title.toLowerCase();
-  if (needs.newCapacity && !text.includes('new capacity')) {
+  if (needs.newCapacity && !titleNamesNewCapacity(title)) {
     return false;
   }
   if (needs.newCapacity && /\binstalled\b/i.test(title)) {
@@ -128,7 +141,7 @@ function alreadyHonest(title: string, needs: Needs): boolean {
 
 function buildTitle(input: HonorInput, needs: Needs): string {
   if (needs.newCapacity) {
-    return 'New capacity by country';
+    return newCapacityTitle(input);
   }
   const subject = seriesSubject(input);
   const year = singleDrawnYear(input);
@@ -143,6 +156,22 @@ function buildTitle(input: HonorInput, needs: Needs): string {
     return year ? `${name}, single year ${year}` : `${name}, single year`;
   }
   return input.title;
+}
+
+function newCapacityTitle(input: HonorInput): string {
+  const blob = `${input.asked}\n${input.title}\n${input.yLabel}`;
+  const solar = /\bsolar\b/i.test(blob);
+  const byCountry = /\bcountr/i.test(input.xLabel) || /\bby countr/i.test(`${input.asked} ${input.title}`);
+  const head = solar ? 'New solar capacity' : 'New capacity';
+  return [head, byCountry ? 'by country' : '', additionsYear(input)].filter(Boolean).join(' ');
+}
+
+function additionsYear(input: HonorInput): string {
+  if (askedInstalled(input.asked)) {
+    return '';
+  }
+  const years = [...new Set([...input.title.matchAll(/\b(?:19|20)\d{2}\b/g)].map((match) => match[0]))];
+  return years.length === 1 ? `in ${years[0]}` : '';
 }
 
 function seriesSubject(input: HonorInput): string {

@@ -15,7 +15,7 @@ describe('honestTitle', () => {
       ],
       note: 'Additions in 2023',
     });
-    expect(title.toLowerCase()).toContain('new capacity');
+    expect(title.toLowerCase()).toMatch(/new(?: solar)? capacity/);
     expect(title.toLowerCase()).not.toContain('installed');
   });
 
@@ -31,8 +31,58 @@ describe('honestTitle', () => {
       ],
       notes: '| Country | Added capacity (MW) |\n| --- | --- |\n| China | 217 |',
     });
-    expect(title.toLowerCase()).toContain('new capacity');
+    expect(title.toLowerCase()).toMatch(/new(?: solar)? capacity/);
     expect(title.toLowerCase()).not.toContain('installed');
+  });
+
+  it('names new solar capacity when the title only says capacity added by country', () => {
+    const title = honestTitle({
+      asked: 'Solar capacity added by country in 2023',
+      title: 'Solar capacity added by country, 2023',
+      xLabel: 'Country',
+      yLabel: 'Capacity added (GW)',
+      rows: [
+        { x: 'China', y: 216.9 },
+        { x: 'United States', y: 24.8 },
+        { x: 'Germany', y: 14.3 },
+      ],
+      note: 'Figures cover 10 countries for which data was publicly available in the cited source.',
+    });
+    expect(title.toLowerCase()).toMatch(/new(?: solar)? capacity|added capacity|capacity additions/);
+    expect(title.toLowerCase()).not.toMatch(/capacity added by/);
+    expect(title.toLowerCase()).toContain('solar');
+    expect(title).toContain('2023');
+  });
+
+  it('keeps a cumulative installed title when the axis is the stock', () => {
+    const title = honestTitle({
+      asked: 'Total cumulative installed solar capacity by country in 2023',
+      title: 'Cumulative Installed Solar Capacity by Country',
+      xLabel: 'Country',
+      yLabel: 'Capacity (MW)',
+      rows: [
+        { x: 'China', y: 609921 },
+        { x: 'United States', y: 139205 },
+      ],
+      note: 'Capacity measured in megawatts (MW) as of 2023.',
+    });
+    expect(title.toLowerCase()).toMatch(/installed|cumulative/);
+    expect(title.toLowerCase()).not.toMatch(/new(?: solar)? capacity|additions/);
+  });
+
+  it('keeps a title that already says capacity additions', () => {
+    const asked = 'Solar capacity additions by country in 2023';
+    const title = honestTitle({
+      asked,
+      title: asked,
+      xLabel: 'Country',
+      yLabel: 'Capacity added (GW)',
+      rows: [
+        { x: 'China', y: 216.9 },
+        { x: 'United States', y: 24.8 },
+      ],
+    });
+    expect(title).toBe(asked);
   });
 
   it('keeps an installed-capacity title when that is the series', () => {

@@ -368,6 +368,43 @@ describe('parsers', () => {
 });
 
 describe('resolvePrompt', () => {
+  it('plots named countries for GDP per capita instead of the richest', async () => {
+    const countries = [
+      { country: { value: 'Monaco' }, value: 226052 },
+      { country: { value: 'Liechtenstein' }, value: 188055 },
+      { country: { value: 'Luxembourg' }, value: 123720 },
+      { country: { value: 'Bermuda' }, value: 119969 },
+      { country: { value: 'Norway' }, value: 113122 },
+      { country: { value: 'Ireland' }, value: 105191 },
+      { country: { value: 'Switzerland' }, value: 100000 },
+      { country: { value: 'Qatar' }, value: 99000 },
+      { country: { value: 'Singapore' }, value: 88000 },
+      { country: { value: 'United States' }, value: 76330 },
+      { country: { value: 'Denmark' }, value: 68000 },
+      { country: { value: 'Sweden' }, value: 61000 },
+      { country: { value: 'Australia' }, value: 60000 },
+      { country: { value: 'Netherlands' }, value: 59000 },
+      { country: { value: 'Canada' }, value: 55000 },
+      { country: { value: 'Germany' }, value: 48000 },
+      { country: { value: 'United Kingdom' }, value: 46000 },
+      { country: { value: 'France' }, value: 42000 },
+      { country: { value: 'China' }, value: 12720 },
+      { country: { value: 'India' }, value: 2410 },
+    ];
+    const body = JSON.stringify([{}, countries]);
+    const named = await resolvePrompt(
+      'GDP per capita, United States vs China vs India, latest year',
+      { get: async () => body }
+    );
+    expect(named?.seriesId).toBe('NY.GDP.PCAP.CD');
+    expect(named?.rows.map((row) => row.x).sort()).toEqual(['China', 'India', 'United States']);
+
+    const ranking = await resolvePrompt('GDP per capita by country', { get: async () => body });
+    expect(ranking?.rows).toHaveLength(15);
+    expect(ranking?.rows.map((row) => row.x)).not.toContain('India');
+    expect(ranking?.rows.map((row) => row.x)).not.toContain('China');
+  });
+
   it('charts extreme poverty for 1990-2023, not the population column', async () => {
     const csv = [
       'Entity,Code,Year,Population,Share of population in poverty ($3 a day)',
