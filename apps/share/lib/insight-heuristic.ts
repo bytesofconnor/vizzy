@@ -1,3 +1,4 @@
+import { alignPlottedClaims } from './plotted-claims';
 import { figureRows, rankFigures, type ChartSeed } from './seed';
 import { alignAttribution } from './source';
 import { drawnYearSpan, spanLabel, withDrawnSpan, yearFromX } from './year-span';
@@ -87,10 +88,13 @@ function citedYearPercent(seed: ChartSeed): { year: number; label: string } | nu
 }
 
 export function alignContext(text: string, seed: ChartSeed): string {
-  return alignAttribution(alignYearPercents(withDrawnSpan(text, seed.rows), seed.rows), {
-    label: seed.sourceLabel,
-    url: seed.sourceUrl,
-  });
+  return alignPlottedClaims(
+    alignAttribution(alignYearPercents(withDrawnSpan(text, seed.rows), seed.rows), {
+      label: seed.sourceLabel,
+      url: seed.sourceUrl,
+    }),
+    seed.rows
+  );
 }
 
 export function heuristicInsight(seed: ChartSeed): string {
