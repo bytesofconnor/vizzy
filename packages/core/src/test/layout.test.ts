@@ -19,7 +19,7 @@ describe('xAxisRoom', () => {
       'Google Antigravity',
     ];
     const room = xAxisRoom(names, { hasTitle: true, innerWidth: 360 });
-    expect(xTickRotate(names, 360)).toBe(-65);
+    expect(xTickRotate(names, 360)).toBe(-90);
     expect(room.titleY).toBeGreaterThan(room.tickDepth);
     expect(room.bottom).toBeGreaterThan(room.titleY);
     expect(room.tickDepth).toBeGreaterThan(100);

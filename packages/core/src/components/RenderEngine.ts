@@ -119,9 +119,14 @@ export class RenderEngine {
 
     // X Axis
     if (config.axes.x.show) {
-      const xAxis = d3.axisBottom(scales.x as any).tickSize(0).tickPadding(14);
-      
-      if (config.axes.x.tickCount) {
+      const xIsBand = 'bandwidth' in scales.x;
+      const xAxis = d3.axisBottom(scales.x as any).tickSize(0).tickPadding(xIsBand ? 14 : 8);
+      if (!xIsBand) {
+        const domain = (scales.x.domain() as [number, number]);
+        xAxis.tickFormat((value) => formatDataValue(Number(value), domain));
+      }
+
+      if (config.axes.x.tickCount && xIsBand) {
         xAxis.ticks(config.axes.x.tickCount);
       }
 
@@ -168,12 +173,16 @@ export class RenderEngine {
 
     // Y Axis
     if (config.axes.y.show) {
+      const yIsBand = 'bandwidth' in scales.y;
       const yAxis = d3.axisLeft(scales.y as any)
         .tickSize(0)
-        .tickPadding(8)
-        .tickFormat((value) => formatDataValue(Number(value), scales.y.domain() as [number, number]));
-      
-      if (config.axes.y.tickCount) {
+        .tickPadding(8);
+      if (!yIsBand) {
+        yAxis.tickFormat((value: d3.NumberValue) =>
+          formatDataValue(Number(value), scales.y.domain() as [number, number])
+        );
+      }
+      if (config.axes.y.tickCount && !yIsBand) {
         yAxis.ticks(config.axes.y.tickCount);
       }
 
@@ -196,9 +205,16 @@ export class RenderEngine {
       }
 
       this._polishAxis(yAxisGroup, config.colors.text, 'y');
+      if (yIsBand) {
+        yAxisGroup.selectAll<SVGTextElement, string>('.tick text')
+          .attr('text-anchor', 'end')
+          .style('opacity', 0.78)
+          .style('font-size', '12px')
+          .text((value) => paintAxisLabel(String(value)));
+      }
 
       // Y Axis Label
-      if (config.axes.y.label) {
+      if (config.axes.y.label && !yIsBand) {
         let yLabel = yAxisGroup.select('.axis-label');
         if (yLabel.empty()) {
           yLabel = yAxisGroup.append('text').attr('class', 'axis-label');
@@ -380,7 +396,7 @@ export class RenderEngine {
     }
 
     // Y Grid
-    if (config.axes.y.grid) {
+    if (config.axes.y.grid && !('bandwidth' in scales.y)) {
       let yGrid = gridGroup.select('.y-grid');
       if (yGrid.empty()) {
         yGrid = gridGroup.append('g').attr('class', 'y-grid');
@@ -645,7 +661,6 @@ export class RenderEngine {
         .attr('dx', rotate ? '-0.35em' : null)
         .attr('dy', rotate ? '0.35em' : null)
         .attr('transform', rotate ? `rotate(${rotate})` : null)
-        .style('font-size', rotate ? '10px' : null)
         .style('letter-spacing', rotate ? '0' : null);
       lines.forEach((line, lineIndex) => {
         text.append('tspan')
