@@ -81,18 +81,18 @@ async function requestLesson(
     prior: prior.map((item) => ({ notice: item.notice, question: item.question })),
   };
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await fetch('/api/insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const body: unknown = await response.json();
-      if (isLessonBody(body)) {
-        return body.lesson;
-      }
-    } catch {
-      // try once more
+    const lesson = await fetch('/api/insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(async (response) => {
+        const body: unknown = await response.json();
+        return isLessonBody(body) ? body.lesson : null;
+      })
+      .catch(() => null);
+    if (lesson) {
+      return lesson;
     }
     if (attempt === 0) {
       await new Promise((resolve) => window.setTimeout(resolve, 400));

@@ -19,7 +19,6 @@ export type { ChartLesson };
 
 /** OpenAI first — Google Flash-lite shares the Gateway free-tier RPM with compose. */
 export const INSIGHT_MODELS = ['openai/gpt-4.1-mini', 'openai/gpt-4o-mini'] as const;
-/** One budget for both models. A hung provider must not hold this route open. */
 export const INSIGHT_MODEL_BUDGET_MS = 8_000;
 
 const InsightSchema = z.object({
