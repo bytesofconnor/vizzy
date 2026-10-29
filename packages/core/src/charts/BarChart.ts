@@ -136,10 +136,10 @@ export class BarChart<TData extends DataPoint = DataPoint> {
 
     const barsEnter = bars.enter()
       .append('rect')
-      .attr('x', (item) => barX(item.row))
-      .attr('y', this._plotFloor())
-      .attr('width', barWidth)
-      .attr('height', 0);
+      .attr('x', (item) => (this._horizontal() ? this._barBox(item.row).x : barX(item.row)))
+      .attr('y', (item) => (this._horizontal() ? this._barBox(item.row).y : this._plotFloor()))
+      .attr('width', () => (this._horizontal() ? 0 : barWidth()))
+      .attr('height', (item) => (this._horizontal() ? this._barBox(item.row).height : 0));
 
     const barsUpdate = barsEnter.merge(bars);
 
@@ -158,16 +158,16 @@ export class BarChart<TData extends DataPoint = DataPoint> {
         .duration(animation.duration)
         .delay((_item, index) => index * animation.stagger)
         .ease(d3.easeQuadOut)
-        .attr('x', (item) => barX(item.row))
-        .attr('width', barWidth)
-        .attr('y', (item) => this._scaleManager.getYValue(item.row[dataMapping.y]))
-        .attr('height', (item) => this._barHeight(item.row[dataMapping.y]));
+        .attr('x', (item) => this._barBox(item.row).x)
+        .attr('width', (item) => this._barBox(item.row).width)
+        .attr('y', (item) => this._barBox(item.row).y)
+        .attr('height', (item) => this._barBox(item.row).height);
     } else {
       barsUpdate
-        .attr('x', (item) => barX(item.row))
-        .attr('width', barWidth)
-        .attr('y', (item) => this._scaleManager.getYValue(item.row[dataMapping.y]))
-        .attr('height', (item) => this._barHeight(item.row[dataMapping.y]));
+        .attr('x', (item) => this._barBox(item.row).x)
+        .attr('width', (item) => this._barBox(item.row).width)
+        .attr('y', (item) => this._barBox(item.row).y)
+        .attr('height', (item) => this._barBox(item.row).height);
     }
 
     if (frame.interaction.hover) {
@@ -355,17 +355,49 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     }
 
     const [x0, x1] = scales.x.range() as [number, number];
+    const yRange = scales.y.range() as [number, number];
     const y0 = this._plotFloor();
+    const zeroX = this._horizontal() ? (scales.x as d3.ScaleLinear<number, number>)(0) : x0;
 
     group.selectAll('.bar-baseline').data([0]).join('line')
       .attr('class', 'bar-baseline')
-      .attr('x1', x0)
-      .attr('x2', x1)
-      .attr('y1', y0)
-      .attr('y2', y0)
+      .attr('x1', this._horizontal() ? zeroX : x0)
+      .attr('x2', this._horizontal() ? zeroX : x1)
+      .attr('y1', this._horizontal() ? Math.min(yRange[0], yRange[1]) : y0)
+      .attr('y2', this._horizontal() ? Math.max(yRange[0], yRange[1]) : y0)
       .attr('stroke', frame.colors.text)
       .attr('stroke-opacity', 0.2)
       .attr('stroke-width', 1);
+  }
+
+  private _horizontal(): boolean {
+    return this._config.chart.orientation === 'horizontal';
+  }
+
+  private _barBox(row: TData): { x: number; y: number; width: number; height: number } {
+    const value = Number(row[this._config.dataMapping.y]);
+    const scales = this._scaleManager.getScales();
+    if (this._horizontal() && scales && 'bandwidth' in scales.y && !('bandwidth' in scales.x)) {
+      const band = scales.y as d3.ScaleBand<string>;
+      const xScale = scales.x as d3.ScaleLinear<number, number>;
+      const safe = Number.isFinite(value) ? value : 0;
+      const start = xScale(Math.min(0, safe));
+      const end = xScale(Math.max(0, safe));
+      return {
+        x: start,
+        y: band(String(row[this._config.dataMapping.x])) ?? 0,
+        width: Math.max(0, end - start),
+        height: band.bandwidth(),
+      };
+    }
+    const xCenter = this._scaleManager.getXValue(row[this._config.dataMapping.x]);
+    const bandwidth = (scales?.x as { bandwidth?: () => number } | undefined)?.bandwidth?.() || 20;
+    return {
+      x: xCenter - bandwidth / 2,
+      y: this._scaleManager.getYValue(value),
+      width: bandwidth,
+      height: this._barHeight(value),
+    };
   }
 
   private _plotFloor(): number {
@@ -388,7 +420,8 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     const { colors, dataMapping, interaction } = frame;
     const host = this._host;
     const scales = this._scaleManager.getScales();
-    const domain = (scales?.y.domain() as [number, number] | undefined) ?? [0, 1];
+    const numericScale = this._horizontal() ? scales?.x : scales?.y;
+    const domain = (numericScale?.domain() as [number, number] | undefined) ?? [0, 1];
     const groupField = dataMapping.group ?? dataMapping.color;
 
     bars

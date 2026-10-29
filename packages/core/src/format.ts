@@ -9,11 +9,12 @@ export function formatDataValue(n: number, domain: [number, number]): string {
   if (yearAxis) {
     return String(Math.round(n));
   }
-  if (Math.abs(n) >= 10_000) {
-    return d3.format('~s')(n).replace('G', 'B');
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) {
+    return d3.format('.3~s')(n).replace('G', 'B');
   }
-  if (Math.abs(n) >= 1000) {
-    return d3.format(',')(n);
+  if (abs >= 1000) {
+    return d3.format(',.0f')(n);
   }
   return Number.isInteger(n) ? String(n) : d3.format('.1f')(n);
 }

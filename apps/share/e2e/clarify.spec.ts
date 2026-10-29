@@ -43,7 +43,7 @@ test('ambiguous prompts ask with chips before a chart, and a clear prompt does n
 
   await ask.getByRole('button', { name: 'Price' }).click();
   await expect(page.locator('.compose-fail')).toHaveText('held for the test');
-  expect(seen.at(-1)).toEqual({ prompt: 'eggs price' });
+  await expect.poll(() => seen.at(-1)).toEqual({ prompt: 'eggs price' });
   await expect(ask).toHaveCount(0);
 
   await field.fill('Is the economy doing better?');
@@ -54,13 +54,13 @@ test('ambiguous prompts ask with chips before a chart, and a clear prompt does n
   await expect(economy.getByRole('button', { name: 'Prices' })).toBeVisible();
   await economy.getByRole('button', { name: 'Just send it' }).click();
   await expect(page.locator('.compose-fail')).toHaveText('held for the test');
-  expect(seen.at(-1)).toEqual({ prompt: 'Is the economy doing better?', disposition: 'send' });
+  await expect.poll(() => seen.at(-1)).toEqual({ prompt: 'Is the economy doing better?', disposition: 'send' });
 
   await field.fill('Bitcoin price from March to June 2021');
   await page.getByRole('button', { name: 'Generate my chart' }).click();
+  await expect.poll(() => seen.at(-1)).toEqual({ prompt: 'Bitcoin price from March to June 2021', disposition: 'ask' });
   await expect(page.locator('.compose-fail')).toHaveText('held for the test');
   await expect(page.locator('.compose-clarify')).toHaveCount(0);
-  expect(seen.at(-1)).toEqual({ prompt: 'Bitcoin price from March to June 2021', disposition: 'ask' });
 });
 
 test('clarify chips stay on a phone screen', async ({ page }) => {

@@ -1,10 +1,11 @@
-import { phraseIn, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
+import { DATASETS, phraseIn, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
 import { withDrawnSpan } from './year-span';
 import { fitChartType } from './compose-guards';
 import { honestTitle } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
 import { looksLikeInstruction, remixFollowUp } from './remix-prompt';
 import { sourceMethodFor } from './source';
+import { chartDrawnWords, spellTitleFromResolved } from './title-spelling';
 import { studioChart } from './theme';
 
 const FAMILY_KICKER: Record<ResolvedSeries['family'], string> = {
@@ -177,17 +178,24 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
       ? `Change in ${series.yLabel}`
       : series.yLabel;
   const titled = { ...series, rows, xLabel, yLabel };
-  const title = titleWithSnapshotYear(
-    honestTitle({
-      asked,
-      title: titleFromAsked(asked, titled),
-      xLabel,
-      yLabel,
-      rows,
-      note: series.sourceLabel,
-      sourceLabel: series.sourceLabel,
-    }),
-    series.sourceLabel
+  const dataset = DATASETS.find((item) => item.family === series.family && item.seriesId === series.seriesId);
+  const title = spellTitleFromResolved(
+    titleWithSnapshotYear(
+      honestTitle({
+        asked,
+        title: titleFromAsked(asked, titled),
+        xLabel,
+        yLabel,
+        rows,
+        note: series.sourceLabel,
+        sourceLabel: series.sourceLabel,
+      }),
+      series.sourceLabel
+    ),
+    {
+      drawn: chartDrawnWords([xLabel, yLabel], rows),
+      also: [series.sourceLabel, ...(dataset?.aliases ?? [])],
+    }
   );
   const note = withDrawnSpan(textClashesWithSeries(asked, series) ? title : series.sourceLabel, rows);
   const config = studioChart(

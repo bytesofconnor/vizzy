@@ -1,4 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
+
+function readLabel(value: string): string {
+  return value.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function visibleTickText(root: ParentNode, axis: string): string[] {
+  return [...root.querySelectorAll(`${axis} .tick`)]
+    .filter((tick) => tick.getAttribute('opacity') !== '0')
+    .map((tick) => readLabel(tick.querySelector('text')?.textContent ?? ''));
+}
 import { VizzyChartEngine } from '../engine/VizzyChartEngine';
 import { xAxisRoom } from '../layout';
 import {
@@ -315,6 +325,131 @@ describe('VizzyChartEngine', () => {
     const tip = chart.container.querySelector('.vizzy-tip');
     expect(tip?.textContent).toMatch(/Jan/);
     expect((tip as HTMLDivElement | null)?.hidden).toBe(false);
+  });
+
+  it('keeps place names whole on a crowded bar chart', async () => {
+    const places = [
+      'United States',
+      'United Kingdom',
+      'Burkina Faso',
+      'New Jersey',
+      'San Marino',
+      'China',
+      'India',
+      'Russia',
+      'Japan',
+      'France',
+      'Germany',
+      'Brazil',
+    ];
+    const rows = places.map((month, index) => ({ month, revenue: 80 - index * 5 }));
+    const el = createContainer({ width: 360, height: 420 });
+    containers.push(el);
+    const config = barConfig();
+    config.dimensions = { ...config.dimensions, width: 360, height: 420 };
+    config.axes.x.label = 'Country';
+    const chart = new VizzyChartEngine(el, config, rows);
+    await chart.render();
+    const labels = visibleTickText(el, '.x-axis');
+    expect(labels).toEqual(expect.arrayContaining([
+      'United States',
+      'United Kingdom',
+      'Burkina Faso',
+      'New Jersey',
+      'San Marino',
+    ]));
+    expect(labels).not.toContain('States');
+    expect(labels).not.toContain('Faso');
+    expect(labels).not.toContain('Jersey');
+    expect(labels).not.toContain('Marino');
+    chart.destroy();
+  });
+
+  it('keeps spaces in category labels', async () => {
+    const rows = [
+      { month: 'Q2 2020', revenue: 12 },
+      { month: 'Jan 2025', revenue: 14 },
+      { month: 'Sweater Weather', revenue: 9 },
+    ];
+    const chart = engine(barConfig(), rows);
+    await chart.render();
+    const labels = visibleTickText(chart.container, '.x-axis').map(readLabel);
+    expect(labels).toEqual(['Q2 2020', 'Jan 2025', 'Sweater Weather']);
+  });
+
+  it('labels fed funds months and arctic years in full', async () => {
+    const funds = [];
+    for (let year = 2000; year <= 2002; year += 1) {
+      for (let month = 1; month <= 12; month += 1) {
+        funds.push({ month: `${year}-${String(month).padStart(2, '0')}`, revenue: 1 + month / 12 });
+      }
+    }
+    const fundChart = engine(lineConfig(), funds);
+    await fundChart.render();
+    const fundLabels = visibleTickText(fundChart.container, '.x-axis').map(readLabel);
+    expect(fundLabels.some((label) => label === '00/01' || label === '20/01')).toBe(false);
+    expect(fundLabels.some((label) => label.includes('2000'))).toBe(true);
+    expect(new Set(fundLabels.map((label) => (label.match(/\d{4}/) ? 'year' : 'other'))).size).toBeGreaterThan(0);
+
+    const ice = [];
+    for (let year = 1979; year <= 2023; year += 1) {
+      ice.push({ month: String(year), revenue: 7 - (year - 1979) * 0.04 });
+    }
+    const el = createContainer({ width: 720, height: 360 });
+    containers.push(el);
+    const iceConfig = lineConfig();
+    iceConfig.dimensions = { ...iceConfig.dimensions, width: 720 };
+    const iceChart = new VizzyChartEngine(el, iceConfig, ice);
+    await iceChart.render();
+    const years = visibleTickText(el, '.x-axis').map(readLabel);
+    expect(years.every((label) => /^\d{4}$/.test(label))).toBe(true);
+    expect(years).toContain('1979');
+    expect(years).toContain('2023');
+    expect(years.some((label) => label.length < 4)).toBe(false);
+    iceChart.destroy();
+  });
+
+  it('does not label a bitcoin price as 35.0408k', async () => {
+    const config = barConfig();
+    config.chart = { ...config.chart, showValues: true };
+    const rows = [
+      { month: 'May', revenue: 35040.8 },
+      { month: 'Jun', revenue: 42000 },
+    ];
+    const chart = engine(config, rows);
+    await chart.render();
+    const painted = [...chart.container.querySelectorAll('text')].map((node) => readLabel(node.textContent ?? ''));
+    expect(painted.some((label) => label.includes('35.0408k'))).toBe(false);
+    expect(painted.some((label) => label.includes('35,041'))).toBe(true);
+  });
+
+  it('labels every state when the set does not fit under the bars', async () => {
+    const states = [
+      'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+      'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+      'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+      'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+      'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+      'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+      'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
+      'Wisconsin', 'Wyoming',
+    ];
+    const rows = states.map((month, index) => ({ month, revenue: 1000 - index }));
+    const el = createContainer({ width: 360, height: 480 });
+    containers.push(el);
+    const config = barConfig();
+    config.dimensions = { ...config.dimensions, width: 360, height: 480 };
+    config.axes.y.label = 'State';
+    const chart = new VizzyChartEngine(el, config, rows);
+    await chart.render();
+    expect(el.querySelectorAll('rect.bar')).toHaveLength(states.length);
+    const labels = visibleTickText(el, '.y-axis').map(readLabel);
+    expect(labels).toHaveLength(states.length);
+    expect(labels).toContain('New Jersey');
+    expect(labels).toContain('North Carolina');
+    expect(labels).not.toContain('Jersey');
+    expect(labels).not.toContain('Carolina');
+    chart.destroy();
   });
 
   it('does not stretch the plot to match a tall container', async () => {

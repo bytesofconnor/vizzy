@@ -312,7 +312,24 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
     }
 
     const { dataMapping, axes } = this._config;
-    
+    const horizontal =
+      this._config.chart.type === 'bar' && this._config.chart.orientation === 'horizontal';
+    if (horizontal) {
+      const values = data
+        .map((row) => Number(row[dataMapping.y]))
+        .filter((value) => Number.isFinite(value));
+      const min = Math.min(0, ...values);
+      const max = Math.max(0, ...values);
+      const span = Math.max(max - min, 1);
+      const xDomain: [number, number] = min < 0
+        ? [min - span * 0.05, max + span * 0.05]
+        : [0, max === 0 ? 1 : max + span * 0.05];
+      return {
+        x: xDomain,
+        y: [...new Set(data.map((row) => String(row[dataMapping.x])))],
+      };
+    }
+
     // X domain
     let xDomain: [number, number] | string[];
     if (axes.x.domain) {
