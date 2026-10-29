@@ -204,33 +204,42 @@ describe('honest line', () => {
 });
 
 function coversX(path: string, x: number): boolean {
-  return pathXs(path).some((sample) => Math.abs(sample - x) <= 4);
-}
-
-function pathXs(path: string): number[] {
   const tokens = tokensOf(path);
-  const xs: number[] = [];
   let index = 0;
+  let cx = 0;
   while (index < tokens.length) {
     const command = tokens[index];
-    if (command === 'M' || command === 'L') {
-      xs.push(Number(tokens[index + 1]));
+    if (command === 'M') {
+      cx = Number(tokens[index + 1]);
+      index += 3;
+      continue;
+    }
+    if (command === 'L') {
+      const x1 = Number(tokens[index + 1]);
+      if (x >= Math.min(cx, x1) - 1 && x <= Math.max(cx, x1) + 1) {
+        return true;
+      }
+      cx = x1;
       index += 3;
       continue;
     }
     if (command === 'C') {
-      const x0 = xs.at(-1) ?? 0;
       const x1 = Number(tokens[index + 1]);
       const x2 = Number(tokens[index + 3]);
       const x3 = Number(tokens[index + 5]);
-      for (const t of [0.25, 0.5, 0.75, 1]) {
+      for (let step = 0; step <= 8; step += 1) {
+        const t = step / 8;
         const rest = 1 - t;
-        xs.push(rest ** 3 * x0 + 3 * rest ** 2 * t * x1 + 3 * rest * t ** 2 * x2 + t ** 3 * x3);
+        const sample = rest ** 3 * cx + 3 * rest ** 2 * t * x1 + 3 * rest * t ** 2 * x2 + t ** 3 * x3;
+        if (Math.abs(sample - x) <= 4) {
+          return true;
+        }
       }
+      cx = x3;
       index += 7;
       continue;
     }
     index += 1;
   }
-  return xs;
+  return false;
 }

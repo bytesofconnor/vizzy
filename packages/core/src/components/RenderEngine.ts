@@ -2,6 +2,7 @@ import * as d3 from 'd3';
 import { formatDataValue } from '../format';
 import {
   compactAxisLabel,
+  evenDatedTickKeep,
   evenYearTickKeep,
   looksSequentialX,
   monthCycleShortLabels,
@@ -629,7 +630,7 @@ export class RenderEngine {
       });
     }
     const keep = items.map(() => true);
-    const yearKeep = evenYearTickKeep(items);
+    const yearKeep = evenYearTickKeep(items) ?? (monthCycle ? null : evenDatedTickKeep(items));
     if (yearKeep) {
       yearKeep.forEach((shown, index) => {
         keep[index] = shown;

@@ -45,7 +45,7 @@ export function isTimedRows(rows: SeriesRow[]): boolean {
   return timed >= Math.ceil(rows.length * 0.7);
 }
 
-const MONTHLY_KEEP = 80;
+const MONTHLY_KEEP = 21 * 12;
 const MONTHLY_SHARE = 0.7;
 
 export function rowCap(rows: SeriesRow[]): number {

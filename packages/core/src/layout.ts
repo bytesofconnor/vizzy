@@ -1,3 +1,5 @@
+import { timeKey } from './line-runs';
+
 /** Time-like axes can skip ticks. Named categories cannot. */
 
 const NAME_PARTICLE = /^(van|von|de|da|del|di|la|le|el|al|bin|ibn|st\.?)$/i;
@@ -42,6 +44,40 @@ export function evenYearTickKeep(
       continue;
     }
     const gaps = shown.slice(1).map((year, index) => year - (shown[index] ?? year));
+    if (!gaps.every((gap) => gap === step)) {
+      continue;
+    }
+    coarsest = keep;
+    if (ticksFit(boxes, keep)) {
+      return keep;
+    }
+  }
+  return coarsest;
+}
+
+const MONTH_STEPS = [1, 2, 3, 6, 12, 24, 60, 120, 240, 300, 600];
+
+export function evenDatedTickKeep(
+  items: Array<{ label: string; x: number; width: number }>
+): boolean[] | null {
+  if (items.length < 2 || items.every((item) => plainYear(item.label) !== null)) {
+    return null;
+  }
+  const keys = items.map((item) => timeKey(item.label));
+  if (keys.some((key) => key === null)) {
+    return null;
+  }
+  const nums = keys as number[];
+  const origin = nums[0]!;
+  const boxes = items.map((item) => ({ x: item.x, width: item.width }));
+  let coarsest: boolean[] | null = null;
+  for (const step of MONTH_STEPS) {
+    const keep = nums.map((key) => (key - origin) % step === 0);
+    const shown = nums.filter((_, index) => keep[index]);
+    if (shown.length < 2) {
+      continue;
+    }
+    const gaps = shown.slice(1).map((key, index) => key - (shown[index] ?? key));
     if (!gaps.every((gap) => gap === step)) {
       continue;
     }

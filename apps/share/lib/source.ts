@@ -84,7 +84,12 @@ export function alignAttribution(text: string, source: { label?: string; url?: s
 }
 
 export function cleanSourceLabel(label: string): string {
-  const stripped = label.replace(/https?:\/\/\S+/gi, '').replace(/\s+/g, ' ').trim();
+  const stripped = label
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/\s*\[\d+\]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+,/g, ',')
+    .trim();
   return stripped || 'Source';
 }
 

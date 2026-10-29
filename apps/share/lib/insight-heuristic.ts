@@ -85,7 +85,7 @@ function axisIsMonths(rows: ChartSeed['rows']): boolean {
   return hits >= Math.ceil(labels.length * 0.7);
 }
 
-type Measure = 'temperature' | 'index' | 'per-capita' | 'share' | 'rate' | 'total';
+type Measure = 'temperature' | 'index' | 'per-capita' | 'share' | 'rate' | 'price' | 'extent' | 'total';
 
 function measureOf(seed: ChartSeed): Measure {
   const text = `${seed.yLabel} ${seed.title}`.toLowerCase();
@@ -104,6 +104,12 @@ function measureOf(seed: ChartSeed): Measure {
   if (/%|\bpercent\b|\brates?\b|\bratio\b/.test(text)) {
     return 'rate';
   }
+  if (/\$|\busd\b|\bdollars?\b|\bprice\b|\bcents?\b|\bper pound\b|\bper barrel\b/.test(text)) {
+    return 'price';
+  }
+  if (/\bextent\b|km²|km2|\bhectares?\b|\bacres?\b/.test(text)) {
+    return 'extent';
+  }
   return 'total';
 }
 
@@ -113,10 +119,24 @@ const FITTING_TIP: Record<Measure, (y: string) => string> = {
   'per-capita': (y) => `Plot the change in ${y} from the prior period.`,
   share: (y) => `Plot how ${y} changed over time.`,
   rate: (y) => `Plot the change in ${y} from the prior period.`,
+  price: (y) => `Plot the change in ${y} from the prior period.`,
+  extent: (y) => `Plot the change in ${y} from the prior period.`,
   total: (y) => `Show ${y} as a share or per person, not the raw total.`,
 };
 
+function seasonalCycle(rows: ChartSeed['rows']): boolean {
+  const labels = rows.map((row) => String(row.x).trim()).filter(Boolean);
+  if (labels.length < 2) {
+    return false;
+  }
+  const hits = labels.filter((label) => MONTH_WORD.test(label) && !/(?:19|20)\d{2}/.test(label)).length;
+  return hits >= Math.ceil(labels.length * 0.7);
+}
+
 function firstTip(seed: ChartSeed, y: string): string {
+  if (seasonalCycle(seed.rows)) {
+    return `Compare ${y} with the month before.`;
+  }
   if (axisIsMonths(seed.rows)) {
     return `Compare ${y} with the same month a year earlier.`;
   }

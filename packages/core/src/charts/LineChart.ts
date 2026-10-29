@@ -5,6 +5,7 @@ import { RenderEngine, RenderContext } from '../components/RenderEngine';
 import { DataProcessor, ProcessedData } from '../components/DataProcessor';
 import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '../chart-tip';
 import { forecastStartIndex } from '../forecast';
+import { contiguousRuns } from '../line-runs';
 import { forecastLabelPlacement, formatDataValue, linePointLabelPlacement } from '../format';
 
 type LineSeriesOptions = Partial<
@@ -188,23 +189,25 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     const forecastMark = seriesMark('line-forecast', lineData.key);
 
     if (area && chartConfig.area) {
+      const areaData = this._strokeData(area, published);
       let areaPath = group.select(`.${areaMark}`);
-      
-      if (areaPath.empty()) {
+      if (!areaData) {
+        areaPath.remove();
+      } else if (areaPath.empty()) {
         areaPath = group.append('path')
           .attr('class', `area ${areaMark}`)
           .attr('fill', this._areaFill(group, lineData.key))
           .attr('opacity', 1)
-          .attr('d', area(published));
+          .attr('d', areaData);
       } else {
         areaPath.attr('fill', this._areaFill(group, lineData.key)).attr('opacity', 1);
         if (animation.enabled) {
           areaPath
             .transition()
             .duration(animation.duration)
-            .attr('d', area(published));
+            .attr('d', areaData);
         } else {
-          areaPath.attr('d', area(published));
+          areaPath.attr('d', areaData);
         }
       }
     }
@@ -255,7 +258,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     dashed: boolean
   ): void {
     let path = group.select(selector);
-    if (values.length < 2) {
+    const d = this._strokeData(line, values);
+    if (!d) {
       path.remove();
       return;
     }
@@ -269,7 +273,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       .attr('stroke-linejoin', 'miter')
       .attr('stroke-linecap', dashed ? 'round' : 'butt')
       .attr('stroke-dasharray', dashed ? '1.5 5' : null)
-      .attr('d', line(values));
+      .attr('d', d);
 
     const { animation } = this._config;
     if (animation.enabled && !dashed) {
@@ -290,6 +294,22 @@ export class LineChart<TData extends DataPoint = DataPoint> {
         }
       }
     }
+  }
+
+  private _strokeData(
+    mark: { (data: TData[]): string | null },
+    values: TData[]
+  ): string | null {
+    if (values.length < 2) {
+      return null;
+    }
+    const field = this._config.dataMapping.x;
+    const runs = contiguousRuns(values, (row) => String(row[field] ?? ''));
+    const parts = runs
+      .filter((run) => run.length >= 2)
+      .map((run) => mark(run) ?? '')
+      .filter((path) => path.length > 0);
+    return parts.length > 0 ? parts.join(' ') : null;
   }
 
   private _labelForecast(
