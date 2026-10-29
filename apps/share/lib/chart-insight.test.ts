@@ -166,4 +166,137 @@ describe('heuristic fallbacks', () => {
       expect(sanitizeLesson(heuristicLesson(reef, layer))).not.toBeNull();
     }
   });
+
+  it('puts a full stop before the shape sentence when the note has none', () => {
+    const text = heuristicInsight({
+      ...reef,
+      note: 'Our World in Data — Antarctic sea ice (NSIDC), 1979-2023',
+    });
+    expect(text).toMatch(/\.\s+The shape is the story/);
+    expect(text).not.toMatch(/[^.!?]\s+The shape is the story/);
+  });
+
+  it('does not add a second full stop when the note already ends', () => {
+    const text = heuristicInsight({
+      ...reef,
+      note: 'Published figures.',
+    });
+    expect(text).not.toMatch(/\.\.\s+The shape is the story/);
+    expect(text).toMatch(/\.\s+The shape is the story/);
+  });
+});
+
+function lessonSeed(overrides: Partial<ChartSeed>): ChartSeed {
+  return {
+    ...reef,
+    rows: [
+      { x: 'North', y: 28 },
+      { x: 'Central', y: 22 },
+      { x: 'South', y: 12 },
+    ],
+    ...overrides,
+  };
+}
+
+describe('Keep learning tips fit the measure', () => {
+  it('still offers a per-person cut for a raw total', () => {
+    const tip = heuristicLesson(
+      lessonSeed({
+        title: 'Population by country',
+        yLabel: 'People',
+        xLabel: 'Country',
+        rows: [
+          { x: 'India', y: 1400 },
+          { x: 'China', y: 1410 },
+          { x: 'United States', y: 330 },
+        ],
+      })
+    ).tryNext;
+    expect(tip).toBe('Show People as a share or per person, not the raw total.');
+  });
+
+  it('does not tell a temperature chart to switch to per person', () => {
+    const seed = lessonSeed({
+      title: 'Global temperature anomaly',
+      yLabel: 'Anomaly °C',
+      xLabel: 'Year',
+      rows: [
+        { x: '1991', y: 0.4 },
+        { x: '2000', y: 0.6 },
+        { x: '2020', y: 1.1 },
+      ],
+    });
+    for (let layer = 1; layer <= 5; layer += 1) {
+      const tip = heuristicLesson(seed, layer).tryNext;
+      expect(tip).not.toMatch(/per person/i);
+      expect(tip).not.toMatch(/raw total/i);
+      expect(tip).not.toMatch(/as a rate or a share/i);
+    }
+    expect(heuristicLesson(seed).tryNext).toBe('Plot the change in Anomaly °C from the prior year.');
+  });
+
+  it('does not tell a monthly series to switch to per person', () => {
+    const byName = lessonSeed({
+      title: 'Minneapolis normal temperature',
+      yLabel: 'Temperature °C',
+      xLabel: 'Month',
+      rows: [
+        { x: 'January', y: -9 },
+        { x: 'July', y: 23 },
+        { x: 'December', y: -7 },
+      ],
+    });
+    const byStamp = lessonSeed({
+      title: 'Housing starts',
+      yLabel: 'Starts',
+      xLabel: 'Month',
+      rows: [
+        { x: '2020-01', y: 1.5 },
+        { x: '2020-06', y: 1.2 },
+        { x: '2021-01', y: 1.6 },
+      ],
+    });
+    for (const seed of [byName, byStamp]) {
+      expect(heuristicLesson(seed).tryNext).toBe(`Compare ${seed.yLabel} with the same month a year earlier.`);
+      expect(heuristicLesson(seed).tryNext).not.toMatch(/per person/i);
+    }
+  });
+
+  it('does not tell a rate, a share, an index, or a per-person series to renormalize that way', () => {
+    const cases: Array<{ yLabel: string; title: string; tip: string }> = [
+      {
+        title: 'Unemployment rate by state',
+        yLabel: 'Unemployment rate %',
+        tip: 'Plot the change in Unemployment rate % from the prior period.',
+      },
+      {
+        title: 'Extreme poverty',
+        yLabel: 'Share in poverty %',
+        tip: 'Plot how Share in poverty % changed over time.',
+      },
+      {
+        title: 'Living Planet Index',
+        yLabel: 'Living Planet Index',
+        tip: 'Plot the change in Living Planet Index from the prior period.',
+      },
+      {
+        title: 'US CPI',
+        yLabel: 'CPI',
+        tip: 'Plot the change in CPI from the prior period.',
+      },
+      {
+        title: 'GDP per person',
+        yLabel: 'USD per person',
+        tip: 'Plot the change in USD per person from the prior period.',
+      },
+    ];
+    for (const item of cases) {
+      const seed = lessonSeed({ title: item.title, yLabel: item.yLabel, xLabel: 'Year' });
+      const generic = `Show ${item.yLabel} as a share or per person, not the raw total.`;
+      expect(heuristicLesson(seed).tryNext).toBe(item.tip);
+      for (let layer = 1; layer <= 5; layer += 1) {
+        expect(heuristicLesson(seed, layer).tryNext).not.toBe(generic);
+      }
+    }
+  });
 });
