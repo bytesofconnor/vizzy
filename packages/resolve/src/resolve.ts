@@ -2,20 +2,36 @@ import { matchPrompt } from './catalog';
 import { defaultGet } from './http';
 import { yearSpanFromAsked } from './normalize';
 import { placesInAsked } from './places';
-import { fredCsvUrl, monthlyClose, parseFredCsv } from './parse/fred';
+import {
+  fredCsvUrl,
+  monthlyClose,
+  parseFredAnnual,
+  parseFredCsv,
+  parseFredLatestColumns,
+  stateUnemploymentUrls,
+} from './parse/fred';
 import { parseNoaaCo2, NOAA_CO2_URL, NOAA_CH4_URL } from './parse/noaa';
 import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
 import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
 import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, wikiSnapshotYear, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
 import type { HttpGet, Recipe, ResolvedSeries, SeriesRow } from './types';
-import { downsample, rowCap, windowSpan } from './window';
+import { downsample, isTimedRows, rowCap, windowSpan } from './window';
 
 type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string };
 
 async function loadRecipe(recipe: Recipe, get: HttpGet): Promise<LoadedRecipe> {
   if (recipe.family === 'fred') {
+    if (recipe.seriesId === 'state_unemployment') {
+      const files = await Promise.all(stateUnemploymentUrls().map((url) => get(url)));
+      const rows = files.flatMap((csv) => parseFredLatestColumns(csv));
+      rows.sort((a, b) => b.y - a.y || String(a.x).localeCompare(String(b.x)));
+      return { rows };
+    }
     const csv = await get(fredCsvUrl(recipe.seriesId));
+    if (recipe.annual) {
+      return { rows: parseFredAnnual(csv) };
+    }
     return { rows: recipe.monthlyClose ? monthlyClose(csv) : parseFredCsv(csv) };
   }
   if (recipe.family === 'noaa') {
@@ -61,14 +77,15 @@ export async function fetchRecipe(
 }
 
 export function rowsForAsked(rows: SeriesRow[], asked: string, now = Date.now()): SeriesRow[] {
+  const matched = matchPrompt(asked);
   let span = yearSpanFromAsked(asked, now);
-  if (span.since === undefined && span.until === undefined) {
-    const recent = matchPrompt(asked)?.recentYears;
-    if (recent) {
-      span = { since: new Date(now).getUTCFullYear() - recent };
-    }
+  if (span.since === undefined && span.until === undefined && matched?.recentYears) {
+    span = { since: new Date(now).getUTCFullYear() - matched.recentYears };
   }
   const kept = keepAskedPlaces(windowSpan(rows, span), asked);
+  if (!isTimedRows(kept)) {
+    return kept;
+  }
   return downsample(kept, rowCap(kept));
 }
 
