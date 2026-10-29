@@ -15,7 +15,7 @@ describe('honestTitle', () => {
       ],
       note: 'Additions in 2023',
     });
-    expect(title.toLowerCase()).toContain('new capacity');
+    expect(title.toLowerCase()).toMatch(/new(?: solar)? capacity/);
     expect(title.toLowerCase()).not.toContain('installed');
   });
 
@@ -31,7 +31,7 @@ describe('honestTitle', () => {
       ],
       notes: '| Country | Added capacity (MW) |\n| --- | --- |\n| China | 217 |',
     });
-    expect(title.toLowerCase()).toContain('new capacity');
+    expect(title.toLowerCase()).toMatch(/new(?: solar)? capacity/);
     expect(title.toLowerCase()).not.toContain('installed');
   });
 
@@ -48,7 +48,7 @@ describe('honestTitle', () => {
       ],
       note: 'Figures cover 10 countries for which data was publicly available in the cited source.',
     });
-    expect(title.toLowerCase()).toMatch(/new capacity|added capacity|capacity additions/);
+    expect(title.toLowerCase()).toMatch(/new(?: solar)? capacity|added capacity|capacity additions/);
     expect(title.toLowerCase()).not.toMatch(/capacity added by/);
     expect(title.toLowerCase()).toContain('solar');
     expect(title).toContain('2023');
@@ -67,7 +67,7 @@ describe('honestTitle', () => {
       note: 'Capacity measured in megawatts (MW) as of 2023.',
     });
     expect(title.toLowerCase()).toMatch(/installed|cumulative/);
-    expect(title.toLowerCase()).not.toMatch(/new capacity|additions/);
+    expect(title.toLowerCase()).not.toMatch(/new(?: solar)? capacity|additions/);
   });
 
   it('keeps a title that already says capacity additions', () => {

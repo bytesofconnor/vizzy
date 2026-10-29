@@ -32,7 +32,7 @@ export function parseWorldBank(text: string, take: 'high' | 'low' = 'high'): Ser
     rows.push({ x: name, y: y >= 1000 ? Math.round(y) : Math.round(y * 1000) / 1000 });
   }
   rows.sort((a, b) => (take === 'low' ? a.y - b.y : b.y - a.y));
-  return rows.slice(0, 15);
+  return rows;
 }
 
 export function worldBankUrl(indicator: string, year = 2022): string {
