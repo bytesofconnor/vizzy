@@ -175,4 +175,62 @@ describe('honest line', () => {
       expect(y).toBeLessThanOrEqual(bottom + 1);
     }
   });
+
+  it('does not draw a curve across a missing month or a multi-year hole', async () => {
+    const rows = [
+      { year: 'Jun 2021', price: 35000 },
+      { year: 'Jul 2021', price: 42000 },
+      { year: 'Oct 2021', price: 61000 },
+      { year: 'Oct 2026', price: 70000 },
+    ];
+    const el = createContainer();
+    containers.push(el);
+    const chart = new VizzyChartEngine(el, lineConfig(), rows);
+    await chart.render();
+    const path = chart.container.querySelector('path.line')?.getAttribute('d') ?? '';
+    const circles = [...chart.container.querySelectorAll('circle.point')];
+    expect(circles).toHaveLength(rows.length);
+
+    const midX = (left: number, right: number) => {
+      const a = Number(circles[left]?.getAttribute('cx'));
+      const b = Number(circles[right]?.getAttribute('cx'));
+      return (a + b) / 2;
+    };
+
+    expect(coversX(path, midX(0, 1))).toBe(true);
+    expect(coversX(path, midX(1, 2))).toBe(false);
+    expect(coversX(path, midX(2, 3))).toBe(false);
+  });
 });
+
+function coversX(path: string, x: number): boolean {
+  return pathXs(path).some((sample) => Math.abs(sample - x) <= 4);
+}
+
+function pathXs(path: string): number[] {
+  const tokens = tokensOf(path);
+  const xs: number[] = [];
+  let index = 0;
+  while (index < tokens.length) {
+    const command = tokens[index];
+    if (command === 'M' || command === 'L') {
+      xs.push(Number(tokens[index + 1]));
+      index += 3;
+      continue;
+    }
+    if (command === 'C') {
+      const x0 = xs.at(-1) ?? 0;
+      const x1 = Number(tokens[index + 1]);
+      const x2 = Number(tokens[index + 3]);
+      const x3 = Number(tokens[index + 5]);
+      for (const t of [0.25, 0.5, 0.75, 1]) {
+        const rest = 1 - t;
+        xs.push(rest ** 3 * x0 + 3 * rest ** 2 * t * x1 + 3 * rest * t ** 2 * x2 + t ** 3 * x3);
+      }
+      index += 7;
+      continue;
+    }
+    index += 1;
+  }
+  return xs;
+}

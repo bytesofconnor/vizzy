@@ -28,6 +28,38 @@ function tigerGet(): () => Promise<string> {
 }
 
 describe('source labels stay honest', () => {
+  it('drops citation brackets from a drafted source name', () => {
+    const minted = mintDraft(
+      'bitcoin price last 5 years',
+      { notes: 'Public lookup found no matching table.', urls: [] },
+      {
+        title: 'Bitcoin price',
+        kicker: 'Markets',
+        note: 'Closes.',
+        chartType: 'line',
+        area: false,
+        xLabel: 'Month',
+        yLabel: 'Price (USD)',
+        sourceLabel: 'Yahoo Finance [6], Coingecko [3]',
+        sourceMethod: 'scraped',
+        evidence: 'Named pages in the lookup.',
+        rows: [
+          { x: 'Jun 2021', y: 35000 },
+          { x: 'Jul 2021', y: 42000 },
+          { x: 'Oct 2021', y: 61000 },
+          { x: 'Oct 2026', y: 70000 },
+        ],
+      }
+    );
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const line = sourceCardLine(minted.piece.config.source!);
+    expect(line).not.toMatch(/\[\d+\]/);
+    expect(line).toContain('Yahoo Finance, Coingecko');
+  });
+
   it('does not label Wikipedia tigers official, and the title names the census year', async () => {
     const series = await resolvePrompt('Wild tigers by country', {
       get: tigerGet(),

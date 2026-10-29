@@ -256,9 +256,49 @@ describe('Keep learning tips fit the measure', () => {
         { x: '2021-01', y: 1.6 },
       ],
     });
+    expect(heuristicLesson(byStamp).tryNext).toBe(`Compare ${byStamp.yLabel} with the same month a year earlier.`);
+    expect(heuristicLesson(byName).tryNext).not.toMatch(/same month a year earlier/i);
+    expect(heuristicLesson(byName).tryNext).toBe('Compare Temperature °C with the month before.');
     for (const seed of [byName, byStamp]) {
-      expect(heuristicLesson(seed).tryNext).toBe(`Compare ${seed.yLabel} with the same month a year earlier.`);
       expect(heuristicLesson(seed).tryNext).not.toMatch(/per person/i);
+    }
+  });
+
+  it('does not tell a price, an extent, or a coffee price to become a share or per person', () => {
+    const cases = [
+      lessonSeed({
+        title: 'Median sales price of houses sold',
+        yLabel: 'Median sales price ($)',
+        xLabel: 'Quarter',
+      }),
+      lessonSeed({
+        title: 'Antarctic sea ice extent',
+        yLabel: 'February minimum (million km²)',
+        xLabel: 'Year',
+        rows: [
+          { x: '1979', y: 3.1 },
+          { x: '2001', y: 2.8 },
+          { x: '2023', y: 1.9 },
+        ],
+      }),
+      lessonSeed({
+        title: 'Coffee prices',
+        yLabel: 'Price (US cents/lb)',
+        xLabel: 'Month',
+        rows: [
+          { x: '2020-01', y: 110 },
+          { x: '2024-06', y: 230 },
+          { x: '2026-10', y: 180 },
+        ],
+      }),
+    ];
+    for (const seed of cases) {
+      for (let layer = 1; layer <= 5; layer += 1) {
+        const tip = heuristicLesson(seed, layer).tryNext;
+        expect(tip).not.toMatch(/per person/i);
+        expect(tip).not.toMatch(/raw total/i);
+        expect(tip).not.toMatch(/as a share or per person/i);
+      }
     }
   });
 
