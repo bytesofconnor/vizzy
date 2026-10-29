@@ -14,6 +14,7 @@ Updated: 2026-10-29 · Owner: Vizzy · North star: pasteable, opinionated charts
 10. **Finish GDP and unemployment in under 20 seconds.** On the 2026-10-29 pass, US GDP since 2000 and unemployment rate by US state took about 26 to 28 seconds. Check: those prompts finish in under 20 seconds.
 
 ## Shipped
+- **Show every row the prompt asks for** — 2026-10-29. "Unemployment rate by US state" plots all 50 states. The source note matches the rows on the chart. The context panel names only states the chart plots. [#68](https://github.com/bytesofconnor/vizzy/pull/68).
 - **Keep labels readable** — 2026-10-29. "United States", "Burkina Faso", "New Jersey", and "San Marino" render in full. The satellite long tail is readable. Fed funds ticks are not "00/01". Arctic sea ice uses one year format. "Q2 2020", "Jan 2025", and "Sweater Weather" keep their spaces, and years are not two digits. A prompt for every US state does not stop at about 15 states. A Bitcoin amount does not render as "35.0408k". [#64](https://github.com/bytesofconnor/vizzy/pull/64).
 - **Finish the context panel** — 2026-10-29. After a chart renders, the panel leaves "Reading the chart…" without a reload, and Keep learning appears without a wait of about 30 seconds. [#62](https://github.com/bytesofconnor/vizzy/pull/62).
 - **Keep typos out of the title** — 2026-10-29. The title spells the words the chart resolved. [#58](https://github.com/bytesofconnor/vizzy/pull/58).

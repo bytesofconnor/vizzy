@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { heuristicInsight } from './chart-insight';
 import { mintDraft } from './from-prompt';
+import { seedFromPiece } from './seed';
 
 const STATES = [
   'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
@@ -66,5 +68,45 @@ describe('full category sets', () => {
       return;
     }
     expect(minted.piece.data).toHaveLength(15);
+  });
+
+  it('plots all 50 states for unemployment rate by US state', () => {
+    const ranked = STATES.map((state, index) => ({
+      x: state,
+      y: state === 'Indiana' ? 5.4 : Number((1.6 + index * 0.02).toFixed(2)),
+    })).sort((a, b) => a.y - b.y);
+    const notes = ['| State | Rate |', '| --- | --- |', ...ranked.map((row) => `| ${row.x} | ${row.y} |`)].join('\n');
+    const minted = mintDraft(
+      'unemployment rate by US state',
+      { notes, urls: ['https://www.bls.gov/lau/'] },
+      {
+        title: 'Unemployment rate by US state',
+        kicker: 'Jobs',
+        note: 'Unemployment rates for 50 states. Indiana sits at the high end.',
+        chartType: 'bar',
+        area: false,
+        xLabel: 'State',
+        yLabel: 'Unemployment rate %',
+        sourceLabel: 'BLS',
+        sourceMethod: 'scraped',
+        evidence: 'State unemployment table.',
+        rows: ranked,
+      }
+    );
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const names = minted.piece.data.map((row) => String(row.x));
+    expect(names).toHaveLength(STATES.length);
+    expect(names).toEqual(expect.arrayContaining(STATES));
+    expect(minted.piece.note).toMatch(/\b50 states\b/);
+    const insight = heuristicInsight(seedFromPiece(minted.piece));
+    expect(insight).toMatch(/Indiana sits at the high end/);
+    for (const state of STATES) {
+      if (insight.includes(state)) {
+        expect(names).toContain(state);
+      }
+    }
   });
 });

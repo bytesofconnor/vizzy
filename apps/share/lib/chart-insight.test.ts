@@ -125,6 +125,28 @@ describe('heuristic fallbacks', () => {
     expect(text).toMatch(/4\.2%/);
   });
 
+  it('names only states the chart plots', () => {
+    const plotted = [
+      'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+      'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Iowa', 'Kansas',
+    ];
+    const rows = plotted.map((state, index) => ({ x: state, y: Number((1.6 + index * 0.1).toFixed(1)) }));
+    const top = [...rows].sort((a, b) => b.y - a.y)[0];
+    const text = heuristicInsight({
+      ...reef,
+      title: 'Unemployment rate by US state',
+      note: 'Unemployment rates for 50 states. Indiana sits at the high end.',
+      xLabel: 'State',
+      yLabel: 'Unemployment rate %',
+      chartType: 'bar',
+      rows,
+    });
+    expect(text).not.toMatch(/\bIndiana\b/);
+    expect(text).not.toMatch(/\b50 states\b/);
+    expect(text).toMatch(/\b15 states\b/);
+    expect(text).toMatch(new RegExp(`${top?.x} sits at the high end`));
+  });
+
   it('does not say Pew when the source is Gallup', () => {
     const text = heuristicInsight({
       ...reef,
