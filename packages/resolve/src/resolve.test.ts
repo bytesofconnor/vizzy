@@ -515,12 +515,28 @@ describe('resolvePrompt', () => {
     expect(windowed.map((row) => row.x)).toEqual(['1990', '2023']);
   });
 
-  it('downsamples long series', () => {
+  it('thins a long yearly series on a nice step and keeps the last year', () => {
     const rows = Array.from({ length: 100 }, (_, i) => ({ x: String(1900 + i), y: i }));
-    const slim = downsample(rows, 24);
-    expect(slim).toHaveLength(24);
-    expect(slim[0]?.x).toBe('1900');
-    expect(slim[23]?.x).toBe('1999');
+    const slim = downsample(rows);
+    const years = slim.map((row) => Number(row.x));
+    const gaps = years.slice(1).map((year, index) => year - years[index]!);
+    expect(years[0]).toBe(1900);
+    expect(years.at(-1)).toBe(1999);
+    expect(slim.length).toBeLessThanOrEqual(60);
+    expect(new Set(gaps.slice(0, -1)).size).toBe(1);
+    expect([1, 2, 5, 10, 20, 25, 50]).toContain(gaps[0]);
+  });
+
+  it('does not jump Antarctic years from 2001 to 2004 when thinning 1979-2026', () => {
+    const rows = Array.from({ length: 48 }, (_, index) => ({ x: String(1979 + index), y: index }));
+    const years = downsample(rows).map((row) => Number(row.x));
+    const gaps = years.slice(1).map((year, index) => year - years[index]!);
+    expect(years[0]).toBe(1979);
+    expect(years.at(-1)).toBe(2026);
+    expect(new Set(gaps).size).toBe(1);
+    expect([1, 2, 5, 10, 20, 25, 50]).toContain(gaps[0]);
+    const jump = years.findIndex((year, index) => year === 2004 && years[index - 1] === 2001);
+    expect(jump).toBe(-1);
   });
 });
 

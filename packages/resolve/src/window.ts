@@ -3,6 +3,9 @@ import type { SeriesRow } from './types';
 
 export const MAX_ROWS = 24;
 
+const YEAR_CAP = 60;
+const NICE_YEAR_STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500];
+
 export function windowSince(rows: SeriesRow[], sinceYear: number | undefined): SeriesRow[] {
   return windowSpan(rows, sinceYear === undefined ? {} : { since: sinceYear });
 }
@@ -50,7 +53,48 @@ export function downsample(rows: SeriesRow[], max = MAX_ROWS): SeriesRow[] {
   if (rows.some((row) => row.series)) {
     return thinEachSeries(rows);
   }
+  if (isYearly(rows)) {
+    return thinYears(rows, Math.max(max, YEAR_CAP));
+  }
   return pickEvenly(rows, max);
+}
+
+function isYearly(rows: SeriesRow[]): boolean {
+  if (rows.length < 4) {
+    return false;
+  }
+  const years = rows.map((row) => yearOfX(row.x));
+  const present = years.filter((year): year is number => year !== undefined && year >= 1000 && year <= 2100);
+  if (present.length < Math.ceil(rows.length * 0.7)) {
+    return false;
+  }
+  return new Set(present).size >= present.length * 0.7;
+}
+
+function thinYears(rows: SeriesRow[], cap: number): SeriesRow[] {
+  if (rows.length <= cap) {
+    return rows;
+  }
+  const ordered = rows
+    .map((row, index) => ({ row, index, year: yearOfX(row.x) }))
+    .filter((item): item is { row: SeriesRow; index: number; year: number } => item.year !== undefined)
+    .sort((a, b) => a.year - b.year || a.index - b.index);
+  const last = ordered[ordered.length - 1]?.year;
+  if (last === undefined) {
+    return pickEvenly(rows, Math.min(cap, MAX_ROWS));
+  }
+  for (const step of NICE_YEAR_STEPS) {
+    const kept = ordered.filter((item) => item.year % step === 0 || item.year === last);
+    if (kept.length < 2 || kept.length > cap) {
+      continue;
+    }
+    const gaps = kept.slice(1).map((item, index) => item.year - (kept[index]?.year ?? item.year));
+    const interior = last % step === 0 ? gaps : gaps.slice(0, -1);
+    if (interior.length > 0 && interior.every((gap) => gap === step)) {
+      return kept.map((item) => item.row);
+    }
+  }
+  return pickEvenly(rows, Math.min(cap, MAX_ROWS));
 }
 
 function thinEachSeries(rows: SeriesRow[]): SeriesRow[] {

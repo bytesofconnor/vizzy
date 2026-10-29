@@ -683,8 +683,10 @@ describe('VizzyChartEngine', () => {
     await iceChart.render();
     const years = visibleTickText(el, '.x-axis').map(readLabel);
     expect(years.every((label) => /^\d{4}$/.test(label))).toBe(true);
-    expect(years).toContain('1979');
-    expect(years).toContain('2023');
+    const nums = years.map(Number);
+    const gaps = nums.slice(1).map((year, index) => year - nums[index]!);
+    expect(new Set(gaps).size).toBe(1);
+    expect([1, 2, 5, 10, 20, 25, 50]).toContain(gaps[0]);
     expect(years.some((label) => label.length < 4)).toBe(false);
     iceChart.destroy();
   });

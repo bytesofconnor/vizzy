@@ -18,6 +18,41 @@ export function looksSequentialX(names: string[]): boolean {
   return hits >= names.length * 0.7;
 }
 
+const NICE_YEAR_STEPS = [1, 2, 5, 10, 20, 25, 50, 100];
+
+function plainYear(label: string): number | null {
+  const match = label.trim().match(/^(?:1[89]|20)\d{2}$/);
+  return match ? Number(match[0]) : null;
+}
+
+export function evenYearTickKeep(
+  items: Array<{ label: string; x: number; width: number }>
+): boolean[] | null {
+  const years = items.map((item) => plainYear(item.label));
+  if (years.some((year) => year === null) || years.length < 2) {
+    return null;
+  }
+  const nums = years as number[];
+  const boxes = items.map((item) => ({ x: item.x, width: item.width }));
+  let coarsest: boolean[] | null = null;
+  for (const step of NICE_YEAR_STEPS) {
+    const keep = nums.map((year) => year % step === 0);
+    const shown = nums.filter((_, index) => keep[index]);
+    if (shown.length < 2) {
+      continue;
+    }
+    const gaps = shown.slice(1).map((year, index) => year - (shown[index] ?? year));
+    if (!gaps.every((gap) => gap === step)) {
+      continue;
+    }
+    coarsest = keep;
+    if (ticksFit(boxes, keep)) {
+      return keep;
+    }
+  }
+  return coarsest;
+}
+
 export function ticksFit(
   items: Array<{ x: number; width: number }>,
   keep: boolean[]

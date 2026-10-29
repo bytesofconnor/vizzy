@@ -10,6 +10,7 @@ import type { Piece } from './pieces';
 import { cleanSourceLabel } from './source';
 import { applyPrintGrayscale } from './print-grayscale';
 import { DUST, studioChart } from './theme';
+import { withDrawnSpan } from './year-span';
 
 const MAX_ROWS = 80;
 
@@ -72,11 +73,16 @@ export function mintPiece(input: MintInput): MintResult {
     method: 'unknown' as const,
   };
 
+  const xKey = String(checked.config.dataMapping.x);
+  const note = withDrawnSpan(
+    typeof input.note === 'string' ? input.note : '',
+    (data as DataPoint[]).map((row) => ({ x: row[xKey] as string | number }))
+  );
   const extras: Record<string, unknown> = {
     source,
     accessibility: {
       title,
-      ...(typeof input.note === 'string' && input.note.trim() ? { description: cleanText(input.note, 280) } : {}),
+      ...(note.trim() ? { description: cleanText(note, 280) } : {}),
     },
   };
   if (input.config && typeof input.config === 'object' && input.config !== null && 'axes' in input.config) {
@@ -93,7 +99,7 @@ export function mintPiece(input: MintInput): MintResult {
   const draft: PortableDraft = {
     kicker: cleanText(input.kicker, 80) || 'Chart',
     title: cleanText(title, 160),
-    note: cleanText(input.note, 280),
+    note: cleanText(note, 280),
     chart: studio.chart,
     mapping: studio.dataMapping,
     source: studio.source,
