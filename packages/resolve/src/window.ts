@@ -33,6 +33,18 @@ export function windowSpan(
 }
 
 const MONTH_STAMP = /^(?:19|20)\d{2}-\d{2}$/;
+
+export function isTimedRows(rows: SeriesRow[]): boolean {
+  if (rows.length === 0) {
+    return false;
+  }
+  const timed = rows.filter((row) => {
+    const label = String(row.x).trim();
+    return yearOfX(label) !== undefined || MONTH_STAMP.test(label);
+  }).length;
+  return timed >= Math.ceil(rows.length * 0.7);
+}
+
 const MONTHLY_KEEP = 80;
 const MONTHLY_SHARE = 0.7;
 

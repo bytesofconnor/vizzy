@@ -35,6 +35,7 @@ export type Dataset = {
   places?: boolean;
   recentYears?: number;
   monthlyClose?: boolean;
+  annual?: boolean;
 };
 
 export type Recipe = Dataset;

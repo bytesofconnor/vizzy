@@ -16,6 +16,10 @@ describe('matchPrompt', () => {
     expect(matchPrompt('Top ten languages by native speakers')?.seriesId).toBe('languages_native');
     expect(matchPrompt('Life expectancy at birth by country')?.family).toBe('worldbank');
     expect(matchPrompt('US unemployment rate since 2019')?.seriesId).toBe('UNRATE');
+    expect(matchPrompt('US GDP since 2000')?.seriesId).toBe('GDPCA');
+    expect(matchPrompt('unemployment rate by US state')?.seriesId).toBe('state_unemployment');
+    expect(matchPrompt('US GDP growth since 2000')?.seriesId).not.toBe('GDPCA');
+    expect(matchPrompt('GDP per capita by country since 2000')?.seriesId).not.toBe('GDPCA');
     expect(
       matchPrompt('Antarctic ozone hole peak area by year since 1980 — can you see the Montreal Protocol working?')
         ?.seriesId
@@ -425,6 +429,69 @@ describe('resolvePrompt', () => {
     expect(series?.seriesId).toBe('wild_tigers');
     expect(series?.sourceLabel).toBe('Wikipedia — wild tiger population by country, 2022');
     expect(series?.rows.map((row) => row.x)).toEqual(['India', 'Russia', 'Nepal']);
+  });
+
+  it('charts US GDP since 2000 from one annual FRED fetch', async () => {
+    const csv = [
+      'observation_date,GDPCA',
+      '1999-01-01,100.1',
+      '2000-01-01,110.2',
+      '2023-01-01,220.4',
+      '2024-01-01,230.5',
+    ].join('\n');
+    let calls = 0;
+    const series = await resolvePrompt('US GDP since 2000', {
+      get: async (url) => {
+        calls += 1;
+        expect(url).toContain('id=GDPCA');
+        return csv;
+      },
+      now: Date.UTC(2026, 0, 1),
+    });
+    expect(calls).toBe(1);
+    expect(series?.seriesId).toBe('GDPCA');
+    expect(series?.rows.map((row) => row.x)).toEqual(['2000', '2023', '2024']);
+    expect(series?.rows.map((row) => row.y)).toEqual([110.2, 220.4, 230.5]);
+    expect(series?.xLabel).toBe('Year');
+  });
+
+  it('charts unemployment for every state from overlapping FRED fetches', async () => {
+    const calls: string[] = [];
+    let started = 0;
+    let release: () => void = () => {};
+    const open = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const series = await resolvePrompt('unemployment rate by US state', {
+      get: async (url) => {
+        calls.push(url);
+        started += 1;
+        if (started === 5) {
+          release();
+        }
+        await open;
+        const ids = (new URL(url).searchParams.get('id') ?? '').split(',');
+        expect(ids.length).toBeGreaterThan(0);
+        expect(ids.length).toBeLessThanOrEqual(12);
+        expect(ids).not.toContain('DCUR');
+        const header = ['observation_date', ...ids].join(',');
+        const latest = ['2026-09-01', ...ids.map((_, index) => String(index + 1))].join(',');
+        return [header, latest].join('\n');
+      },
+      now: Date.UTC(2026, 9, 1),
+    });
+    expect(calls).toHaveLength(5);
+    expect(started).toBe(5);
+    const ids = calls.flatMap((url) => (new URL(url).searchParams.get('id') ?? '').split(','));
+    expect(new Set(ids).size).toBe(50);
+    expect(ids).toContain('CAUR');
+    expect(ids).toContain('NJUR');
+    expect(series?.seriesId).toBe('state_unemployment');
+    expect(series?.rows).toHaveLength(50);
+    const names = series?.rows.map((row) => row.x) ?? [];
+    expect(names).toEqual(expect.arrayContaining(['California', 'Indiana', 'New Jersey', 'Wyoming']));
+    expect(new Set(names).size).toBe(50);
+    expect(series?.rows[0]?.y).toBeGreaterThanOrEqual(series?.rows.at(-1)?.y ?? 0);
   });
 
   it('windows FRED since a year and writes compose notes', async () => {
