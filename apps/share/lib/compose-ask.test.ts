@@ -5,7 +5,7 @@ const hero = 'Bitcoin price from March to June 2021';
 const revise = 'Make it a line chart.';
 
 describe('composeAsk', () => {
-  it('clears a new chart and still generates when the revise box is empty', () => {
+  it('does not generate a demo when new chart has an empty revise box', () => {
     expect(
       composeAsk({
         typed: '',
@@ -14,7 +14,7 @@ describe('composeAsk', () => {
         heroExample: hero,
         reviseExample: revise,
       })
-    ).toEqual({ prompt: hero, fresh: true, fillComposer: false });
+    ).toBeNull();
   });
 
   it('generates a new chart from typed text and leaves the composer empty', () => {

@@ -1,5 +1,4 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
-import { PROMPT_LINES } from '../lib/prompt-ideas';
 
 type ComposeBody = {
   prompt?: string;
@@ -57,7 +56,7 @@ async function holdCharts(page: Page, seen: ComposeBody[]) {
   });
 }
 
-test('a new chart lands on the paste url and an empty click still generates', async ({ page }) => {
+test('a new chart lands on the paste url and an empty click opens a blank composer', async ({ page }) => {
   const seen: ComposeBody[] = [];
   await holdCharts(page, seen);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -74,13 +73,12 @@ test('a new chart lands on the paste url and an empty click still generates', as
 
   const revise = page.getByRole('textbox', { name: 'Revise this chart' });
   await expect(revise).toHaveValue('');
+  const beforeNewChart = seen.length;
   await page.getByRole('button', { name: 'New chart' }).click();
-  await expect(page.getByRole('heading', { name: 'Made chart 2' })).toBeVisible();
-  await expect(page).toHaveURL(/\/c\/made2$/);
-  await expect(revise).toHaveValue('');
-  const bare = seen.at(-1);
-  expect(bare?.seed).toBeUndefined();
-  expect(bare?.prompt && PROMPT_LINES.includes(bare.prompt)).toBe(true);
+  await expect(page).toHaveURL(/\/$/);
+  const askAgain = page.getByRole('textbox', { name: 'What should the chart show?' });
+  await expect(askAgain).toHaveValue('');
+  expect(seen).toHaveLength(beforeNewChart);
 });
 
 test('a phone new chart uses typed text and revise drops the previous subject', async ({ page }) => {

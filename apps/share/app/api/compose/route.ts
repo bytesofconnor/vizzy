@@ -1,4 +1,4 @@
-import { consumeSlot, refundSlot } from '../../../lib/billing';
+import { consumeSlot, refundSlot, walletTokenFromRequest } from '../../../lib/billing';
 import { decideCompose, type MintOrder } from '../../../lib/compose-decision';
 import { reportProgress, clientPiece, type ComposeProgressReporter } from '../../../lib/compose-progress';
 import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
@@ -56,7 +56,8 @@ async function runCompose(
   origin: string,
   request: Request,
   order: MintOrder,
-  onProgress?: ComposeProgressReporter
+  onProgress: ComposeProgressReporter | undefined,
+  walletToken: string | undefined
 ) {
   const minted = await pieceFromPrompt(order, onProgress);
   if (!minted.ok) {
@@ -73,6 +74,7 @@ async function runCompose(
   const paste = await pasteHref(origin.replace(/\/$/, ''), minted.token);
   await recordAfterChart({
     request,
+    walletToken,
     slug: paste.slug,
     title: minted.piece.title,
     route: 'compose',
@@ -100,7 +102,8 @@ function streamCompose(
   origin: string,
   request: Request,
   order: MintOrder,
-  slot: Awaited<ReturnType<typeof consumeSlot>>
+  slot: Awaited<ReturnType<typeof consumeSlot>>,
+  walletToken: string | undefined
 ): Response {
   const encoder = new TextEncoder();
 
@@ -111,7 +114,7 @@ function streamCompose(
       };
 
       try {
-        const result = await runCompose(origin, request, order, send);
+        const result = await runCompose(origin, request, order, send, walletToken);
         if (!result.ok) {
           if (slot.via === 'credit' || slot.via === 'free') {
             await refundSlot(request, slot.via);
@@ -213,12 +216,14 @@ export async function POST(request: Request) {
     return Response.json(payBody(message), { status: 402 });
   }
 
+  const walletToken = await walletTokenFromRequest(request);
+
   if (wantsStream(request) && !wantsHtml(request)) {
-    return streamCompose(origin, request, decision, slot);
+    return streamCompose(origin, request, decision, slot, walletToken);
   }
 
   try {
-    const result = await runCompose(origin, request, decision);
+    const result = await runCompose(origin, request, decision, undefined, walletToken);
     if (!result.ok) {
       if (slot.via === 'credit' || slot.via === 'free') {
         await refundSlot(request, slot.via);

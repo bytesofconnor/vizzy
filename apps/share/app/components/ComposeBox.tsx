@@ -523,7 +523,13 @@ export function ComposeBox({
                           type="button"
                           className="compose-hero-submit is-amber"
                           disabled={busy}
-                          onClick={() => void submit(true)}
+                          onClick={() => {
+                            if (prompt.trim().length < 3) {
+                              window.location.assign('/');
+                              return;
+                            }
+                            void submit(true);
+                          }}
                         >
                           New chart
                         </button>

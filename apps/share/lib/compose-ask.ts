@@ -14,6 +14,9 @@ export function composeAsk(input: {
   reviseExample: string;
 }): ComposeAsk | null {
   const typed = input.typed.trim();
+  if (input.freshClick && typed.length < 3) {
+    return null;
+  }
   const hero = input.heroExample.trim();
   const revise = input.reviseExample.trim();
   const demo = input.freshClick || !input.studio ? hero : revise;
