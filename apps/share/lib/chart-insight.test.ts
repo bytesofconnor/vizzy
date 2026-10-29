@@ -86,6 +86,45 @@ describe('heuristic fallbacks', () => {
     expect(text).not.toMatch(/65\+/);
   });
 
+  it('cites the plotted percent for that year and the same span as the axis', () => {
+    const text = heuristicInsight({
+      ...reef,
+      title: 'Extreme poverty 1990-2023',
+      note: 'about 9.8% in 2023, covering 1990-2026',
+      xLabel: 'Year',
+      yLabel: 'Share in poverty %',
+      chartType: 'line',
+      rows: [
+        { x: '1990', y: 43.4 },
+        { x: '2023', y: 10.5 },
+      ],
+    });
+    expect(text).toMatch(/10\.5%/);
+    expect(text).toMatch(/1990-2023/);
+    expect(text).not.toMatch(/9\.8/);
+    expect(text).not.toMatch(/2026/);
+  });
+
+  it('does not leave a funds-rate context on 2000 when the line starts in 2020', () => {
+    const text = heuristicInsight({
+      ...reef,
+      title: 'US federal funds rate since 2020',
+      note: 'from 2000 onward',
+      xLabel: 'Month',
+      yLabel: 'Rate %',
+      chartType: 'line',
+      rows: [
+        { x: '2020-01', y: 1.55 },
+        { x: '2021-06', y: 0.08 },
+        { x: '2024-01', y: 5.33 },
+        { x: '2026-01', y: 4.2 },
+      ],
+    });
+    expect(text).not.toMatch(/\b2000\b/);
+    expect(text).toMatch(/2020-2026/);
+    expect(text).toMatch(/4\.2%/);
+  });
+
   it('does not say Pew when the source is Gallup', () => {
     const text = heuristicInsight({
       ...reef,
