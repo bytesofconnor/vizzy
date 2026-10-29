@@ -1,5 +1,6 @@
 import type { MintInput } from './mint';
 import type { Piece } from './pieces';
+import { looksLikeInstruction } from './remix-prompt';
 
 export type ChartSeed = {
   title: string;
@@ -257,6 +258,20 @@ export function followUpNeedsLookup(asked: string, seed?: ChartSeed): boolean {
     return true;
   }
   return years.some((year) => !seed.rows.some((row) => String(row.x).includes(year)));
+}
+
+export function keepsChartSubject(asked: string): boolean {
+  const text = asked.trim();
+  if (!text) {
+    return true;
+  }
+  if (looksLikeInstruction(text)) {
+    return true;
+  }
+  if (revisionYearSpan(text) !== undefined) {
+    return true;
+  }
+  return followUpNeedsLookup(text);
 }
 
 const UNSUPPORTED_VIZ =

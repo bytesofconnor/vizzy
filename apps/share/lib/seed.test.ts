@@ -3,6 +3,7 @@ import { PIECES } from './pieces';
 import {
   followUpNeedsLookup,
   isUnsupportedVizOnlyRevision,
+  keepsChartSubject,
   parseChartSeed,
   revisionYearSpan,
   seedFromPiece,
@@ -33,6 +34,22 @@ describe('followUpNeedsLookup', () => {
   it('looks up a 50-year window the current rows cannot cover', () => {
     const seed = seedFromPiece(PIECES.find((piece) => piece.slug === 'reef')!);
     expect(followUpNeedsLookup('can we see the past 50 years?', seed)).toBe(true);
+  });
+});
+
+describe('keepsChartSubject', () => {
+  it('keeps the chart for a revise command', () => {
+    expect(keepsChartSubject('Make it a line chart.')).toBe(true);
+    expect(keepsChartSubject('Drop 2025 and 2026.')).toBe(true);
+    expect(keepsChartSubject('can we see the past 50 years?')).toBe(true);
+    expect(keepsChartSubject('Sort by value. Drop the bottom three.')).toBe(true);
+  });
+
+  it('drops the chart when the prompt is a new subject', () => {
+    expect(keepsChartSubject('US unemployment since 2019')).toBe(false);
+    expect(keepsChartSubject('Bitcoin price from March to June 2021')).toBe(false);
+    expect(keepsChartSubject('Solar capacity added by country in 2023')).toBe(false);
+    expect(keepsChartSubject('eggs')).toBe(false);
   });
 });
 

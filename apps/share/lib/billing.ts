@@ -92,6 +92,29 @@ function normalizeWalletToken(raw: string): string | undefined {
   return token;
 }
 
+function tokenFromCookieHeader(header: string | null | undefined): string | undefined {
+  if (!header) {
+    return undefined;
+  }
+  for (const part of header.split(';')) {
+    const trimmed = part.trim();
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) {
+      continue;
+    }
+    if (trimmed.slice(0, eq) !== WALLET_COOKIE) {
+      continue;
+    }
+    const raw = trimmed.slice(eq + 1);
+    try {
+      return normalizeWalletToken(decodeURIComponent(raw));
+    } catch {
+      return normalizeWalletToken(raw);
+    }
+  }
+  return undefined;
+}
+
 export async function walletTokenFromRequest(request?: Request): Promise<string | undefined> {
   const header = request?.headers.get('authorization');
   if (header) {
@@ -103,7 +126,16 @@ export async function walletTokenFromRequest(request?: Request): Promise<string 
       }
     }
   }
-  return readWalletToken();
+  // next/headers cookies() throws once the compose stream leaves the request.
+  const fromRequest = tokenFromCookieHeader(request?.headers.get('cookie'));
+  if (fromRequest) {
+    return fromRequest;
+  }
+  try {
+    return await readWalletToken();
+  } catch {
+    return undefined;
+  }
 }
 
 export function walletCookieOptions() {

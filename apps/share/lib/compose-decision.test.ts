@@ -108,12 +108,34 @@ describe('decideCompose', () => {
     });
   });
 
-  it('mints eggs when a revision seed is set', () => {
-    expect(decideCompose({ prompt: 'eggs', disposition: undefined, seed })).toMatchObject({
+  it('mints a revise command with the current chart', () => {
+    expect(decideCompose({ prompt: 'Make it a line chart.', disposition: undefined, seed })).toMatchObject({
       kind: 'mint',
-      prompt: 'eggs',
+      prompt: 'Make it a line chart.',
       seed,
     });
+  });
+
+  it('does not keep the previous subject when revise names a new topic', () => {
+    const decision = decideCompose({
+      prompt: 'US unemployment since 2019',
+      disposition: undefined,
+      seed,
+    });
+    expect(decision).toMatchObject({
+      kind: 'mint',
+      prompt: 'US unemployment since 2019',
+    });
+    expect(decision).not.toHaveProperty('seed');
+  });
+
+  it('asks before a vague new topic even when a chart is open', () => {
+    const decision = decideCompose({ prompt: 'eggs', disposition: undefined, seed });
+    expect(decision.kind).toBe('clarify');
+    if (decision.kind !== 'clarify') {
+      return;
+    }
+    expect(decision.ask.question).toBe('What should the eggs chart measure?');
   });
 
   it('mints a one-word catalog alias shorter than 8 characters', () => {
