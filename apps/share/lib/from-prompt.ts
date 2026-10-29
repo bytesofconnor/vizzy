@@ -37,6 +37,7 @@ import {
   settleEncoding,
 } from './compose-guards';
 import { honorNamedSeries } from './named-series';
+import { spellTitleFromResolved } from './title-spelling';
 import { lookupDetail, reportProgress, type ComposeProgressReporter } from './compose-progress';
 import {
   alignAttribution,
@@ -471,9 +472,8 @@ export function mintDraft(
   }
   title = alignAttribution(title, source);
   note = alignAttribution(note, source);
-
-  return mintPiece({
-    title: honestTitle({
+  title = spellTitleFromResolved(
+    honestTitle({
       asked,
       title,
       xLabel,
@@ -483,6 +483,14 @@ export function mintDraft(
       sourceLabel: source.label,
       notes: gathered.notes,
     }),
+    {
+      rows,
+      labels: [yLabel, source.label, ...(drawn ? [drawn.sourceLabel, drawn.yLabel] : [])],
+    }
+  );
+
+  return mintPiece({
+    title,
     kicker: sketch ? output.kicker || 'Illustrative' : output.kicker,
     note,
     data: rows,

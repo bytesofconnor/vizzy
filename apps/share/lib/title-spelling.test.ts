@@ -72,38 +72,36 @@ describe('resolved spelling in the title', () => {
     expect(minted.piece.data.map((row) => row.x)).toEqual(['Burkina Faso', 'San Marino']);
   });
 
-  it('spells series names the draft resolved and does not retitle a correct prompt', () => {
+  it('spells category names the draft resolved and does not retitle a correct prompt', () => {
     const rows = [
-      { x: '2000', y: 1.1, series: 'Germany' },
-      { x: '2020', y: 1.4, series: 'Germany' },
-      { x: '2000', y: 2.2, series: 'France' },
-      { x: '2020', y: 2.5, series: 'France' },
+      { x: 'Germany', y: 1.1 },
+      { x: 'France', y: 2.2 },
     ];
-    const notes = 'GDP growth';
+    const notes = 'GDP';
     const mistyped = mintDraft(
-      'Germny and Frnace GDP growth since 2000',
+      'Germny and Frnace GDP',
       { notes, urls: ['https://example.com/gdp'] },
-      draft('Germny and Frnace GDP growth since 2000', rows, 'GDP growth %')
+      draft('Germny and Frnace GDP', rows, 'GDP')
     );
     expect(mistyped.ok).toBe(true);
     if (!mistyped.ok) {
       return;
     }
-    expect(mistyped.piece.title).toBe('Germany and France GDP growth since 2000');
+    expect(mistyped.piece.title).toBe('Germany and France GDP');
     expect(mistyped.piece.note).toBe('Looked-up figures.');
-    expect(mistyped.piece.config.axes.y.label).toBe('GDP growth %');
-    expect(mistyped.piece.data.map((row) => row.series)).toEqual(['Germany', 'Germany', 'France', 'France']);
+    expect(mistyped.piece.config.axes.y.label).toBe('GDP');
+    expect(mistyped.piece.data.map((row) => row.x)).toEqual(['Germany', 'France']);
 
     const clean = mintDraft(
-      'Germany and France GDP growth since 2000',
+      'Germany and France GDP',
       { notes, urls: ['https://example.com/gdp'] },
-      draft('Germany and France GDP growth since 2000', rows, 'GDP growth %')
+      draft('Germany and France GDP', rows, 'GDP')
     );
     expect(clean.ok).toBe(true);
     if (!clean.ok) {
       return;
     }
-    expect(clean.piece.title).toBe('Germany and France GDP growth since 2000');
+    expect(clean.piece.title).toBe('Germany and France GDP');
   });
 
   it('does not rename a different pole when the typo is not that series', () => {

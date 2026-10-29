@@ -5,6 +5,7 @@ import { honestTitle } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
 import { looksLikeInstruction, remixFollowUp } from './remix-prompt';
 import { sourceMethodFor } from './source';
+import { spellTitleFromResolved } from './title-spelling';
 import { studioChart } from './theme';
 
 const FAMILY_KICKER: Record<ResolvedSeries['family'], string> = {
@@ -177,17 +178,20 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
       ? `Change in ${series.yLabel}`
       : series.yLabel;
   const titled = { ...series, rows, xLabel, yLabel };
-  const title = titleWithSnapshotYear(
-    honestTitle({
-      asked,
-      title: titleFromAsked(asked, titled),
-      xLabel,
-      yLabel,
-      rows,
-      note: series.sourceLabel,
-      sourceLabel: series.sourceLabel,
-    }),
-    series.sourceLabel
+  const title = spellTitleFromResolved(
+    titleWithSnapshotYear(
+      honestTitle({
+        asked,
+        title: titleFromAsked(asked, titled),
+        xLabel,
+        yLabel,
+        rows,
+        note: series.sourceLabel,
+        sourceLabel: series.sourceLabel,
+      }),
+      series.sourceLabel
+    ),
+    { rows, labels: [yLabel, series.sourceLabel] }
   );
   const note = withDrawnSpan(textClashesWithSeries(asked, series) ? title : series.sourceLabel, rows);
   const config = studioChart(
