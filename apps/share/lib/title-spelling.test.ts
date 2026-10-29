@@ -8,7 +8,7 @@ const base: ResolvedSeries = {
   seriesId: 'wild_tigers',
   sourceLabel: 'Wikipedia — wild tiger population by country',
   sourceUrl: 'https://en.wikipedia.org/wiki/Tiger',
-  method: 'scraped',
+  method: 'official',
   retrieved: Date.UTC(2026, 9, 24),
   xLabel: 'Country',
   yLabel: 'Wild tigers',
@@ -26,7 +26,9 @@ describe('chart titles use resolved spellings', () => {
       return;
     }
     expect(minted.piece.title).toBe('Wild tigers by country');
-    expect(minted.piece.config.accessibility?.title).toBe('Wild tigers by country');
+    expect(minted.piece.config.accessibility?.title).toBe(
+      'Wild tigers by country'
+    );
   });
 
   it('spells a category the rows resolved when the prompt missed a letter', () => {
@@ -76,7 +78,40 @@ describe('chart titles use resolved spellings', () => {
       return;
     }
     expect(minted.piece.title).toBe('Burkina Faso literacy');
-    expect(minted.piece.data.map((row) => row.x)).toEqual(['Burkina Faso', 'Mali']);
+    expect(minted.piece.data.map(row => row.x)).toEqual([
+      'Burkina Faso',
+      'Mali',
+    ]);
+  });
+
+  it('spells an alias the series resolved when the axis label does not', () => {
+    const minted = mintFromOfficial('Atmospherice CO2 at Mauna Loa', {
+      ...base,
+      family: 'noaa',
+      seriesId: 'co2_annmean_mlo',
+      sourceLabel: 'NOAA GML — Mauna Loa CO₂ annual mean',
+      sourceUrl: 'https://gml.noaa.gov/ccgg/trends/data.html',
+      xLabel: 'Year',
+      yLabel: 'CO₂ ppm',
+      rows: [
+        { x: '2020', y: 414 },
+        { x: '2023', y: 421 },
+      ],
+    });
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(minted.piece.title).toBe('Atmospheric CO2 at Mauna Loa');
+  });
+
+  it('leaves a plural stem alone', () => {
+    const minted = mintFromOfficial('Wild tiger by country', base);
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(minted.piece.title).toBe('Wild tiger by country');
   });
 
   it('does not rewrite a different pole into the resolved one', () => {

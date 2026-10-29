@@ -8,6 +8,7 @@ import { honestSeriesTitle, mintFromOfficial, textClashesWithSeries } from './of
 import type { MintOrder } from './compose-decision';
 import { honestTitle } from './honor-prompt';
 import { titleForChart } from './remix-prompt';
+import { chartDrawnWords, spellTitleFromResolved } from './title-spelling';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
 import { tryLocalRevision } from './revision-apply';
 import {
@@ -472,8 +473,8 @@ export function mintDraft(
   title = alignAttribution(title, source);
   note = alignAttribution(note, source);
 
-  return mintPiece({
-    title: honestTitle({
+  const spelled = spellTitleFromResolved(
+    honestTitle({
       asked,
       title,
       xLabel,
@@ -483,6 +484,14 @@ export function mintDraft(
       sourceLabel: source.label,
       notes: gathered.notes,
     }),
+    {
+      drawn: chartDrawnWords([xLabel, yLabel], rows),
+      also: [source.label, ...(drawn?.aliases ?? []), drawn?.sourceLabel ?? '', drawn?.yLabel ?? ''],
+    }
+  );
+
+  return mintPiece({
+    title: spelled,
     kicker: sketch ? output.kicker || 'Illustrative' : output.kicker,
     note,
     data: rows,
