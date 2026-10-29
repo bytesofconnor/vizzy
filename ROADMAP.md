@@ -1,5 +1,5 @@
 # Vizzy Roadmap
-Updated: 2026-10-24 · Owner: Vizzy · North star: pasteable, opinionated charts for writers (link + PNG), chart excellence before My BI.
+Updated: 2026-10-28 · Owner: Vizzy · North star: pasteable, opinionated charts writers and agents can trust (link + PNG, with receipts). Chart excellence before My BI. Not another AI chart generator.
 
 ## Open (ranked; knock off from the top)
 1. **Standing live discovery.** Before other product work, run an anonymous pass on vizzy.run, file each failure as an Open item, and verify that path on the live site. Sessions on 2026-10-24 covered about nine charts, and the free tier then blocked more runs. A signed-in pass the same day ran 14 charts as Connor. The page showed Unlimited and then "50 left · generate whenever". That 50 did not change. The account was never blocked, so the unchanged 50 is not a separate failure. Chart failures from that pass are filed in the items below. A signed-in phone pass at 390px the same day ran 9 charts. Failures from that pass are filed in the items below. An anonymous pass on 2026-10-24 ran signed out. It made about three charts, and the free tier blocked a fourth. The solar check passed because the title was "Solar capacity added by country in 2023". The chart still plotted new additions, not total installed capacity. Check: on https://vizzy.run, repeat that prompt, and either the chart is total installed capacity for 2023 or the title says it is new capacity. File whatever still fails as the next Open item.
@@ -24,12 +24,15 @@ Updated: 2026-10-24 · Owner: Vizzy · North star: pasteable, opinionated charts
 - **Pricing line on the homepage** — 2026-10-23. Live note is "3 free today, then $8 for 25". Pack infra is `FREE_PER_DAY=3`, `PACK_CREDITS=25`, `PACK_CENTS=800`, Stripe and Convex. Already on vizzy.run. Copy in [35511fa](https://github.com/bytesofconnor/vizzy/commit/35511fabd79e0a310a5195cecdff2e25698c99d0). Constants in [6e004ec](https://github.com/bytesofconnor/vizzy/commit/6e004ecfa03f5c21676151a55477ae3e8efe7add).
 
 ## Later, after reliability
+- CHART.md taste and eval loop — after the Open reliability items are cleared. A machine-readable taste file names chart-type rules, receipt placement, and anti-patterns. Golden evals check charts against that file. The rules live in code, modeled on Vercel DESIGN.md and a code-level design system.
 - Personal chart library — a growth bet, not a fix for a chart that fails.
 - Edit a published chart at the same URL — the open chart can already be revised. A stable public id is later.
-- MCP expansion — `apps/mcp` already lists schema, validate, compile, and publish. New hosts are later.
-- Source picking with Jev.
+- MCP and a Muse-style host skill — a drop-in Vizzy skill, not a marketplace. It returns a chart URL and a PNG when Muse, or a similar host, calls it mid-task. The chart is a trust signal. `apps/mcp` already lists schema, validate, compile, and publish. More hosts come later.
+- Source picking with Jev — optional, and only after retrieval. It arbitrates sources the way a citation check or RAG passage gating does. It does not discover sources. Catalog and matcher fixes that already shipped come first.
 - My BI live pins.
 
 ## Not doing
 - Product Hunt launch — premature until the homepage converts and the chart loop is proven.
 - Broad "ChatGPT for BI" positioning — Vizzy is chart excellence first; My BI is later.
+- Muse marketplace brokerage — Vizzy is not a Muse broker.
+- "UI is gone" — the human-readable chart stays. Writers and agents both read that page.
