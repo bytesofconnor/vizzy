@@ -2,6 +2,8 @@
 
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { composeNeedsPay, homepageQuotaNote } from '../../lib/quota-note';
+import { payMessage } from '../../lib/pay';
 import { FREE_PER_DAY, PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import { PROMPT_LINES } from '../../lib/prompt-ideas';
 import { heuristicRevisionPrompts } from '../../lib/revision-heuristics';
@@ -187,21 +189,37 @@ export function ComposeBox({
     setFocusHero(window.matchMedia('(pointer: fine)').matches);
   }, [hero]);
 
+  const pullQuota = useCallback(async (): Promise<Quota | null> => {
+    try {
+      const response = await fetch('/api/quota', { cache: 'no-store' });
+      if (!response.ok) {
+        return null;
+      }
+      const body: unknown = await response.json();
+      if (!isQuota(body)) {
+        return null;
+      }
+      setQuota(body);
+      return body;
+    } catch {
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     let cancel = false;
-    void fetch('/api/quota')
-      .then((response) => response.json())
-      .then((body: unknown) => {
-        if (cancel || !isQuota(body)) {
-          return;
-        }
-        setQuota(body);
-      })
-      .catch(() => undefined);
+    void pullQuota();
+    const onVisible = () => {
+      if (!cancel && document.visibilityState === 'visible') {
+        void pullQuota();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancel = true;
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [pullQuota]);
 
   useEffect(() => {
     onBusyProgress?.(busy ? composeProgress : null);
@@ -274,6 +292,13 @@ export function ComposeBox({
       return;
     }
 
+    const latest = await pullQuota();
+    if (composeNeedsPay(latest)) {
+      setPay(true);
+      setNotice({ kind: 'fail', error: payMessage(), pay: true });
+      return;
+    }
+
     const useSeed = studio && !goFresh;
     onComposeStart?.({ fresh: goFresh });
     setPromptFresh(false);
@@ -302,9 +327,7 @@ export function ComposeBox({
             onMinted(outcome.piece, outcome.url);
             setPrompt('');
             setHeld(false);
-            setBusy(false);
-            setComposeProgress(null);
-            return;
+            break;
           }
           window.location.assign(outcome.url);
           return;
@@ -325,10 +348,11 @@ export function ComposeBox({
       }
     } catch {
       setNotice({ kind: 'fail', error: 'Could not generate that chart', pay: false });
+    } finally {
+      await pullQuota();
+      setBusy(false);
+      setComposeProgress(null);
     }
-
-    setBusy(false);
-    setComposeProgress(null);
   }
 
   submitRef.current = (fresh?: boolean, askedOverride?: string) => {
@@ -568,32 +592,6 @@ function ClarifyRow({
   );
 }
 
-function heroMarketingLine(): string {
-  return `${FREE_PER_DAY} free today, then ${PACK_PRICE_LABEL} for ${PACK_CREDITS}`;
-}
-
-function heroPersonalBadge(quota: Quota | null): string | null {
-  if (!quota?.configured) {
-    return null;
-  }
-  if (quota.justPaid && (quota.credits ?? 0) > 0) {
-    return `${quota.credits} added`;
-  }
-  if (quota.unlimited) {
-    return 'Unlimited';
-  }
-  if (quota.credits > 0) {
-    return `${quota.credits} left`;
-  }
-  if (quota.freeLeft > 0 && quota.freeLeft < FREE_PER_DAY) {
-    return `${quota.freeLeft} free today`;
-  }
-  if (quota.freeLeft <= 0) {
-    return 'No free charts today';
-  }
-  return null;
-}
-
 function HeroPricingNote({
   quota,
   pay,
@@ -605,40 +603,21 @@ function HeroPricingNote({
   buying: boolean;
   onBuy: () => void;
 }) {
-  const unlimited = Boolean(quota?.unlimited);
-  const justPaid = Boolean(quota?.justPaid);
-  const outOfFree =
-    Boolean(quota?.configured) && !unlimited && quota.freeLeft <= 0 && (quota.credits ?? 0) <= 0;
+  const note = homepageQuotaNote(quota);
+  const unlimited = Boolean(quota?.configured && quota.unlimited);
+  const justPaid = Boolean(quota?.configured && quota.justPaid);
+  const outOfFree = composeNeedsPay(quota);
   const showBuy = !unlimited && !justPaid && (pay || outOfFree);
-
-  const badge = heroPersonalBadge(quota);
-  const showMarketing = !unlimited && !justPaid;
-
-  if (unlimited && badge) {
-    return (
-      <span className="compose-bar-note">
-        <span className="compose-bar-note-badge">{badge}</span>
-      </span>
-    );
-  }
-
-  if (justPaid && badge) {
-    return (
-      <span className="compose-bar-note">
-        <span className="compose-bar-note-badge">{badge}</span>
-      </span>
-    );
-  }
 
   return (
     <span className="compose-bar-note">
-      {badge ? (
+      {note.badge ? (
         <>
-          <span className="compose-bar-note-badge">{badge}</span>
-          {showMarketing ? <span aria-hidden="true">·</span> : null}
+          <span className="compose-bar-note-badge">{note.badge}</span>
+          {note.status ? <span aria-hidden="true">·</span> : null}
         </>
       ) : null}
-      {showMarketing ? <span className="compose-bar-note-status">{heroMarketingLine()}</span> : null}
+      {note.status ? <span className="compose-bar-note-status">{note.status}</span> : null}
       {showBuy ? (
         <span className="compose-bar-note-actions">
           {' · '}
@@ -671,9 +650,9 @@ function StudioBarNote({
     status = `${credits} left · generate whenever`;
   } else if (quota?.configured && credits > 0) {
     status = `${credits} left`;
-  } else if (quota?.configured && (quota.freeLeft ?? 0) > 0) {
+  } else if (quota?.configured && quota.canCompose && (quota.freeLeft ?? 0) > 0) {
     status = `${quota.freeLeft} free today`;
-  } else if (quota?.configured) {
+  } else if (quota?.configured && !unlimited) {
     status = 'No free charts today';
   }
 
