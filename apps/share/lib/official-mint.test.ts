@@ -242,6 +242,64 @@ describe('mintFromOfficial', () => {
     expect(minted.piece.data.some((row) => Number(row.x) < 2000)).toBe(false);
   });
 
+  it('matches the extreme poverty note to an axis that ends in 2023', () => {
+    const minted = mintFromOfficial('Extreme poverty 1990-2023', {
+      ...co2,
+      family: 'owid',
+      seriesId: 'extreme_poverty',
+      sourceLabel: 'Our World in Data — share in extreme poverty',
+      sourceUrl: 'https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty',
+      xLabel: 'Year',
+      yLabel: 'Share in poverty %',
+      rows: [
+        { x: '1990', y: 43.4 },
+        { x: '2000', y: 29.1 },
+        { x: '2010', y: 16.2 },
+        { x: '2023', y: 10.5 },
+        { x: '2026', y: 9.8 },
+      ],
+    });
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const years = minted.piece.data.map((row) => Number(row.x));
+    expect(Math.min(...years)).toBe(1990);
+    expect(Math.max(...years)).toBe(2023);
+    expect(minted.piece.data.find((row) => row.x === '2023')?.y).toBe(10.5);
+    expect(minted.piece.data.some((row) => row.y === 9.8 || row.x === '2026')).toBe(false);
+    expect(minted.piece.note).toMatch(/1990-2023/);
+    expect(minted.piece.note).not.toMatch(/2026/);
+    expect(minted.piece.config.chart.type).toBe('line');
+  });
+
+  it('draws Antarctic sea ice for 1979-2023 without a 2026 axis', () => {
+    const minted = mintFromOfficial('Antarctic sea ice extent 1979-2023 NSIDC', {
+      ...co2,
+      family: 'owid',
+      seriesId: 'antarctic_sea_ice',
+      sourceLabel: 'Our World in Data — Antarctic sea ice (NSIDC)',
+      sourceUrl: 'https://ourworldindata.org/grapher/antarctica-sea-ice-extent',
+      xLabel: 'Year',
+      yLabel: 'February minimum (million km²)',
+      rows: [
+        { x: '1978', y: 3 },
+        { x: '1979', y: 3.141 },
+        { x: '2023', y: 1.978 },
+        { x: '2026', y: 2.912 },
+      ],
+    });
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const years = minted.piece.data.map((row) => Number(row.x));
+    expect(Math.min(...years)).toBe(1979);
+    expect(Math.max(...years)).toBe(2023);
+    expect(minted.piece.note).toMatch(/1979-2023/);
+    expect(minted.piece.note).not.toMatch(/2026/);
+  });
+
   it('draws the federal funds rate since 2020 as a line, not bars from 2000', () => {
     const rows = [];
     for (let year = 1998; year <= 2026; year += 1) {
@@ -263,8 +321,12 @@ describe('mintFromOfficial', () => {
     }
     const years = minted.piece.data.map((row) => Number(String(row.x).slice(0, 4)));
     expect(Math.min(...years)).toBeGreaterThanOrEqual(2020);
+    expect(Math.max(...years)).toBe(2026);
+    expect(minted.piece.data.some((row) => String(row.x).startsWith('2000'))).toBe(false);
     expect(minted.piece.config.chart.type).toBe('line');
     expect(minted.piece.title.toLowerCase()).not.toContain('2000');
+    expect(minted.piece.note).toMatch(/2020-2026/);
+    expect(minted.piece.note).not.toMatch(/\b2000\b/);
   });
 
   it('says country ranking when a since-year place series is a country snapshot', () => {

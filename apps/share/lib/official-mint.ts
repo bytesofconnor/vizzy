@@ -1,4 +1,5 @@
 import { phraseIn, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
+import { withDrawnSpan } from './year-span';
 import { fitChartType } from './compose-guards';
 import { honestTitle } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
@@ -188,7 +189,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     }),
     series.sourceLabel
   );
-  const note = textClashesWithSeries(asked, series) ? title : series.sourceLabel;
+  const note = withDrawnSpan(textClashesWithSeries(asked, series) ? title : series.sourceLabel, rows);
   const config = studioChart(
     chartType === 'line' ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
     { x: 'x', y: 'y', ...(multi ? { color: 'series' as const } : {}) },
