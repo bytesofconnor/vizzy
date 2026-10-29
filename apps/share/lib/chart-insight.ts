@@ -6,6 +6,7 @@ import { isAiGatewayConfigured } from './ai-gateway';
 import { logAiFromResult } from './ai-usage';
 import { GATEWAY_NO_RETRY, isGatewayRateLimited } from './gateway-errors';
 import { seedBriefing, type ChartSeed } from './seed';
+import { alignPlottedClaims } from './plotted-claims';
 import {
   alignContext,
   heuristicInsight,
@@ -304,13 +305,19 @@ export async function chartLessonForSeed(
     .digest('hex')
     .slice(0, 12)}`;
   try {
-    return await cachedChartLesson(
+    const lesson = await cachedChartLesson(
       fingerprint,
       JSON.stringify(seed),
       (insight ?? '').slice(0, 900),
       safeLayer,
       JSON.stringify(trimmedPrior)
     );
+    return {
+      notice: alignPlottedClaims(lesson.notice, seed.rows),
+      teach: alignPlottedClaims(lesson.teach, seed.rows),
+      question: alignPlottedClaims(lesson.question, seed.rows),
+      tryNext: alignPlottedClaims(lesson.tryNext, seed.rows),
+    };
   } catch {
     return heuristicLesson(seed, safeLayer);
   }

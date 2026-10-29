@@ -19,7 +19,7 @@ export function parseWorldBank(text: string, take: 'high' | 'low' = 'high'): Ser
   if (!Array.isArray(body) || body.length < 2 || !Array.isArray(body[1])) {
     return [];
   }
-  const rows: SeriesRow[] = [];
+  const latest = new Map<string, { y: number; date: string }>();
   for (const entry of body[1] as BankRow[]) {
     const name = entry.country?.value?.trim();
     const y = entry.value;
@@ -29,12 +29,18 @@ export function parseWorldBank(text: string, take: 'high' | 'low' = 'high'): Ser
     if (name.length > 40) {
       continue;
     }
-    rows.push({ x: name, y: y >= 1000 ? Math.round(y) : Math.round(y * 1000) / 1000 });
+    const date = entry.date ?? '';
+    const rounded = y >= 1000 ? Math.round(y) : Math.round(y * 1000) / 1000;
+    const prev = latest.get(name);
+    if (!prev || date >= prev.date) {
+      latest.set(name, { y: rounded, date });
+    }
   }
+  const rows = [...latest.entries()].map(([x, item]) => ({ x, y: item.y }));
   rows.sort((a, b) => (take === 'low' ? a.y - b.y : b.y - a.y));
   return rows;
 }
 
-export function worldBankUrl(indicator: string, year = 2022): string {
-  return `https://api.worldbank.org/v2/country/all/indicator/${encodeURIComponent(indicator)}?date=${year}:${year}&format=json&per_page=300`;
+export function worldBankUrl(indicator: string): string {
+  return `https://api.worldbank.org/v2/country/all/indicator/${encodeURIComponent(indicator)}?date=2015:2025&format=json&per_page=20000`;
 }

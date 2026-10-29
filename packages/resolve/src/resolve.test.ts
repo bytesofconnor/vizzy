@@ -401,8 +401,68 @@ describe('resolvePrompt', () => {
 
     const ranking = await resolvePrompt('GDP per capita by country', { get: async () => body });
     expect(ranking?.rows).toHaveLength(15);
+    expect(ranking?.truncatedTo).toBe(15);
     expect(ranking?.rows.map((row) => row.x)).not.toContain('India');
     expect(ranking?.rows.map((row) => row.x)).not.toContain('China');
+  });
+
+  it('plots life expectancy for Japan, the US, and Nigeria from the latest year', async () => {
+    const body = JSON.stringify([
+      {},
+      [
+        { country: { value: 'Japan' }, date: '2022', value: null },
+        { country: { value: 'Japan' }, date: '2024', value: 84.04 },
+        { country: { value: 'United States' }, date: '2024', value: 78.89 },
+        { country: { value: 'Nigeria' }, date: '2023', value: 54.5 },
+        { country: { value: 'Nigeria' }, date: '2024', value: 54.64 },
+        { country: { value: 'Monaco' }, date: '2024', value: 86.1 },
+        { country: { value: 'World' }, date: '2024', value: 72 },
+      ],
+    ]);
+    expect(matchPrompt('life expectancy in Japan, US, Nigeria')?.seriesId).toBe('SP.DYN.LE00.IN');
+    const series = await resolvePrompt('life expectancy in Japan, US, Nigeria', {
+      get: async () => body,
+    });
+    expect(series?.rows.map((row) => row.x).sort()).toEqual(['Japan', 'Nigeria', 'United States']);
+    expect(series?.rows.find((row) => row.x === 'Japan')?.y).toBe(84.04);
+    expect(series?.rows.find((row) => row.x === 'Nigeria')?.y).toBe(54.64);
+    expect(series?.method).toBe('official');
+
+    const missing = await resolvePrompt('life expectancy in Japan, US, Nigeria', {
+      get: async () =>
+        JSON.stringify([
+          {},
+          [
+            { country: { value: 'Japan' }, date: '2024', value: 84 },
+            { country: { value: 'United States' }, date: '2024', value: 79 },
+            { country: { value: 'Monaco' }, date: '2024', value: 86 },
+          ],
+        ]),
+    });
+    expect(missing).toBeNull();
+  });
+
+  it('plots renewable electricity share for Germany and France', async () => {
+    const body = JSON.stringify([
+      {},
+      [
+        { country: { value: 'Germany' }, date: '2022', value: null },
+        { country: { value: 'Germany' }, date: '2021', value: 39.8 },
+        { country: { value: 'France' }, date: '2022', value: null },
+        { country: { value: 'France' }, date: '2021', value: 22.8 },
+        { country: { value: 'Norway' }, date: '2021', value: 98.5 },
+      ],
+    ]);
+    const asked = 'share of renewable electricity in Germany vs France';
+    expect(matchPrompt(asked)?.seriesId).toBe('EG.ELC.RNEW.ZS');
+    const series = await resolvePrompt(asked, { get: async () => body });
+    expect(series?.sourceLabel.toLowerCase()).toContain('renewable electricity');
+    expect(series?.sourceUrl).toContain('EG.ELC.RNEW.ZS');
+    expect(series?.method).toBe('official');
+    expect(series?.rows.map((row) => row.x).sort()).toEqual(['France', 'Germany']);
+    expect(series?.rows.find((row) => row.x === 'Germany')?.y).toBe(39.8);
+    expect(series?.rows.find((row) => row.x === 'France')?.y).toBe(22.8);
+    expect(series?.rows.every((row) => row.y > 0)).toBe(true);
   });
 
   it('charts extreme poverty for 1990-2023, not the population column', async () => {

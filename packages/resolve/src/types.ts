@@ -50,6 +50,7 @@ export type ResolvedSeries = {
   xLabel: string;
   yLabel: string;
   rows: SeriesRow[];
+  truncatedTo?: number;
 };
 
 export type HttpGet = (url: string) => Promise<string>;

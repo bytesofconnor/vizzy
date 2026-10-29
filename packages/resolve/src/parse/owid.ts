@@ -225,8 +225,7 @@ export function parseOwidCsv(csv: string, spec: OwidSpec): SeriesRow[] {
     const rows = parsed
       .filter((row) => row.year === year && !skipEntity(row.entity) && row.entity.length <= 40)
       .map((row) => ({ x: row.entity.slice(0, 40), y: roundY(row.y) }))
-      .sort((a, b) => b.y - a.y)
-      .slice(0, 15);
+      .sort((a, b) => b.y - a.y);
     if (rows.length >= 3) {
       return rows;
     }

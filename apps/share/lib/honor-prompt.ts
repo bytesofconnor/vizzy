@@ -20,6 +20,20 @@ type Needs = {
   singleYear: boolean;
 };
 
+export function withTopCount(title: string, truncatedTo?: number): string {
+  if (!truncatedTo || truncatedTo < 2) {
+    return title;
+  }
+  if (new RegExp(`\\btop\\s+${truncatedTo}\\b`, 'i').test(title)) {
+    return title;
+  }
+  const trimmed = title.trim();
+  if (!trimmed) {
+    return `Top ${truncatedTo}`;
+  }
+  return `${trimmed}, top ${truncatedTo}`;
+}
+
 export function honestTitle(input: HonorInput): string {
   const needs = readNeeds(input);
   if (!needs.newCapacity && !needs.countryRanking && !needs.singleYear) {

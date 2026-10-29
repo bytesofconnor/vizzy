@@ -14,6 +14,7 @@ export type WikiTableSpec = {
 type ParsedWiki = {
   rows: SeriesRow[];
   snapshotYear?: string;
+  truncatedTo?: number;
 };
 
 function stripTags(html: string): string {
@@ -146,10 +147,12 @@ function parseWikiTablesDetailed(html: string, spec: WikiTableSpec): ParsedWiki 
       continue;
     }
     if (rows.length >= 3) {
-      const kept = [...paired].sort((a, b) => b.row.y - a.row.y).slice(0, 15);
+      const sorted = [...paired].sort((a, b) => b.row.y - a.row.y);
+      const kept = sorted.slice(0, 15);
       return {
         rows: kept.map((item) => item.row),
         snapshotYear: oneSnapshotYear(kept.map((item) => item.year)),
+        ...(sorted.length > 15 ? { truncatedTo: 15 } : {}),
       };
     }
   }
@@ -239,6 +242,10 @@ function wikiPage(source: string, spec: WikiTableSpec): ParsedWiki {
 
 export function parseWikiApi(jsonText: string, spec: WikiTableSpec): SeriesRow[] {
   return wikiPage(jsonText, spec).rows;
+}
+
+export function readWiki(source: string, spec: WikiTableSpec): ParsedWiki {
+  return wikiPage(source, spec);
 }
 
 export function wikiSnapshotYear(source: string, spec: WikiTableSpec): string | undefined {

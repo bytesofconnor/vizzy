@@ -1,12 +1,12 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex, seriesIsSketch } from '@vizzy/core';
-import { datasetForSourceUrl, matchPrompt } from '@vizzy/resolve';
+import { datasetForSourceUrl, labelIsPlace, matchPrompt, placesInAsked } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { honestSeriesTitle, mintFromOfficial, textClashesWithSeries } from './official-mint';
 import type { MintOrder } from './compose-decision';
-import { honestTitle } from './honor-prompt';
+import { honestTitle, withTopCount } from './honor-prompt';
 import { titleForChart } from './remix-prompt';
 import { chartDrawnWords, spellTitleFromResolved } from './title-spelling';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
@@ -80,7 +80,7 @@ const DraftSchema = z.object({
 const SYSTEM = `You emit a Vizzy chart draft. Types: bar, line, scatter only. No pie.
 Use the user's numbers when they paste a table.
 If LOOKED-UP NOTES contain a real series, chart those numbers. Do not invent a different table.
-Aim for about 15 rows on a ranking or named-category bar chart. If the user asked for every member of a set, such as every US state or a breakdown by US state, include the whole set, up to 60 rows. Do not stop around 15. A year by month is 12. A season is the published games so far. Do not pad past the natural series. Only take a top N when the user asked for one.
+If the user asked for every member of a set, such as every US state or a breakdown by US state, include the whole set, up to 60 rows. Do not stop around 15. A year by month is 12. A season is the published games so far. Do not pad past the natural series. Only take a top N when the user asked for one.
 If the user asked for decades of a yearly series (last 30 years, past 50 years), emit one row per year and prefer a line. Sequential year series may run up to about 50 points.
 If LOOKED-UP NOTES contain real numbers with a page, chart them and set sourceMethod scraped or official. Attach the page in sourceLabel. Put the page URL in SOURCE CANDIDATES on the chart when you have one.
 If lookup failed and the user pasted no numbers, sourceMethod must be estimate, evidence must say lookup failed, and there must be no URL. Never dress a miss as official or scraped. sourceLabel must name what you tried to find. Even then, x must be real names from the question (Japan, Brazil, Arsenal) — never Country A, Team B, Item 1, or Rank 1.
@@ -91,7 +91,7 @@ y must be numeric. Keep titles short. Title names the series (Protected waters %
 Named categories cap around 15, unless the user asked for every member of a set or a breakdown by US state. Then include the whole set, up to 60 rows. Sequential series may be longer.
 If y is a calendar year, keep it as the year. Do not convert it to a count from zero.
 Keep category names short enough to sit under a bar: August Schell, not August Schell Brewing Company.
-x is the name of each thing (skill, team, city, country). Never Rank 1, #3, Country A, or a place index. A top-10 chart still labels each bar with the name. For a country chart with no lookup, pick diverse real countries the reader recognizes.
+x is the name of each thing (skill, team, city, country). Never Rank 1, #3, Country A, or a place index. A top-10 chart still labels each bar with the name.
 One metric per chart. Each x value is one thing, once. Never "Claude Code (Rank)" and "Claude Code (usage %)". Rank and a percentage must never share a y axis.
 When the user names several series (Germany, France, and Spain; Netflix versus Disney+; nuclear, coal, and gas), set series on every row and keep every named series the notes contain. Do not collapse them into one line. If the notes only have some of those names, the title must name the series and the range you drew, such as "mostly Germany, 2015-2023" or "Austin 2025".
 If CURRENT CHART is in the prompt, this is a second pass on that chart. Keep those rows unless the follow-up asks to drop, add, sort, change numbers, or widen the time window. Honor the follow-up. If they ask for more years than CURRENT CHART has, use LOOKED-UP NOTES for the longer series — do not keep the short window. Do not switch subjects. Keep the existing source unless LOOKED-UP NOTES contain a new published series. Never set sourceMethod to estimate just because the user filtered or restyled the current rows.`;
@@ -284,7 +284,7 @@ export async function pieceFromPrompt(
         });
         const named = await draftChart(
           model,
-          `${briefing}\n\nThe first draft used placeholder labels like Country A or Item 1. Replace every x with a REAL name from the user's question or notes (country, city, team, product). Illustrative y values are fine. Never Country A, Team B, or Item 3.`
+          `${briefing}\n\nThe first draft used placeholder labels like Country A or Item 1. Replace every x with a REAL name from the user's question or notes (country, city, team, product). Never Country A, Team B, or Item 3.`
         );
         if (named && !mostlyGenericPlaceholders(named.rows)) {
           output = named;
@@ -386,7 +386,11 @@ export function mintDraft(
     output.yLabel.trim() || 'Value',
     asked
   );
-  const named = withNamedCategories(tidied.rows, gathered.notes, tidied.xLabel, asked);
+  const askedRows = keepNamedPlaceRows(tidied.rows, asked, gathered.notes);
+  if (!askedRows) {
+    return { ok: false, error: PUBLISHED_MISS, issues: [] };
+  }
+  const named = withNamedCategories(askedRows, gathered.notes, tidied.xLabel, asked);
   if (output.chartType !== 'scatter' && mostlyRankIndex(named.rows) && !from) {
     return { ok: false, error: 'Could not find named figures to chart', issues: [] };
   }
@@ -424,17 +428,26 @@ export function mintDraft(
   }
   rows = encoded.rows;
   let yLabel = encoded.yLabel;
-  const honored = honorNamedSeries({
-    asked,
-    notes: gathered.notes,
-    rows: output.rows.map((row) => ({
+  const honoredSource = keepNamedPlaceRows(
+    output.rows.map((row) => ({
       x: output.chartType === 'scatter' ? row.x : String(row.x),
       y: row.y,
       ...(row.series?.trim() ? { series: row.series.trim() } : {}),
     })),
+    asked,
+    gathered.notes
+  );
+  const honored = honorNamedSeries({
+    asked,
+    notes: gathered.notes,
+    rows: honoredSource ?? [],
   });
   if (honored) {
-    rows = honored.rows;
+    const honoredRows = keepNamedPlaceRows(honored.rows, asked, gathered.notes);
+    if (!honoredRows) {
+      return { ok: false, error: PUBLISHED_MISS, issues: [] };
+    }
+    rows = honoredRows;
   }
   const chartType = honored?.multi ? 'line' : fitChartType(output.chartType, rows, asked);
   let xLabel = named.xLabel;
@@ -501,7 +514,7 @@ export function mintDraft(
   );
 
   return mintPiece({
-    title: spelled,
+    title: withTopCount(spelled, tidied.truncatedTo),
     kicker: sketch ? output.kicker || 'Illustrative' : output.kicker,
     note,
     data: rows,
@@ -873,7 +886,7 @@ export function tidyComparison(
   xLabel: string,
   yLabel: string,
   asked = ''
-): { rows: DraftRow[]; xLabel: string; yLabel: string } {
+): { rows: DraftRow[]; xLabel: string; yLabel: string; truncatedTo?: number } {
   const parsed = rows.map((row) => {
     const raw = String(row.x);
     const match = raw.match(NAMED_METRIC);
@@ -895,12 +908,134 @@ export function tidyComparison(
     y: row.y,
   }));
   const series = looksLikeSeries(stripped.map((row) => String(row.x)));
-  const capped = series ? stripped.slice(0, 24) : stripped.slice(0, categoryRowCap(asked));
+  const cap = categoryRowCap(asked);
+  const truncatedTo = !series && stripped.length > cap ? cap : undefined;
+  const capped = series ? stripped.slice(0, 24) : stripped.slice(0, cap);
   return {
     rows: capped,
+    ...(truncatedTo ? { truncatedTo } : {}),
     xLabel: chosen ? xLabel.replace(/\s*[&+/|,]\s*metric.*$/i, '').trim() || 'Name' : xLabel,
     yLabel: chosen ? labelForMetric(chosen, yLabel) : yLabel,
   };
+}
+
+function tableCells(line: string): string[] {
+  return line.split('|').map((cell) => cell.trim()).filter(Boolean);
+}
+
+function cellNumber(cell: string): number | undefined {
+  const match = cell.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+  if (!match) {
+    return undefined;
+  }
+  const value = Number(match[0]);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function columnValues(label: string, notes: string): number[] {
+  const lines = notes.split('\n').map((line) => line.trim()).filter((line) => line.includes('|'));
+  const table = lines.filter((line) => !/^[-|:.\s]+$/.test(line));
+  if (table.length < 2) {
+    return [];
+  }
+  const header = tableCells(table[0] ?? '');
+  const needle = label.toLowerCase();
+  const index = header.findIndex((cell) => cell.toLowerCase() === needle || labelIsPlace(cell, label));
+  if (index < 0) {
+    return [];
+  }
+  const values: number[] = [];
+  for (const line of table.slice(1)) {
+    const value = cellNumber(tableCells(line)[index] ?? '');
+    if (value !== undefined) {
+      values.push(value);
+    }
+  }
+  return values;
+}
+
+function noteValues(label: string, notes: string): number[] {
+  const column = columnValues(label, notes);
+  if (column.length > 0) {
+    return column;
+  }
+  const needle = label.toLowerCase();
+  const beside: number[] = [];
+  for (const line of notes.split('\n')) {
+    if (!line.toLowerCase().includes(needle)) {
+      continue;
+    }
+    const cells = tableCells(line);
+    const index = cells.findIndex((cell) => cell.toLowerCase().includes(needle));
+    const pool = index >= 0 ? cells.slice(index + 1) : [line];
+    for (const cell of pool) {
+      const value = cellNumber(cell);
+      if (value !== undefined) {
+        beside.push(value);
+      }
+    }
+  }
+  if (beside.length > 0) {
+    return beside;
+  }
+  if (!notes.toLowerCase().includes(needle)) {
+    return [];
+  }
+  const tableNumbers: number[] = [];
+  for (const line of notes.split('\n')) {
+    if (!line.includes('|') || /^[-|:.\s]+$/.test(line.trim())) {
+      continue;
+    }
+    for (const cell of tableCells(line)) {
+      if (/[A-Za-z]/.test(cell)) {
+        continue;
+      }
+      const value = cellNumber(cell);
+      if (value !== undefined) {
+        tableNumbers.push(value);
+      }
+    }
+  }
+  return tableNumbers;
+}
+
+function keepNamedPlaceRows<T extends { x: string | number; y: number | null; series?: string }>(
+  rows: T[],
+  asked: string,
+  notes: string
+): T[] | null {
+  const wanted = placesInAsked(asked);
+  if (wanted.length === 0) {
+    return rows;
+  }
+  const matches = rows.some((row) =>
+    wanted.some((entity) => labelIsPlace(String(row.series || row.x), entity))
+  );
+  if (!matches) {
+    return rows;
+  }
+  const kept: T[] = [];
+  for (const row of rows) {
+    const label = String(row.series || row.x);
+    const entity = wanted.find((item) => labelIsPlace(label, item));
+    if (!entity) {
+      continue;
+    }
+    const published = [...noteValues(label, notes), ...noteValues(entity, notes)];
+    if (row.y !== null && published.some((value) => value === row.y)) {
+      kept.push(row);
+      continue;
+    }
+    const unique = [...new Set(published)];
+    if (unique.length === 1) {
+      kept.push({ ...row, y: unique[0]! });
+      continue;
+    }
+    if (published.length === 0 && row.y !== null && notes.trim() === '') {
+      kept.push(row);
+    }
+  }
+  return kept.length > 0 ? kept : null;
 }
 
 function pickMetric(
