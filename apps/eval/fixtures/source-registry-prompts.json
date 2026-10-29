@@ -1,0 +1,27 @@
+{
+  "id": "source-registry-qa",
+  "measures": ["catalog-hit rate", "correct-series rate"],
+  "note": "The source-registry item in ROADMAP.md owns this set. Prompts 1 through 12 are the examples named for that check. Prompts 13 through 20 are prompts already named elsewhere on that roadmap. The canned eval grid does not import this file.",
+  "prompts": [
+    { "id": "us-gdp-since-2000", "text": "US GDP since 2000" },
+    { "id": "unemployment-by-us-state", "text": "unemployment by US state" },
+    { "id": "bitcoin-5y", "text": "bitcoin 5y" },
+    { "id": "minneapolis-monthly-temp", "text": "Minneapolis monthly temp" },
+    { "id": "housing", "text": "housing" },
+    { "id": "antarctic-sea-ice", "text": "Antarctic sea ice" },
+    { "id": "renewable-share-germany-france", "text": "renewable share Germany vs France" },
+    { "id": "sp500-20y", "text": "S&P 500 20y" },
+    { "id": "life-expectancy-japan-us-nigeria", "text": "life expectancy Japan/US/Nigeria" },
+    { "id": "minneapolis-rent", "text": "Minneapolis rent" },
+    { "id": "coffee-prices", "text": "coffee prices" },
+    { "id": "top-10-us-cities", "text": "top 10 US cities" },
+    { "id": "fed-funds-since-2020", "text": "US federal funds rate since 2020" },
+    { "id": "cpi-inflation", "text": "CPI inflation" },
+    { "id": "gdp-per-capita-us-china-india", "text": "GDP per capita, United States vs China vs India, latest year" },
+    { "id": "solar-capacity-added-2023", "text": "Solar capacity added by country in 2023" },
+    { "id": "global-temperature-anomaly", "text": "global temperature anomaly" },
+    { "id": "extreme-poverty-1990-2023", "text": "Extreme poverty 1990-2023" },
+    { "id": "arctic-sea-ice", "text": "Arctic sea ice" },
+    { "id": "us-unemployment-since-2019", "text": "US unemployment since 2019" }
+  ]
+}
