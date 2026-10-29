@@ -28,8 +28,37 @@ describe('xAxisRoom', () => {
   it('treats fiscal-year lines as sequential and compacts their labels', () => {
     const years = ['2019/20', '2020/21', '2021/22', '2022/23', '2023/24', '2024/25'];
     expect(looksSequentialX(years)).toBe(true);
-    expect(compactAxisLabel('2019/20')).toBe('19/20');
+    expect(compactAxisLabel('2019/20')).toBe('2019/20');
     expect(xTickRotate(years, 320)).toBe(0);
+  });
+
+  it('keeps calendar months and years readable', () => {
+    expect(compactAxisLabel('2000-01')).toBe('Jan 2000');
+    expect(compactAxisLabel('2020-01')).toBe('Jan 2020');
+    expect(compactAxisLabel('1979')).toBe('1979');
+    expect(compactAxisLabel('2000')).toBe('2000');
+    expect(compactAxisLabel('2023')).toBe('2023');
+    expect(compactAxisLabel('Q2 2020')).toBe('Q2 2020');
+    expect(compactAxisLabel('Jan 2025')).toBe('Jan 2025');
+    expect(compactAxisLabel('Sweater Weather')).toBe('Sweater Weather');
+  });
+
+  it('does not shorten place names to the last word', () => {
+    const names = [
+      'United States',
+      'United Kingdom',
+      'Burkina Faso',
+      'New Jersey',
+      'San Marino',
+      'China',
+      'India',
+      'Russia',
+      'Japan',
+      'France',
+      'Germany',
+      'Brazil',
+    ];
+    expect(shortCategoryNames(names)).toEqual(names);
   });
 
   it('does not rotate a short named set', () => {
