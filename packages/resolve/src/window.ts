@@ -31,17 +31,18 @@ export function windowSpan(
 
 const MONTH_STAMP = /^(?:19|20)\d{2}-\d{2}$/;
 const MONTHLY_KEEP = 80;
+const MONTHLY_SHARE = 0.7;
 
-/** A few years of months stay monthly. A longer history still thins to MAX_ROWS. */
 export function rowCap(rows: SeriesRow[]): number {
-  if (rows.length <= MAX_ROWS) {
-    return MAX_ROWS;
-  }
-  const monthly = rows.filter((row) => MONTH_STAMP.test(String(row.x).trim())).length;
-  if (monthly < Math.ceil(rows.length * 0.7) || rows.length > MONTHLY_KEEP) {
+  if (rows.length <= MAX_ROWS || rows.length > MONTHLY_KEEP || !mostlyMonthly(rows)) {
     return MAX_ROWS;
   }
   return rows.length;
+}
+
+function mostlyMonthly(rows: SeriesRow[]): boolean {
+  const monthly = rows.filter((row) => MONTH_STAMP.test(String(row.x).trim())).length;
+  return monthly >= Math.ceil(rows.length * MONTHLY_SHARE);
 }
 
 const MULTI_CAP = 80;

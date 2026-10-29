@@ -235,7 +235,7 @@ export const DATASETS: readonly Dataset[] = [
     yLabel: 'Price (USD)',
     topics: ['economy'],
     aliases: ['bitcoin', 'bitcoin price', 'btc price'],
-    rollup: 'month',
+    monthlyClose: true,
   },
   {
     family: 'fred',

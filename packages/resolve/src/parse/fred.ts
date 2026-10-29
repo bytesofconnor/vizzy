@@ -21,9 +21,8 @@ export function parseFredCsv(csv: string): SeriesRow[] {
   return rows;
 }
 
-/** One point per month. The file is chronological, so the last close in the month wins. */
 export function monthlyClose(csv: string): SeriesRow[] {
-  const byMonth = new Map<string, number>();
+  const lastCloseByMonth = new Map<string, number>();
   for (const line of csv.split(/\r?\n/)) {
     if (!line || line.startsWith('DATE') || line.startsWith('#')) {
       continue;
@@ -37,9 +36,9 @@ export function monthlyClose(csv: string): SeriesRow[] {
     if (!/^(?:19|20)\d{2}-\d{2}$/.test(month) || y === undefined) {
       continue;
     }
-    byMonth.set(month, y);
+    lastCloseByMonth.set(month, y);
   }
-  return [...byMonth.entries()].map(([x, y]) => ({ x, y }));
+  return [...lastCloseByMonth.entries()].map(([x, y]) => ({ x, y }));
 }
 
 export function fredCsvUrl(seriesId: string): string {
