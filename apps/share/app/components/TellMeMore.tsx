@@ -1,16 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import {
+  heuristicInsight,
+  heuristicLesson,
+  MAX_LESSON_LAYERS,
+  type ChartLesson,
+} from '../../lib/insight-heuristic';
 import type { ChartSeed } from '../../lib/seed';
-
-const MAX_LESSON_LAYERS = 5;
-
-type ChartLesson = {
-  notice: string;
-  teach: string;
-  question: string;
-  tryNext: string;
-};
 
 const LAYER_KICKER = [
   'A closer look',
@@ -84,18 +81,18 @@ async function requestLesson(
     prior: prior.map((item) => ({ notice: item.notice, question: item.question })),
   };
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await fetch('/api/insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const body: unknown = await response.json();
-      if (isLessonBody(body)) {
-        return body.lesson;
-      }
-    } catch {
-      // try once more
+    const lesson = await fetch('/api/insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(async (response) => {
+        const body: unknown = await response.json();
+        return isLessonBody(body) ? body.lesson : null;
+      })
+      .catch(() => null);
+    if (lesson) {
+      return lesson;
     }
     if (attempt === 0) {
       await new Promise((resolve) => window.setTimeout(resolve, 400));
@@ -115,11 +112,11 @@ export function TellMeMore({
   onInsight: (insight: string | null) => void;
   embedded?: boolean;
 }) {
-  const [insight, setInsight] = useState<string | null>(presetInsight ?? null);
-  const [layers, setLayers] = useState<ChartLesson[]>([]);
-  const [busy, setBusy] = useState(!presetInsight);
+  const [insight, setInsight] = useState<string | null>(() => presetInsight ?? heuristicInsight(seed));
+  const [layers, setLayers] = useState<ChartLesson[]>(() =>
+    presetInsight ? [] : [heuristicLesson(seed, 1)]
+  );
   const [lessonBusy, setLessonBusy] = useState(false);
-  const [fail, setFail] = useState(false);
   const [lessonFail, setLessonFail] = useState(false);
   const [fillNote, setFillNote] = useState('');
   const [open, setOpen] = useState(true);
@@ -132,8 +129,6 @@ export function TellMeMore({
 
   const loadContext = useCallback(async (signal?: AbortSignal) => {
     const nextSeed = seedRef.current;
-    setBusy(true);
-    setFail(false);
     try {
       const response = await fetch('/api/insight', {
         method: 'POST',
@@ -145,41 +140,33 @@ export function TellMeMore({
       if (signal?.aborted) {
         return;
       }
-      if (isInsightBody(body)) {
+      if (isInsightBody(body) && body.insight.trim()) {
         setInsight(body.insight);
         onInsightRef.current(body.insight);
-      } else {
-        setFail(true);
-        onInsightRef.current(null);
       }
     } catch (error) {
       if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         return;
       }
-      setFail(true);
-      onInsightRef.current(null);
     }
-    setBusy(false);
   }, []);
 
   useEffect(() => {
-    setLayers([]);
     setLessonFail(false);
     setOpen(true);
     if (presetInsight) {
+      setLayers([]);
       setInsight(presetInsight);
-      setBusy(false);
-      setFail(false);
       onInsightRef.current(presetInsight);
       return;
     }
-    setInsight(null);
+    const copy = heuristicInsight(seedRef.current);
+    setInsight(copy);
+    setLayers([heuristicLesson(seedRef.current, 1)]);
+    onInsightRef.current(copy);
     const controller = new AbortController();
-    const wait = window.setTimeout(() => {
-      void loadContext(controller.signal);
-    }, 2500);
+    void loadContext(controller.signal);
     return () => {
-      window.clearTimeout(wait);
       controller.abort();
     };
   }, [chartKey, loadContext, presetInsight]);
@@ -224,12 +211,7 @@ export function TellMeMore({
 
   return (
     <div className={embedded ? 'tell-more is-embedded' : 'tell-more'}>
-      {busy && !insight ? (
-        <div className="tell-more-body">
-          <p className="tell-more-kicker">Context</p>
-          <p className="tell-more-text is-pending">Reading the chart…</p>
-        </div>
-      ) : insight ? (
+      {insight ? (
         <div className={open ? 'tell-more-body' : 'tell-more-body is-folded'}>
           <div className="tell-more-bar">
             <p className="tell-more-kicker">Context</p>
@@ -299,15 +281,6 @@ export function TellMeMore({
             </div>
           ) : null}
         </div>
-      ) : fail ? (
-        <>
-          <button type="button" className="tell-more-trigger" onClick={() => void loadContext()} disabled={busy}>
-            Tell me more
-          </button>
-          <p className="tell-more-fail" role="alert">
-            Could not load context right now.
-          </p>
-        </>
       ) : null}
     </div>
   );
