@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import type { Piece } from '../../lib/pieces';
 import { seedFromPiece } from '../../lib/seed';
+import { pointAddressAtChart } from '../../lib/chart-address';
 import type { ClientPiece, ComposeProgressEvent } from '../../lib/compose-progress';
 import { ChartFrame } from './ChartFrame';
 import { ComposeBox } from './ComposeBox';
@@ -30,9 +31,10 @@ export function StudioDesk({
       setFreshDraft(false);
     }
   }, []);
-  const onMinted = useCallback((next: ClientPiece) => {
+  const onMinted = useCallback((next: ClientPiece, url: string) => {
     setFreshDraft(false);
     setPiece(next);
+    pointAddressAtChart(url);
   }, []);
   const onComposeStart = useCallback(({ fresh }: { fresh: boolean }) => {
     setFreshDraft(fresh);

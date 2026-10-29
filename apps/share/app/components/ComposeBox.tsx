@@ -2,6 +2,7 @@
 
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { composeAsk } from '../../lib/compose-ask';
 import { FREE_PER_DAY, PACK_CREDITS, PACK_PRICE_LABEL } from '../../lib/pack';
 import { PROMPT_LINES } from '../../lib/prompt-ideas';
 import { heuristicRevisionPrompts } from '../../lib/revision-heuristics';
@@ -262,20 +263,27 @@ export function ComposeBox({
   }
 
   async function submit(fresh = false, askedOverride?: string, disposition?: ComposeDisposition) {
-    const goFresh = fresh || promptFresh;
-    let asked = (askedOverride ?? prompt).trim();
-    const demo = (hero ? typedExample : studio && !goFresh ? reviseExample : '').trim();
-    if (asked.length < 3 && demo.length >= 3) {
-      asked = demo;
-      setPrompt(asked);
-      setHeld(true);
-    }
-    if (busy || asked.length < 3) {
+    const typed = (askedOverride ?? prompt).trim();
+    const plan = composeAsk({
+      typed,
+      freshClick: fresh || promptFresh,
+      studio,
+      heroExample: typedExample.trim() || PROMPT_LINES[0] || '',
+      reviseExample,
+    });
+    if (busy || !plan) {
       return;
     }
 
-    const useSeed = studio && !goFresh;
-    onComposeStart?.({ fresh: goFresh });
+    const asked = plan.prompt;
+    const useSeed = studio && !plan.fresh;
+    if (plan.fillComposer) {
+      setPrompt(asked);
+      setHeld(true);
+    } else if (plan.fresh && typed.length < 3) {
+      setHeld(false);
+    }
+    onComposeStart?.({ fresh: plan.fresh });
     setPromptFresh(false);
     setBusy(true);
     setNotice({ kind: 'none' });

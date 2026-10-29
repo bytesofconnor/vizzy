@@ -1,5 +1,5 @@
 import { DATASETS } from '@vizzy/resolve';
-import type { ChartSeed } from './seed';
+import { keepsChartSubject, type ChartSeed } from './seed';
 import {
   COMPOSE_DISPOSITIONS,
   type ClarifyAsk,
@@ -123,11 +123,13 @@ export function decideCompose(input: DecideInput): ComposeDecision {
     disposition = input.disposition;
   }
 
+  const seed = input.seed && keepsChartSubject(trimmed) ? input.seed : undefined;
+
   if (disposition === 'send') {
-    return mintOrder(trimmed, input.seed);
+    return mintOrder(trimmed, seed);
   }
-  if (input.seed !== undefined) {
-    return mintOrder(trimmed, input.seed);
+  if (seed !== undefined) {
+    return mintOrder(trimmed, seed);
   }
   if (matchesAlias(trimmed)) {
     return mintOrder(trimmed);
@@ -135,11 +137,11 @@ export function decideCompose(input: DecideInput): ComposeDecision {
 
   const economy = economyAsk(trimmed);
   if (economy) {
-    return clarifyOrMint(trimmed, input.seed, economy);
+    return clarifyOrMint(trimmed, seed, economy);
   }
   const bare = bareWordAsk(trimmed);
   if (bare) {
-    return clarifyOrMint(trimmed, input.seed, bare);
+    return clarifyOrMint(trimmed, seed, bare);
   }
   return mintOrder(trimmed);
 }
