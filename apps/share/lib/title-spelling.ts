@@ -1,7 +1,6 @@
 type ResolvedRow = { x: string | number; series?: string };
 
-/** Function words and one-edit pairs such as lost/loss stay as written. */
-const EXACT = new Set([
+const STOPWORDS = new Set([
   'a',
   'an',
   'and',
@@ -43,8 +42,6 @@ const EXACT = new Set([
   'our',
   'sea',
   'ice',
-  'lost',
-  'loss',
   'area',
   'mean',
   'new',
@@ -63,6 +60,12 @@ const EXACT = new Set([
   'ppm',
   'million',
 ]);
+
+const DIFFERENT_AT_ONE_EDIT = new Set(['lost', 'loss']);
+
+function exactOnly(word: string): boolean {
+  return STOPWORDS.has(word) || DIFFERENT_AT_ONE_EDIT.has(word);
+}
 
 const WORD = /[\p{L}\p{N}][\p{L}\p{N}’']*/gu;
 
@@ -140,7 +143,7 @@ function tokenDistance(titleWord: string, canonical: string): number | null {
   if (!left[0] || left[0] !== right[0]) {
     return null;
   }
-  if (EXACT.has(right)) {
+  if (exactOnly(right)) {
     return null;
   }
   const room = budget(right.length);
@@ -212,7 +215,7 @@ function addLabel(pool: Map<string, string>, label: string) {
     const word = token.text;
     const capital = /^\p{Lu}/u.test(word);
     const plain = /^\p{L}/u.test(word) && !/\d/.test(word);
-    if (capital && plain && !EXACT.has(fold(word))) {
+    if (capital && plain && !exactOnly(fold(word))) {
       run.push(word);
     } else {
       flush();
@@ -221,7 +224,7 @@ function addLabel(pool: Map<string, string>, label: string) {
   flush();
   for (const token of tokens) {
     const word = token.text;
-    if (word.length < 5 || /\d/.test(word) || EXACT.has(fold(word)) || !/\p{L}/u.test(word)) {
+    if (word.length < 5 || /\d/.test(word) || exactOnly(fold(word)) || !/\p{L}/u.test(word)) {
       continue;
     }
     consider(pool, word);
