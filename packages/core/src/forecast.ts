@@ -44,14 +44,17 @@ export function forecastStartIndex(
     return -1;
   }
 
-  const year = ticks.find((tick) => tick?.year)?.year ?? now.getFullYear();
+  const datedYear = ticks.find((tick) => tick?.year != null)?.year;
+  if (datedYear == null) {
+    return -1;
+  }
   const today = now.getFullYear() * 12 + now.getMonth();
 
   return ticks.findIndex((tick) => {
     if (!tick) {
       return false;
     }
-    return (tick.year ?? year) * 12 + tick.month > today;
+    return (tick.year ?? datedYear) * 12 + tick.month > today;
   });
 }
 

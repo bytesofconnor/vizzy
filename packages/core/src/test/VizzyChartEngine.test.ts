@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function readLabel(value: string): string {
   return value.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
@@ -11,6 +11,7 @@ function visibleTickText(root: ParentNode, axis: string): string[] {
 }
 import { VizzyChartEngine } from '../engine/VizzyChartEngine';
 import { xAxisRoom } from '../layout';
+import { validateChartConfig, type ChartConfig } from '../types';
 import {
   SAMPLE_REVENUE,
   barConfig,
@@ -18,6 +19,180 @@ import {
   lineConfig,
   scatterConfig,
 } from './fixtures';
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MINNEAPOLIS_NORMALS = [15.6, 20.1, 32.7, 46.9, 59.1, 69.0, 73.8, 71.2, 62.4, 48.7, 34.2, 20.6];
+
+function monthRows(names: string[] = MONTHS): Array<{ month: string; temp: number }> {
+  return names.map((month, index) => ({ month, temp: MINNEAPOLIS_NORMALS[index] ?? 40 }));
+}
+
+function monthChart(type: 'line' | 'bar', width: number, forecastFrom?: string): ChartConfig {
+  return validateChartConfig({
+    schemaVersion: 1,
+    chart: { type, showPoints: true, ...(forecastFrom ? { forecastFrom } : {}) },
+    dataMapping: { x: 'month', y: 'temp' },
+    dimensions: {
+      width,
+      height: 420,
+      margin: { top: 28, right: 32, bottom: 64, left: 64 },
+    },
+    animation: { enabled: false, duration: 0 },
+    axes: {
+      x: { show: true, label: 'Month' },
+      y: { show: true, label: '°F' },
+    },
+  });
+}
+
+function labelBox(node: Element): { left: number; top: number; right: number; bottom: number } {
+  const x = Number(node.getAttribute('x'));
+  const y = Number(node.getAttribute('y'));
+  const anchor = node.getAttribute('text-anchor') ?? 'start';
+  const baseline = node.getAttribute('dominant-baseline') ?? 'auto';
+  const text = (node.textContent ?? '').trim();
+  const fontSize = 11;
+  const advance = fontSize * 0.6;
+  const tracking = fontSize * 0.08;
+  const width = text.length * advance + Math.max(0, text.length - 1) * tracking;
+  const height = fontSize;
+  const top = baseline === 'hanging' ? y : y - height * 0.8;
+  const left = anchor === 'end' ? x - width : anchor === 'middle' ? x - width / 2 : x;
+  return { left, top, right: left + width, bottom: top + height };
+}
+
+function samplePath(d: string): Array<{ x: number; y: number }> {
+  const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) ?? [];
+  const points: Array<{ x: number; y: number }> = [];
+  let i = 0;
+  let cmd = '';
+  let cx = 0;
+  let cy = 0;
+  let sx = 0;
+  let sy = 0;
+
+  const read = () => Number(tokens[i++]);
+  const push = (x: number, y: number) => {
+    cx = x;
+    cy = y;
+    points.push({ x, y });
+  };
+  const cubic = (x1: number, y1: number, x2: number, y2: number, x: number, y: number) => {
+    const p0 = { x: cx, y: cy };
+    const steps = 12;
+    for (let step = 1; step <= steps; step += 1) {
+      const t = step / steps;
+      const mt = 1 - t;
+      push(
+        mt ** 3 * p0.x + 3 * mt ** 2 * t * x1 + 3 * mt * t ** 2 * x2 + t ** 3 * x,
+        mt ** 3 * p0.y + 3 * mt ** 2 * t * y1 + 3 * mt * t ** 2 * y2 + t ** 3 * y
+      );
+    }
+  };
+
+  while (i < tokens.length) {
+    const token = tokens[i];
+    if (!token) {
+      break;
+    }
+    if (/[a-zA-Z]/.test(token)) {
+      cmd = token;
+      i += 1;
+      if (cmd === 'Z' || cmd === 'z') {
+        push(sx, sy);
+      }
+      continue;
+    }
+    if (cmd === 'M') {
+      push(read(), read());
+      sx = cx;
+      sy = cy;
+      cmd = 'L';
+    } else if (cmd === 'm') {
+      push(cx + read(), cy + read());
+      sx = cx;
+      sy = cy;
+      cmd = 'l';
+    } else if (cmd === 'L') {
+      push(read(), read());
+    } else if (cmd === 'l') {
+      push(cx + read(), cy + read());
+    } else if (cmd === 'H') {
+      push(read(), cy);
+    } else if (cmd === 'h') {
+      push(cx + read(), cy);
+    } else if (cmd === 'V') {
+      push(cx, read());
+    } else if (cmd === 'v') {
+      push(cx, cy + read());
+    } else if (cmd === 'C') {
+      cubic(read(), read(), read(), read(), read(), read());
+    } else if (cmd === 'c') {
+      cubic(cx + read(), cy + read(), cx + read(), cy + read(), cx + read(), cy + read());
+    } else {
+      i += 1;
+    }
+  }
+  return points;
+}
+
+function segmentsHitBox(
+  samples: Array<{ x: number; y: number }>,
+  box: { left: number; top: number; right: number; bottom: number },
+  pad: number
+): boolean {
+  const rect = {
+    left: box.left - pad,
+    top: box.top - pad,
+    right: box.right + pad,
+    bottom: box.bottom + pad,
+  };
+  const inside = (point: { x: number; y: number }) =>
+    point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
+  const cross = (
+    a: { x: number; y: number },
+    b: { x: number; y: number },
+    c: { x: number; y: number },
+    d: { x: number; y: number }
+  ) => {
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const acx = c.x - a.x;
+    const acy = c.y - a.y;
+    const adx = d.x - a.x;
+    const ady = d.y - a.y;
+    const cdx = d.x - c.x;
+    const cdy = d.y - c.y;
+    const cax = a.x - c.x;
+    const cay = a.y - c.y;
+    const cbx = b.x - c.x;
+    const cby = b.y - c.y;
+    const abCross = (px: number, py: number) => abx * py - aby * px;
+    const cdCross = (px: number, py: number) => cdx * py - cdy * px;
+    return abCross(acx, acy) * abCross(adx, ady) < 0 && cdCross(cax, cay) * cdCross(cbx, cby) < 0;
+  };
+  const edges = [
+    [{ x: rect.left, y: rect.top }, { x: rect.right, y: rect.top }],
+    [{ x: rect.right, y: rect.top }, { x: rect.right, y: rect.bottom }],
+    [{ x: rect.right, y: rect.bottom }, { x: rect.left, y: rect.bottom }],
+    [{ x: rect.left, y: rect.bottom }, { x: rect.left, y: rect.top }],
+  ];
+  for (let index = 1; index < samples.length; index += 1) {
+    const start = samples[index - 1];
+    const end = samples[index];
+    if (!start || !end) {
+      continue;
+    }
+    if (inside(start) || inside(end) || edges.some(([c, d]) => c && d && cross(start, end, c, d))) {
+      return true;
+    }
+  }
+  return false;
+}
 
 describe('VizzyChartEngine', () => {
   const containers: HTMLElement[] = [];
@@ -54,6 +229,111 @@ describe('VizzyChartEngine', () => {
     const forecast = chart.container.querySelector('.line-forecast');
     expect(forecast?.getAttribute('stroke-dasharray')).toBeTruthy();
     expect(chart.container.querySelector('.forecast-label')?.textContent).toMatch(/forecast/i);
+  });
+
+  it('draws climate normals as a solid year with every month labeled', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-29T12:00:00Z'));
+    try {
+      const chart = engine(monthChart('line', 800), monthRows());
+      await chart.render();
+      expect(chart.container.querySelector('.line-forecast')).toBeNull();
+      expect(chart.container.querySelector('.forecast-label')).toBeNull();
+      const points = [...chart.container.querySelectorAll('circle.point')];
+      expect(points).toHaveLength(12);
+      for (const point of points) {
+        expect(point.getAttribute('stroke') ?? 'none').toBe('none');
+      }
+      expect(visibleTickText(chart.container, '.x-axis')).toEqual(MONTH_SHORT);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps all 12 month labels on a narrow axis', async () => {
+    const chart = engine(monthChart('line', 390), monthRows());
+    await chart.render();
+    expect(visibleTickText(chart.container, '.x-axis')).toEqual(MONTH_SHORT);
+  });
+
+  it('keeps full month names when a wide axis has room', async () => {
+    const chart = engine(monthChart('line', 1400), monthRows());
+    await chart.render();
+    expect(visibleTickText(chart.container, '.x-axis')).toEqual(MONTHS);
+  });
+
+  it('labels every month on a 12-month bar axis', async () => {
+    const chart = engine(monthChart('bar', 800), monthRows());
+    await chart.render();
+    expect(visibleTickText(chart.container, '.x-axis')).toEqual(MONTH_SHORT);
+  });
+
+  it('places the forecast label off the stroke', async () => {
+    const chart = engine(monthChart('line', 800, 'October'), monthRows());
+    await chart.render();
+    const forecast = chart.container.querySelector('.line-forecast');
+    const label = chart.container.querySelector('.forecast-label');
+    const solid = chart.container.querySelector('path.line:not(.line-forecast)');
+    expect(forecast?.getAttribute('stroke-dasharray')).toBeTruthy();
+    expect(label?.textContent).toMatch(/forecast/i);
+    if (!(label instanceof Element)) {
+      return;
+    }
+    const box = labelBox(label);
+    const stroke = [
+      ...samplePath(solid?.getAttribute('d') ?? ''),
+      ...samplePath(forecast?.getAttribute('d') ?? ''),
+    ];
+    expect(segmentsHitBox(stroke, box, 4)).toBe(false);
+    const clip = chart.container.querySelector('clipPath rect');
+    const clipLeft = Number(clip?.getAttribute('x'));
+    const clipTop = Number(clip?.getAttribute('y'));
+    const clipRight = clipLeft + Number(clip?.getAttribute('width'));
+    const clipBottom = clipTop + Number(clip?.getAttribute('height'));
+    expect(box.left).toBeGreaterThanOrEqual(clipLeft - 1);
+    expect(box.top).toBeGreaterThanOrEqual(clipTop - 1);
+    expect(box.right).toBeLessThanOrEqual(clipRight + 1);
+    expect(box.bottom).toBeLessThanOrEqual(clipBottom + 1);
+  });
+
+  it('places the forecast label off a rising stroke', async () => {
+    const rising = MONTHS.map((month, index) => ({ month, temp: 8 + index * 6 }));
+    const chart = engine(monthChart('line', 800, 'October'), rising);
+    await chart.render();
+    const forecast = chart.container.querySelector('.line-forecast');
+    const label = chart.container.querySelector('.forecast-label');
+    const solid = chart.container.querySelector('path.line:not(.line-forecast)');
+    expect(label?.textContent).toMatch(/forecast/i);
+    if (!(label instanceof Element)) {
+      return;
+    }
+    const box = labelBox(label);
+    const stroke = [
+      ...samplePath(solid?.getAttribute('d') ?? ''),
+      ...samplePath(forecast?.getAttribute('d') ?? ''),
+    ];
+    expect(segmentsHitBox(stroke, box, 4)).toBe(false);
+  });
+
+  it('dashes months after today when the axis names the open year', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-29T12:00:00Z'));
+    try {
+      const rows = MONTHS.map((month, index) => ({
+        month: `${month} 2026`,
+        temp: MINNEAPOLIS_NORMALS[index] ?? 40,
+      }));
+      const chart = engine(monthChart('line', 800), rows);
+      await chart.render();
+      expect(chart.container.querySelector('.line-forecast')?.getAttribute('stroke-dasharray')).toBeTruthy();
+      const hollow = [...chart.container.querySelectorAll('circle.point')].filter(
+        (node) => (node.getAttribute('stroke') ?? 'none') !== 'none'
+      );
+      expect(hollow).toHaveLength(2);
+      expect(visibleTickText(chart.container, '.x-axis')).toHaveLength(12);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('keeps every named category labeled', async () => {
