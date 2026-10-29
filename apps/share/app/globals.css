@@ -3239,10 +3239,6 @@ a.compose-hero-submit.is-amber:focus-visible {
   color: var(--mute);
 }
 
-.tell-more-text.is-pending {
-  color: var(--mute);
-}
-
 .tell-more-deeper {
   display: inline-block;
   margin-top: 12px;
