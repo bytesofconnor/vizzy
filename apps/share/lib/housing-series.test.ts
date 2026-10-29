@@ -1,7 +1,16 @@
 import { matchPrompt } from '@vizzy/resolve';
-import { describe, expect, it } from 'vitest';
-import { decideCompose } from './compose-decision';
-import { mintDraft } from './from-prompt';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('./lookup', async () => {
+  const actual = await vi.importActual<typeof import('./lookup')>('./lookup');
+  return {
+    ...actual,
+    gatherFacts: vi.fn(async () => ({ notes: 'Public lookup found no matching table.', urls: [] })),
+  };
+});
+
+import { decideCompose, type MintOrder } from './compose-decision';
+import { pieceFromPrompt } from './from-prompt';
 import { heuristicInsight, heuristicLesson } from './insight-heuristic';
 import type { ChartSeed } from './seed';
 
@@ -36,6 +45,11 @@ describe('housing prompt', () => {
       expect(asked.ask.options.length).toBeGreaterThanOrEqual(1);
       expect(asked.ask.options.length).toBeLessThanOrEqual(3);
       expect(JSON.stringify(asked.ask)).not.toMatch(/Housing Market Index|Nashville/i);
+      expect(asked.ask.options.map((option) => matchPrompt(option.prompt)?.seriesId)).toEqual([
+        'HOUST',
+        'MSPUS',
+        'CSUSHPINSA',
+      ]);
       for (const option of asked.ask.options) {
         expect(seriesBacked(option.prompt)).toBe(true);
         expect(decideCompose({ prompt: option.prompt, disposition: undefined }).kind).toBe('mint');
@@ -61,29 +75,12 @@ describe('housing prompt', () => {
     }
   });
 
-  it('does not mint an invented housing city index when lookup has no series', () => {
-    const minted = mintDraft(
-      'housing',
-      { notes: 'Public lookup found no matching table.', urls: [] },
-      {
-        title: 'Housing Market Index by City',
-        kicker: 'Illustrative',
-        note: 'A sketch of city housing markets.',
-        chartType: 'bar',
-        area: false,
-        xLabel: 'City',
-        yLabel: 'Index',
-        sourceLabel: 'Estimate',
-        sourceMethod: 'estimate',
-        evidence: 'lookup failed',
-        rows: [
-          { x: 'Nashville', y: 142 },
-          { x: 'Austin', y: 96 },
-          { x: 'Detroit', y: 61 },
-        ],
-      }
-    );
+  it('does not mint an invented housing city index when lookup has no series', async () => {
+    const minted = await pieceFromPrompt({ kind: 'mint', prompt: 'housing' } as MintOrder);
     expect(minted.ok).toBe(false);
+    if (!minted.ok) {
+      expect(minted.error).toMatch(/published numbers/i);
+    }
     if (minted.ok) {
       const labels = minted.piece.data.map((row) => String(row.x)).join(' ');
       expect(labels).not.toMatch(/Nashville/);

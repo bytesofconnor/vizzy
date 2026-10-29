@@ -63,6 +63,10 @@ describe('matchPrompt', () => {
     expect(
       matchPrompt('US housing starts versus permits since 2000 — which recoveries actually built houses?')?.seriesId
     ).toBe('HOUST');
+    expect(matchPrompt('US housing starts')?.seriesId).toBe('HOUST');
+    expect(matchPrompt('US median home price')?.seriesId).toBe('MSPUS');
+    expect(matchPrompt('US Case-Shiller home price index')?.seriesId).toBe('CSUSHPINSA');
+    expect(matchPrompt('housing')).toBeNull();
     expect(matchPrompt('Global temperature anomaly since 1880 — when did the slope get steep?')?.seriesId).toBe(
       'temperature_anomaly'
     );
