@@ -33,10 +33,8 @@ export type Dataset = {
   avoid?: readonly string[];
   /** Keep this series only when the prompt names at least two places. */
   places?: boolean;
-  /** When the prompt names no years, keep this many recent years. */
   recentYears?: number;
-  /** Collapse a daily file to one point per month, the last close. */
-  rollup?: 'month';
+  monthlyClose?: boolean;
 };
 
 export type Recipe = Dataset;

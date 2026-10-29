@@ -16,7 +16,7 @@ type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string };
 async function loadRecipe(recipe: Recipe, get: HttpGet): Promise<LoadedRecipe> {
   if (recipe.family === 'fred') {
     const csv = await get(fredCsvUrl(recipe.seriesId));
-    return { rows: recipe.rollup === 'month' ? monthlyClose(csv) : parseFredCsv(csv) };
+    return { rows: recipe.monthlyClose ? monthlyClose(csv) : parseFredCsv(csv) };
   }
   if (recipe.family === 'noaa') {
     if (recipe.seriesId === 'ozone_hole_area') {
