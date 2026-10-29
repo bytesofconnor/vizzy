@@ -141,6 +141,90 @@ test('agents page is the repo contract', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
 });
 
+function quotaBody(freeLeft: number) {
+  return {
+    configured: true,
+    canCompose: freeLeft > 0,
+    freeLeft,
+    credits: 0,
+    unlimited: false,
+    saved: false,
+    justPaid: false,
+    offerGoogle: false,
+    packCredits: 25,
+    packPriceLabel: '$8',
+  };
+}
+
+test('idle free count matches the server before submit', async ({ page }) => {
+  await page.route('**/api/quota', async (route) => {
+    await route.fulfill({ json: quotaBody(0) });
+  });
+  let composePosts = 0;
+  await page.route('**/api/compose', async (route) => {
+    composePosts += 1;
+    await route.fulfill({
+      status: 402,
+      json: { ok: false, error: 'pay', pay: true },
+    });
+  });
+
+  await page.goto('/');
+  const note = page.locator('.compose-bar-note');
+  await expect(note).toContainText('No free charts today');
+  await expect(note).not.toContainText('3 free today');
+
+  await page.locator('#prompt').fill('Bitcoin price from March to June 2021');
+  await page.getByRole('button', { name: 'Generate my chart' }).click();
+  await expect(page.locator('.compose-fail')).toContainText('free charts for today');
+  expect(composePosts).toBe(0);
+});
+
+test('three charts do not leave the counter at 3 free today', async ({ page }) => {
+  let freeLeft = 3;
+  await page.route('**/api/quota', async (route) => {
+    await route.fulfill({ json: quotaBody(freeLeft) });
+  });
+  await page.route('**/api/compose', async (route) => {
+    if (freeLeft <= 0) {
+      await route.fulfill({
+        status: 402,
+        json: { ok: false, error: 'pay', pay: true },
+      });
+      return;
+    }
+    freeLeft -= 1;
+    await route.fulfill({
+      json: {
+        ok: true,
+        url: '/c/reef',
+        piece: PIECES[0],
+      },
+    });
+  });
+
+  await page.goto('/');
+  const note = page.locator('.compose-bar-note');
+  await expect(note).toContainText('3 free today');
+
+  for (const left of [2, 1, 0]) {
+    await page.locator('textarea').fill(`Bitcoin price from March to June 2021 ${left}`);
+    await page.locator('form button[type="submit"]').click();
+    if (left === 0) {
+      await expect(note).toContainText('No free charts today');
+    } else {
+      await expect(note).toContainText(`${left} free today`);
+    }
+    await expect(note).not.toContainText('3 free today');
+  }
+});
+
+test('quota peek is not cached', async ({ request }) => {
+  const response = await request.get('/api/quota');
+  expect(response.ok()).toBeTruthy();
+  expect(response.headers()['cache-control']).toContain('no-store');
+});
+
 test('terms still restores by checkout email', async ({ page }) => {
   await page.goto('/terms');
   await expect(page.getByRole('heading', { name: 'Terms' })).toBeVisible();

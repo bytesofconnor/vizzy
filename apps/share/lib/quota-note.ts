@@ -17,24 +17,26 @@ export type HomepageQuotaNote = {
 const PITCH = `${FREE_PER_DAY} free today, then ${PACK_PRICE_LABEL} for ${PACK_CREDITS}`;
 
 export function homepageQuotaNote(quota: QuotaSnapshot | null): HomepageQuotaNote {
-  const unlimited = Boolean(quota?.unlimited);
-  const justPaid = Boolean(quota?.justPaid);
-  let badge: string | null = null;
-  if (quota?.configured) {
-    if (quota.justPaid && quota.credits > 0) {
-      badge = `${quota.credits} added`;
-    } else if (quota.unlimited) {
-      badge = 'Unlimited';
-    } else if (quota.credits > 0) {
-      badge = `${quota.credits} left`;
-    } else if (quota.freeLeft > 0 && quota.freeLeft < FREE_PER_DAY) {
-      badge = `${quota.freeLeft} free today`;
-    } else if (quota.freeLeft <= 0) {
-      badge = 'No free charts today';
-    }
+  if (!quota?.configured) {
+    return { badge: null, status: PITCH };
   }
-  const status = unlimited || justPaid ? null : PITCH;
-  return { badge, status };
+  if (quota.unlimited) {
+    return { badge: 'Unlimited', status: null };
+  }
+  if (quota.justPaid) {
+    return { badge: quota.credits > 0 ? `${quota.credits} added` : null, status: null };
+  }
+  const badge = quota.credits > 0 ? `${quota.credits} left` : null;
+  if (quota.canCompose && quota.freeLeft > 0) {
+    return {
+      badge,
+      status: `${quota.freeLeft} free today, then ${PACK_PRICE_LABEL} for ${PACK_CREDITS}`,
+    };
+  }
+  if (quota.credits > 0) {
+    return { badge, status: null };
+  }
+  return { badge: null, status: 'No free charts today' };
 }
 
 export function homepageQuotaText(quota: QuotaSnapshot | null): string {
