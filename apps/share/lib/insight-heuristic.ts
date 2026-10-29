@@ -234,6 +234,15 @@ export function heuristicLesson(seed: ChartSeed, layer = 1): ChartLesson {
   const hi = top ? formatX(top.x) : 'the leader';
   const lo = bottom ? formatX(bottom.x) : 'the tail';
   const midLabel = mid ? formatX(mid.x) : 'the middle';
+  if (top && hi === lo) {
+    const only: ChartLesson = {
+      notice: `${hi} is the only category with a plotted ${y}.`,
+      teach: `A lead needs a second published figure. This chart does not have one, so it cannot say ${hi} is ahead of itself.\n\nThe next chart has to add the missing comparison from the same source.`,
+      question: `Which published comparison should sit next to ${hi}?`,
+      tryNext: firstTip(seed, y),
+    };
+    return alignLesson(only, seed);
+  }
   const index = Math.min(MAX_LESSON_LAYERS, Math.max(1, layer)) - 1;
   const pack: ChartLesson[] = [
     {
@@ -267,5 +276,14 @@ export function heuristicLesson(seed: ChartSeed, layer = 1): ChartLesson {
       tryNext: `Add the missing comparison that would change how ${hi} looks.`,
     },
   ];
-  return pack[index] ?? pack[0]!;
+  return alignLesson(pack[index] ?? pack[0]!, seed);
+}
+
+function alignLesson(lesson: ChartLesson, seed: ChartSeed): ChartLesson {
+  return {
+    notice: alignPlottedClaims(lesson.notice, seed.rows),
+    teach: alignPlottedClaims(lesson.teach, seed.rows),
+    question: alignPlottedClaims(lesson.question, seed.rows),
+    tryNext: alignPlottedClaims(lesson.tryNext, seed.rows),
+  };
 }

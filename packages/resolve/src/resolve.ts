@@ -1,7 +1,7 @@
 import { matchPrompt } from './catalog';
 import { defaultGet } from './http';
 import { yearSpanFromAsked } from './normalize';
-import { placesInAsked } from './places';
+import { labelIsPlace, placesInAsked } from './places';
 import {
   fredCsvUrl,
   monthlyClose,
@@ -13,12 +13,21 @@ import {
 import { parseNoaaCo2, NOAA_CO2_URL, NOAA_CH4_URL } from './parse/noaa';
 import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
 import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
-import { parseWikiApi, parseWikiUnVotes, wikiParseUrl, wikiSnapshotYear, WIKI_SPEC } from './parse/wiki';
+import { parseWikiUnVotes, readWiki, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
 import type { HttpGet, Recipe, ResolvedSeries, SeriesRow } from './types';
 import { downsample, isTimedRows, rowCap, windowSpan } from './window';
 
-type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string };
+type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string; truncatedTo?: number };
+
+const RANK_CAP = 15;
+
+function capRanking(rows: SeriesRow[]): { rows: SeriesRow[]; truncatedTo?: number } {
+  if (rows.length <= RANK_CAP) {
+    return { rows };
+  }
+  return { rows: rows.slice(0, RANK_CAP), truncatedTo: RANK_CAP };
+}
 
 async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise<LoadedRecipe> {
   if (recipe.family === 'fred') {
@@ -48,7 +57,8 @@ async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise
     if (!spec) {
       return { rows: [] };
     }
-    return { rows: parseOwidCsv(await get(owidCsvUrl(spec.slug)), spec) };
+    const parsed = parseOwidCsv(await get(owidCsvUrl(spec.slug)), spec);
+    return spec.rank ? capRanking(parsed) : { rows: parsed };
   }
   if (recipe.family === 'usgs') {
     return { rows: parseUsgsGeojson(await get(USGS_M8_URL)) };
@@ -56,7 +66,7 @@ async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise
   if (recipe.family === 'worldbank') {
     const take = recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high';
     const ranked = parseWorldBank(await get(worldBankUrl(recipe.seriesId)), take);
-    return { rows: preferAskedCountries(ranked, asked) };
+    return preferAskedCountries(ranked, asked);
   }
   const spec = WIKI_SPEC[recipe.seriesId];
   if (!spec) {
@@ -66,7 +76,12 @@ async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise
   if (recipe.seriesId === 'un_votes_ukraine') {
     return { rows: parseWikiUnVotes(body) };
   }
-  return { rows: parseWikiApi(body, spec), snapshotYear: wikiSnapshotYear(body, spec) };
+  const page = readWiki(body, spec);
+  return {
+    rows: page.rows,
+    ...(page.snapshotYear ? { snapshotYear: page.snapshotYear } : {}),
+    ...(page.truncatedTo ? { truncatedTo: page.truncatedTo } : {}),
+  };
 }
 
 export async function fetchRecipe(
@@ -89,28 +104,30 @@ export function rowsForAsked(rows: SeriesRow[], asked: string, now = Date.now())
   return downsample(kept, rowCap(kept));
 }
 
-const COUNTRY_CAP = 15;
-
-function preferAskedCountries(rows: SeriesRow[], asked?: string): SeriesRow[] {
-  const wanted = new Set(asked ? placesInAsked(asked) : []);
-  if (wanted.size > 0) {
-    const picked = rows.filter((row) => wanted.has(String(row.x)));
-    if (picked.length > 0) {
-      return picked;
+function preferAskedCountries(rows: SeriesRow[], asked?: string): { rows: SeriesRow[]; truncatedTo?: number } {
+  const wanted = asked ? placesInAsked(asked) : [];
+  if (wanted.length > 0) {
+    const picked = rows.filter((row) => wanted.some((entity) => labelIsPlace(String(row.x), entity)));
+    const covered = wanted.filter((entity) => picked.some((row) => labelIsPlace(String(row.x), entity)));
+    if (covered.length !== wanted.length) {
+      return { rows: [] };
     }
+    return { rows: picked };
   }
-  return rows.slice(0, COUNTRY_CAP);
+  return capRanking(rows);
 }
 
 function keepAskedPlaces(rows: SeriesRow[], asked: string): SeriesRow[] {
   if (!rows.some((row) => row.series)) {
     return rows;
   }
-  const wanted = new Set(placesInAsked(asked));
-  if (wanted.size === 0) {
+  const wanted = placesInAsked(asked);
+  if (wanted.length === 0) {
     return [];
   }
-  return rows.filter((row) => row.series !== undefined && wanted.has(row.series));
+  return rows.filter(
+    (row) => row.series !== undefined && wanted.some((entity) => labelIsPlace(row.series ?? '', entity))
+  );
 }
 
 export async function fetchMatched(
@@ -139,6 +156,7 @@ export async function fetchMatched(
     xLabel: recipe.xLabel,
     yLabel: recipe.yLabel,
     rows: loaded.rows,
+    ...(loaded.truncatedTo ? { truncatedTo: loaded.truncatedTo } : {}),
   };
 }
 

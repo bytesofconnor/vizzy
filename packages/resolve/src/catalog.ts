@@ -132,7 +132,22 @@ export const DATASETS: readonly Dataset[] = [
     yLabel: 'Access %',
     topics: ['energy', 'economy'],
     aliases: ['electricity access', 'access to electricity', 'people with electricity'],
-    avoid: ['solar'],
+    avoid: ['solar', 'renewable'],
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'EG.ELC.RNEW.ZS',
+    sourceLabel: 'World Bank — renewable electricity output',
+    sourceUrl: 'https://data.worldbank.org/indicator/EG.ELC.RNEW.ZS',
+    xLabel: 'Country',
+    yLabel: 'Renewable share of electricity %',
+    topics: ['energy', 'climate'],
+    aliases: [
+      'share of renewable electricity',
+      'renewable share of electricity',
+      'renewable electricity',
+    ],
+    avoid: ['water', 'freshwater'],
   },
   {
     family: 'worldbank',
