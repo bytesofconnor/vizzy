@@ -527,8 +527,8 @@ describe('resolvePrompt', () => {
 const AS_OF = Date.UTC(2026, 9, 29);
 
 function monthIndex(value: string): number {
-  const [year, month] = value.split('-').map(Number);
-  return year! * 12 + (month ?? 1);
+  const [yearText = '0', monthText = '1'] = value.split('-');
+  return Number(yearText) * 12 + Number(monthText);
 }
 
 function expectEveryMonth(rows: Array<{ x: string }>, first: string, last: string) {
@@ -537,12 +537,19 @@ function expectEveryMonth(rows: Array<{ x: string }>, first: string, last: strin
   expect(stamps.at(-1)).toBe(last);
   expect(new Set(stamps).size).toBe(stamps.length);
   for (let index = 1; index < stamps.length; index += 1) {
-    expect(monthIndex(stamps[index]!) - monthIndex(stamps[index - 1]!)).toBe(1);
+    const previous = stamps[index - 1];
+    const current = stamps[index];
+    expect(previous).toBeTypeOf('string');
+    expect(current).toBeTypeOf('string');
+    if (typeof previous !== 'string' || typeof current !== 'string') {
+      continue;
+    }
+    expect(monthIndex(current) - monthIndex(previous)).toBe(1);
   }
 }
 
 function monthlyFred(id: string, start: string, end: string): string {
-  const lines = [`DATE,${id}`];
+  const lines = [`observation_date,${id}`];
   let year = Number(start.slice(0, 4));
   let month = Number(start.slice(5, 7));
   const endYear = Number(end.slice(0, 4));
@@ -560,7 +567,7 @@ function monthlyFred(id: string, start: string, end: string): string {
 }
 
 function dailyBitcoin(): string {
-  const lines = ['DATE,CBBTCUSD'];
+  const lines = ['observation_date,CBBTCUSD'];
   let cursor = Date.UTC(2018, 0, 1);
   const end = Date.UTC(2026, 9, 31);
   while (cursor <= end) {
@@ -622,6 +629,11 @@ describe('dense series for the asked window', () => {
     expect(rows).toHaveLength(24);
     expect(rows[0]?.x.startsWith('1990')).toBe(true);
     expect(rows.at(-1)?.x.startsWith('2026')).toBe(true);
-    expect(monthIndex(rows[1]!.x) - monthIndex(rows[0]!.x)).toBeGreaterThan(1);
+    const first = rows[0];
+    const second = rows[1];
+    expect(first && second).toBeTruthy();
+    if (first && second) {
+      expect(monthIndex(second.x) - monthIndex(first.x)).toBeGreaterThan(1);
+    }
   });
 });
