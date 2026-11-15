@@ -12,6 +12,9 @@ export async function fulfillCheckoutSession(session: {
   metadata?: Record<string, string> | null;
   customer?: string | { id?: string } | null;
 }): Promise<{ ok: boolean; credits: number; walletToken: string } | null> {
+  if (session.metadata?.plan === 'writer') {
+    return null;
+  }
   if (session.payment_status && session.payment_status !== 'paid') {
     return null;
   }

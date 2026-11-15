@@ -10,7 +10,15 @@ import { ComposeBox } from './ComposeBox';
 import { ComposeBusyPlot, ComposeProgressStrip } from './ComposeBusyPlot';
 import { PieceStage } from './PieceStage';
 
-export function HomeCompose({ error, askPay }: { error?: string; askPay?: boolean }) {
+export function HomeCompose({
+  error,
+  askPay,
+  writerPlan = false,
+}: {
+  error?: string;
+  askPay?: boolean;
+  writerPlan?: boolean;
+}) {
   const [piece, setPiece] = useState<Piece | null>(null);
   const [progress, setProgress] = useState<ComposeProgressEvent | null>(null);
   const [draftFresh, setDraftFresh] = useState(false);
@@ -60,6 +68,7 @@ export function HomeCompose({ error, askPay }: { error?: string; askPay?: boolea
     <ComposeBox
       error={error}
       askPay={askPay}
+      writerPlan={writerPlan}
       variant="hero"
       seed={draftFresh || !piece ? undefined : seedFromPiece(piece)}
       showIdeas={!busy && !piece}

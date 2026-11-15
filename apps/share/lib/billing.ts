@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { FREE_PER_DAY, JUST_PAID_COOKIE, PACK_CREDITS, PACK_PRICE_LABEL, WALLET_COOKIE } from './pack';
+import { writerPlanEnabled } from './writer-plan';
 
 export type Quota = {
   configured: boolean;
@@ -8,6 +9,7 @@ export type Quota = {
   freeLeft: number;
   credits: number;
   unlimited: boolean;
+  writer?: boolean;
   saved: boolean;
   justPaid: boolean;
   offerGoogle: boolean;
@@ -18,7 +20,7 @@ export type Quota = {
 
 export type ConsumeResult = {
   ok: boolean;
-  via: 'credit' | 'free' | 'pay' | 'open' | 'owner';
+  via: 'credit' | 'free' | 'pay' | 'open' | 'owner' | 'writer';
   freeLeft: number;
   credits: number;
 };
@@ -203,6 +205,7 @@ export async function peekQuota(request: Request): Promise<Quota> {
     ipHash: hashIp(requestIp(request)),
     day: utcDay(),
     walletToken: await walletTokenFromRequest(request),
+    writerPlan: writerPlanEnabled(),
   });
   const jar = await cookies();
   const justPaid = Boolean(jar.get(JUST_PAID_COOKIE)?.value);
@@ -233,6 +236,7 @@ export async function signedInNav(): Promise<{ email?: string; known?: boolean; 
         ipHash: 'nav',
         day: utcDay(),
         walletToken: token,
+        writerPlan: writerPlanEnabled(),
       }
     );
     return {
@@ -258,6 +262,7 @@ export async function consumeSlot(request: Request): Promise<ConsumeResult> {
     ipHash: hashIp(requestIp(request)),
     day: utcDay(),
     walletToken: await walletTokenFromRequest(request),
+    writerPlan: writerPlanEnabled(),
   });
 }
 
@@ -298,6 +303,19 @@ export async function creditPurchase(input: {
     throw new Error('Billing is not configured');
   }
   return convexCall('mutation', 'billing:creditFromStripe', { secret, ...input });
+}
+
+export async function grantWriterPlan(input: {
+  walletToken: string;
+  stripeSessionId: string;
+  stripeCustomerId?: string;
+  email?: string;
+}): Promise<{ ok: boolean; duplicate: boolean; plan: 'writer'; walletToken: string }> {
+  const secret = serverSecret();
+  if (!billingConfigured() || !secret) {
+    throw new Error('Billing is not configured');
+  }
+  return convexCall('mutation', 'billing:grantWriter', { secret, ...input });
 }
 
 export type WalletOrder = {
@@ -377,6 +395,7 @@ export type Account = {
   email?: string;
   credits: number;
   unlimited: boolean;
+  writer: boolean;
   saved: boolean;
   used: number;
   days: AccountDay[];
@@ -390,17 +409,23 @@ export async function getAccount(): Promise<Account | null> {
   if (!token || !billingConfigured() || !secret) {
     return null;
   }
-  const account = await convexCall<Omit<Account, 'justPaid'> | null>('query', 'billing:getAccount', {
-    secret,
-    walletToken: token,
-    now: Date.now(),
-  });
+  const account = await convexCall<Omit<Account, 'justPaid' | 'writer'> & { writer?: boolean } | null>(
+    'query',
+    'billing:getAccount',
+    {
+      secret,
+      walletToken: token,
+      now: Date.now(),
+      writerPlan: writerPlanEnabled(),
+    }
+  );
   if (!account) {
     return null;
   }
   const jar = await cookies();
   return {
     ...account,
+    writer: Boolean(account.writer),
     justPaid: Boolean(jar.get(JUST_PAID_COOKIE)?.value),
   };
 }

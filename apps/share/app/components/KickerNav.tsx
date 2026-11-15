@@ -11,7 +11,7 @@ export function KickerNav({
   known = false,
   owner = false,
 }: {
-  here: 'home' | 'account' | 'terms' | 'agents' | 'admin';
+  here: 'home' | 'account' | 'terms' | 'agents' | 'admin' | 'pricing';
   email?: string;
   known?: boolean;
   owner?: boolean;

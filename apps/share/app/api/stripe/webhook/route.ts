@@ -1,5 +1,8 @@
+import { grantWriterPlan } from '../../../../lib/billing';
 import { fulfillCheckoutSession } from '../../../../lib/fulfill';
 import { stripeClient } from '../../../../lib/stripe';
+import { track } from '../../../../lib/track';
+import { writerPlanEnabled, writerUpgradeDecision } from '../../../../lib/writer-plan';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,11 +29,36 @@ export async function POST(request: Request) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    try {
-      await fulfillCheckoutSession(session);
-    } catch (error) {
-      console.error('stripe fulfill failed', error);
-      return Response.json({ ok: false, error: 'Could not credit charts' }, { status: 500 });
+    const decision = writerUpgradeDecision({
+      flagOn: writerPlanEnabled(),
+      livemode: Boolean(event.livemode),
+      session,
+    });
+    if (decision.kind === 'error') {
+      return Response.json({ ok: false, error: 'Checkout session missing wallet' }, { status: 500 });
+    }
+    if (decision.kind === 'grant') {
+      try {
+        const granted = await grantWriterPlan({
+          walletToken: decision.walletToken,
+          stripeSessionId: decision.sessionId,
+          stripeCustomerId: decision.stripeCustomerId,
+          email: decision.email,
+        });
+        if (!granted.duplicate) {
+          await track('paid');
+        }
+      } catch (error) {
+        console.error('stripe writer grant failed', error);
+        return Response.json({ ok: false, error: 'Could not start Writer' }, { status: 500 });
+      }
+    } else if (decision.kind === 'pack') {
+      try {
+        await fulfillCheckoutSession(session);
+      } catch (error) {
+        console.error('stripe fulfill failed', error);
+        return Response.json({ ok: false, error: 'Could not credit charts' }, { status: 500 });
+      }
     }
   }
 

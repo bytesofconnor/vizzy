@@ -10,6 +10,7 @@ const quotaReturn = v.object({
   credits: v.number(),
   canCompose: v.boolean(),
   unlimited: v.boolean(),
+  writer: v.boolean(),
   saved: v.boolean(),
   email: v.optional(v.string()),
 });
@@ -42,6 +43,10 @@ async function mergeWallets(
     email: keep.email ?? drop.email,
     googleSub: keep.googleSub ?? drop.googleSub,
     googleEmail: keep.googleEmail ?? drop.googleEmail,
+    ...(keep.plan === 'writer' || drop.plan === 'writer' ? { plan: 'writer' as const } : {}),
+    ...(keep.writerCheckoutSessionId || drop.writerCheckoutSessionId
+      ? { writerCheckoutSessionId: keep.writerCheckoutSessionId ?? drop.writerCheckoutSessionId }
+      : {}),
   });
 
   for (const row of await ctx.db
@@ -189,6 +194,7 @@ export const peek = query({
     ipHash: v.string(),
     day: v.string(),
     walletToken: v.optional(v.string()),
+    writerPlan: v.optional(v.boolean()),
   },
   returns: quotaReturn,
   handler: async (ctx, args) => {
@@ -206,11 +212,13 @@ export const peek = query({
     const credits = wallet?.credits ?? 0;
     const freeLeft = Math.max(0, FREE_PER_DAY - (daily?.count ?? 0));
     const unlimited = isOwnerWallet(wallet);
+    const writer = Boolean(args.writerPlan) && wallet?.plan === 'writer';
     return {
       freeLeft,
       credits,
-      canCompose: unlimited || credits > 0 || freeLeft > 0,
+      canCompose: unlimited || writer || credits > 0 || freeLeft > 0,
       unlimited,
+      writer,
       saved: Boolean(wallet?.googleSub),
       email: signedInEmail(wallet),
     };
@@ -223,10 +231,17 @@ export const consume = mutation({
     ipHash: v.string(),
     day: v.string(),
     walletToken: v.optional(v.string()),
+    writerPlan: v.optional(v.boolean()),
   },
   returns: v.object({
     ok: v.boolean(),
-    via: v.union(v.literal('credit'), v.literal('free'), v.literal('pay'), v.literal('owner')),
+    via: v.union(
+      v.literal('credit'),
+      v.literal('free'),
+      v.literal('pay'),
+      v.literal('owner'),
+      v.literal('writer')
+    ),
     freeLeft: v.number(),
     credits: v.number(),
   }),
@@ -248,6 +263,16 @@ export const consume = mutation({
         via: 'owner' as const,
         freeLeft: FREE_PER_DAY,
         credits: wallet?.credits ?? 0,
+      };
+    }
+
+    if (args.writerPlan && wallet?.plan === 'writer') {
+      await logUse(ctx, wallet._id, 'writer');
+      return {
+        ok: true,
+        via: 'writer' as const,
+        freeLeft: FREE_PER_DAY,
+        credits: wallet.credits,
       };
     }
 
@@ -421,6 +446,42 @@ export const creditFromStripe = mutation({
   },
 });
 
+export const grantWriter = mutation({
+  args: {
+    secret: v.string(),
+    walletToken: v.string(),
+    stripeSessionId: v.string(),
+    stripeCustomerId: v.optional(v.string()),
+    email: v.optional(v.string()),
+  },
+  returns: v.object({
+    ok: v.boolean(),
+    duplicate: v.boolean(),
+    plan: v.literal('writer'),
+    walletToken: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    assertServer(args.secret);
+    const wallet = await resolvePaidWallet(ctx, {
+      walletToken: args.walletToken,
+      email: args.email,
+      stripeCustomerId: args.stripeCustomerId,
+    });
+    if (wallet.plan === 'writer') {
+      if (!wallet.writerCheckoutSessionId) {
+        await ctx.db.patch(wallet._id, { writerCheckoutSessionId: args.stripeSessionId });
+      }
+      return { ok: true, duplicate: true, plan: 'writer' as const, walletToken: wallet.token };
+    }
+    await ctx.db.patch(wallet._id, {
+      plan: 'writer',
+      writerCheckoutSessionId: args.stripeSessionId,
+      stripeCustomerId: args.stripeCustomerId ?? wallet.stripeCustomerId,
+    });
+    return { ok: true, duplicate: false, plan: 'writer' as const, walletToken: wallet.token };
+  },
+});
+
 export const listOrders = query({
   args: {
     secret: v.string(),
@@ -556,7 +617,7 @@ function packFromWallet(wallet: Doc<'wallets'>) {
 async function logUse(
   ctx: MutationCtx,
   walletId: Doc<'wallets'>['_id'],
-  via: 'credit' | 'free' | 'owner'
+  via: 'credit' | 'free' | 'owner' | 'writer'
 ): Promise<void> {
   await ctx.db.insert('uses', {
     walletId,
@@ -669,6 +730,7 @@ export const getAccount = query({
     secret: v.string(),
     walletToken: v.string(),
     now: v.number(),
+    writerPlan: v.optional(v.boolean()),
   },
   returns: v.union(
     v.null(),
@@ -676,6 +738,7 @@ export const getAccount = query({
       email: v.optional(v.string()),
       credits: v.number(),
       unlimited: v.boolean(),
+      writer: v.boolean(),
       saved: v.boolean(),
       used: v.number(),
       days: v.array(
@@ -726,6 +789,7 @@ export const getAccount = query({
       email: signedInEmail(wallet),
       credits: wallet.credits,
       unlimited: isOwnerWallet(wallet),
+      writer: Boolean(args.writerPlan) && wallet.plan === 'writer',
       saved: Boolean(wallet.googleSub),
       used: inWindow.length,
       days: [...byDay.entries()].map(([day, charts]) => ({ day, charts })),

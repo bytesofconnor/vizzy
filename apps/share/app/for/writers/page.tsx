@@ -3,6 +3,7 @@ import { JsonLd } from '../../components/JsonLd';
 import { WritersLanding } from '../../components/WritersLanding';
 import { signedInNav } from '../../../lib/billing';
 import { siteUrl } from '../../../lib/site';
+import { writerPlanEnabled } from '../../../lib/writer-plan';
 
 export const metadata: Metadata = {
   title: 'For writers',
@@ -44,6 +45,7 @@ export default async function WritersPage({
       <WritersLanding
         error={error}
         askPay={pay === '1'}
+        writerPlan={writerPlanEnabled()}
         email={nav.email}
         known={nav.known}
         owner={Boolean(nav.owner)}

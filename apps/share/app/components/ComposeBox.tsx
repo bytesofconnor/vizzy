@@ -14,10 +14,12 @@ import type { ClientPiece, ComposeProgressEvent } from '../../lib/compose-progre
 import type { ClarifyAsk, ComposeDisposition } from '../../lib/compose-outcome';
 import { composeWithProgress } from '../../lib/compose-stream';
 import { track, trackFirstChart, trackUpgradeView } from '../../lib/funnel-browser';
+import { showWriterPaywall } from '../../lib/writer-plan';
 import { HeroExamples } from './HeroExamples';
 import { HeroTypewriter } from './HeroTypewriter';
 import { FILL_COMPOSE_PROMPT, type FillComposeDetail } from './TellMeMore';
 import { usePromptTypewriter } from './usePromptTypewriter';
+import { WriterPaywall } from './WriterPaywall';
 
 type CardNotice =
   | { readonly kind: 'none' }
@@ -40,6 +42,7 @@ type Quota = {
 export function ComposeBox({
   error,
   askPay,
+  writerPlan = false,
   seed,
   variant = 'default',
   onBusyProgress,
@@ -51,6 +54,7 @@ export function ComposeBox({
 }: {
   error?: string;
   askPay?: boolean;
+  writerPlan?: boolean;
   seed?: ChartSeed;
   variant?: 'default' | 'hero';
   onBusyProgress?: (progress: ComposeProgressEvent | null) => void;
@@ -232,6 +236,13 @@ export function ComposeBox({
     onBusyProgress?.(busy ? composeProgress : null);
   }, [busy, composeProgress, onBusyProgress]);
 
+  const writerWall = showWriterPaywall(writerPlan, pay || composeNeedsPay(quota));
+  useEffect(() => {
+    if (writerWall) {
+      trackUpgradeView();
+    }
+  }, [writerWall]);
+
   useEffect(() => {
     const onFill = (event: Event) => {
       const detail = (event as CustomEvent<Partial<FillComposeDetail> | undefined>).detail;
@@ -308,7 +319,11 @@ export function ComposeBox({
       track('free_limit');
       setBusy(false);
       setPay(true);
-      setNotice({ kind: 'fail', error: payMessage(), pay: true });
+      if (writerPlan) {
+        setNotice({ kind: 'none' });
+      } else {
+        setNotice({ kind: 'fail', error: payMessage(), pay: true });
+      }
       return;
     }
 
@@ -353,6 +368,12 @@ export function ComposeBox({
           setNotice({ kind: 'clarify', ask: outcome.ask });
           break;
         case 'fail':
+          if (outcome.pay && writerPlan) {
+            track('free_limit');
+            setPay(true);
+            setNotice({ kind: 'none' });
+            break;
+          }
           setNotice({ kind: 'fail', error: outcome.error, pay: Boolean(outcome.pay) });
           if (outcome.pay) {
             setPay(true);
@@ -543,7 +564,13 @@ export function ComposeBox({
                         </button>
                       </div>
                       <span className="compose-hero-bar-note">
-                        <StudioBarNote quota={quota} pay={pay} buying={buying} onBuy={() => void buy()} />
+                        <StudioBarNote
+                          quota={quota}
+                          pay={pay}
+                          buying={buying}
+                          hidePackBuy={writerWall}
+                          onBuy={() => void buy()}
+                        />
                       </span>
                     </>
                   ) : (
@@ -558,6 +585,7 @@ export function ComposeBox({
                           quota={quota}
                           pay={pay}
                           buying={buying}
+                          hidePackBuy={writerWall}
                           onBuy={() => void buy()}
                         />
                       </span>
@@ -566,7 +594,9 @@ export function ComposeBox({
                 </div>
           </div>
         ) : null}
-        {notice.kind === 'fail' && notice.error && !busy ? (
+        {writerWall && !busy ? (
+          <WriterPaywall chartTitle={seed?.title} prompt={prompt} rows={seed?.rows} />
+        ) : notice.kind === 'fail' && notice.error ? (
           <p role="alert" className="compose-fail">
             {notice.error}
           </p>
@@ -620,18 +650,20 @@ function HeroPricingNote({
   quota,
   pay,
   buying,
+  hidePackBuy = false,
   onBuy,
 }: {
   quota: Quota | null;
   pay: boolean;
   buying: boolean;
+  hidePackBuy?: boolean;
   onBuy: () => void;
 }) {
   const note = homepageQuotaNote(quota);
   const unlimited = Boolean(quota?.configured && quota.unlimited);
   const justPaid = Boolean(quota?.configured && quota.justPaid);
   const outOfFree = composeNeedsPay(quota);
-  const showBuy = !unlimited && !justPaid && (pay || outOfFree);
+  const showBuy = !hidePackBuy && !unlimited && !justPaid && (pay || outOfFree);
 
   return (
     <span className="compose-bar-note">
@@ -658,16 +690,18 @@ function StudioBarNote({
   quota,
   pay,
   buying,
+  hidePackBuy = false,
   onBuy,
 }: {
   quota: Quota | null;
   pay: boolean;
   buying: boolean;
+  hidePackBuy?: boolean;
   onBuy: () => void;
 }) {
   const credits = quota?.credits ?? 0;
   const unlimited = Boolean(quota?.unlimited);
-  const showBuy = !unlimited && !quota?.justPaid && (pay || Boolean(quota?.configured));
+  const showBuy = !hidePackBuy && !unlimited && !quota?.justPaid && (pay || Boolean(quota?.configured));
 
   let status = `${FREE_PER_DAY} free · link + PNG`;
   if (quota?.configured && unlimited && credits > 0) {

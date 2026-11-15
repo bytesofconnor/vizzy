@@ -14,10 +14,12 @@ export function StudioDesk({
   piece: initial,
   error,
   askPay,
+  writerPlan = false,
 }: {
   piece: Piece;
   error?: string;
   askPay?: boolean;
+  writerPlan?: boolean;
 }) {
   const [piece, setPiece] = useState<Piece>(initial);
   const [progress, setProgress] = useState<ComposeProgressEvent | null>(null);
@@ -47,6 +49,7 @@ export function StudioDesk({
     <ComposeBox
       error={error}
       askPay={askPay}
+      writerPlan={writerPlan}
       variant="hero"
       seed={freshDraft ? undefined : seedFromPiece(piece)}
       showIdeas={false}

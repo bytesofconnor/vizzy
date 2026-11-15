@@ -30,12 +30,14 @@ const WRITER_EXAMPLE_SLUGS = ['vinyl', 'ozone', 'reef'] as const;
 export function WritersLanding({
   error,
   askPay,
+  writerPlan = false,
   email,
   known,
   owner = false,
 }: {
   error?: string;
   askPay?: boolean;
+  writerPlan?: boolean;
   email?: string;
   known?: boolean;
   owner?: boolean;
@@ -58,7 +60,7 @@ export function WritersLanding({
           can drop anywhere — with the source on the chart.
         </p>
         <p className="writers-trust">We won&apos;t invent a source link.</p>
-        <ComposeBox error={error} askPay={askPay} variant="hero" />
+        <ComposeBox error={error} askPay={askPay} writerPlan={writerPlan} variant="hero" />
         <AgentPaste />
       </section>
       <section className="writers-workflows" aria-labelledby="writers-workflows-title">
