@@ -38,7 +38,7 @@ describe('mintFromOfficial', () => {
     );
     expect(minted.ok).toBe(true);
     if (minted.ok) {
-      expect(minted.piece.title).toBe('CO₂ ppm by Year');
+      expect(minted.piece.title).toBe('CO₂ ppm by Year, 2020-2023');
     }
   });
 
@@ -68,7 +68,7 @@ describe('mintFromOfficial', () => {
       expect(minted.piece.config.chart.type).toBe('line');
       expect(minted.piece.config.axes.x.label).toBe('Month');
       expect(String(minted.piece.data[0]?.x)).toBe('2000-01');
-      expect(minted.piece.title).toBe('Fed funds since 2000');
+      expect(minted.piece.title).toBe('Fed funds since 2000, 2000-2001');
     }
   });
 
@@ -95,7 +95,7 @@ describe('mintFromOfficial', () => {
     expect(minted.piece.config.axes.x.label).toBe('Year');
     expect(minted.piece.config.axes.y.label).toBe('Change in Rate %');
     expect(minted.piece.title.toLowerCase()).not.toContain('month');
-    expect(minted.piece.title).toBe('Change in Rate % by Year');
+    expect(minted.piece.title).toBe('Change in Rate % by Year, 2001-2003');
     expect(minted.piece.config.chart.type).toBe('line');
   });
 
@@ -119,7 +119,7 @@ describe('mintFromOfficial', () => {
       { x: '2000', y: 6 },
       { x: '2001', y: 2 },
     ]);
-    expect(minted.piece.title).toBe('Rate % by Year');
+    expect(minted.piece.title).toBe('Rate % by Year, 2000-2001');
     expect(minted.piece.config.axes.y.label).toBe('Rate %');
   });
 
@@ -156,7 +156,7 @@ describe('mintFromOfficial', () => {
     );
     expect(minted.ok).toBe(true);
     if (minted.ok) {
-      expect(minted.piece.title).toBe('CO₂ ppm by Year');
+      expect(minted.piece.title).toBe('CO₂ ppm by Year, 2020-2023');
     }
   });
 

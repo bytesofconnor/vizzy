@@ -1,12 +1,28 @@
 import { foldAsked } from './normalize';
 
+const QUALIFIER =
+  'monthly|month|quarterly|quarter|annual|annually|yearly|weekly|daily|rate|rates|average|real|nominal|total|the|a|an|of';
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function phraseIn(asked: string, phrase: string): boolean {
   const hay = foldAsked(asked);
   const needle = foldAsked(phrase);
   if (needle.length < 2) {
     return false;
   }
-  const body = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const exact = new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(needle)}(?![a-z0-9])`);
+  if (exact.test(hay)) {
+    return true;
+  }
+  const tokens = needle.split(' ').filter((token) => token.length > 0);
+  if (tokens.length < 2) {
+    return false;
+  }
+  const gap = `(?:\\s+(?:${QUALIFIER}))*`;
+  const body = tokens.map((token) => escapeRegExp(token)).join(`${gap}\\s+`);
   return new RegExp(`(?:^|[^a-z0-9])${body}(?![a-z0-9])`).test(hay);
 }
 
@@ -155,6 +171,10 @@ export function placesInAsked(asked: string): string[] {
     out.push(hit.entity);
   }
   return out;
+}
+
+export function labelNamesPlace(label: string): boolean {
+  return PLACES.some((item) => labelIsPlace(label, item.entity));
 }
 
 export function labelIsPlace(label: string, entity: string): boolean {

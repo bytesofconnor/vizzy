@@ -85,7 +85,7 @@ function oneSnapshotYear(years: Array<string | undefined>): string | undefined {
   return unique.length === 1 ? unique[0] : undefined;
 }
 
-function parseWikiTablesDetailed(html: string, spec: WikiTableSpec): ParsedWiki {
+function parseWikiTablesDetailed(html: string, spec: WikiTableSpec, limit = 15): ParsedWiki {
   const collected: SeriesRow[] = [];
   const yearHeader = spec.yearHeader ?? /^year$/i;
   for (const table of tableChunks(html)) {
@@ -148,11 +148,11 @@ function parseWikiTablesDetailed(html: string, spec: WikiTableSpec): ParsedWiki 
     }
     if (rows.length >= 3) {
       const sorted = [...paired].sort((a, b) => b.row.y - a.row.y);
-      const kept = sorted.slice(0, 15);
+      const kept = sorted.slice(0, limit);
       return {
         rows: kept.map((item) => item.row),
         snapshotYear: oneSnapshotYear(kept.map((item) => item.year)),
-        ...(sorted.length > 15 ? { truncatedTo: 15 } : {}),
+        ...(sorted.length > limit ? { truncatedTo: limit } : {}),
       };
     }
   }
@@ -232,20 +232,20 @@ function wikiHtml(jsonText: string): string {
   return typeof text === 'string' ? text : text?.['*'] ?? '';
 }
 
-function wikiPage(source: string, spec: WikiTableSpec): ParsedWiki {
+function wikiPage(source: string, spec: WikiTableSpec, limit = 15): ParsedWiki {
   const html = source.trimStart().startsWith('{') ? wikiHtml(source) : source;
   if (!html) {
     return { rows: [] };
   }
-  return parseWikiTablesDetailed(html, spec);
+  return parseWikiTablesDetailed(html, spec, limit);
 }
 
 export function parseWikiApi(jsonText: string, spec: WikiTableSpec): SeriesRow[] {
   return wikiPage(jsonText, spec).rows;
 }
 
-export function readWiki(source: string, spec: WikiTableSpec): ParsedWiki {
-  return wikiPage(source, spec);
+export function readWiki(source: string, spec: WikiTableSpec, limit = 15): ParsedWiki {
+  return wikiPage(source, spec, limit);
 }
 
 export function wikiSnapshotYear(source: string, spec: WikiTableSpec): string | undefined {

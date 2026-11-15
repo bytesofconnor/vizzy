@@ -1,11 +1,13 @@
 export type YearSpan = { first: number; last: number };
 
 export function yearFromX(value: string | number): number | undefined {
-  const match = String(value).trim().match(/^((?:19|20)\d{2})(?:$|[-/.])/);
-  if (!match) {
-    return undefined;
+  const text = String(value).trim();
+  const leading = text.match(/^((?:1[89]|20)\d{2})(?:$|[-/.])/);
+  if (leading?.[1]) {
+    return Number(leading[1]);
   }
-  return Number(match[1]);
+  const quarter = text.match(/^q[1-4]\s+((?:1[89]|20)\d{2})$/i);
+  return quarter?.[1] ? Number(quarter[1]) : undefined;
 }
 
 export function drawnYearSpan(rows: Array<{ x: string | number }>): YearSpan | null {

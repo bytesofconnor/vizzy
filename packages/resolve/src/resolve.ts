@@ -1,7 +1,7 @@
-import { matchPrompt } from './catalog';
+import { matchAsked, matchPrompt } from './catalog';
 import { defaultGet } from './http';
-import { yearSpanFromAsked } from './normalize';
-import { labelIsPlace, placesInAsked } from './places';
+import { topCountFromAsked, yearSpanFromAsked } from './normalize';
+import { labelIsPlace, labelNamesPlace, placesInAsked } from './places';
 import {
   fredCsvUrl,
   monthlyClose,
@@ -22,11 +22,20 @@ type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string; truncatedTo?: nu
 
 const RANK_CAP = 15;
 
-function capRanking(rows: SeriesRow[]): { rows: SeriesRow[]; truncatedTo?: number } {
-  if (rows.length <= RANK_CAP) {
+function rankLimit(asked?: string): number {
+  const askedN = asked ? topCountFromAsked(asked) : undefined;
+  if (askedN !== undefined) {
+    return askedN;
+  }
+  return RANK_CAP;
+}
+
+function capRanking(rows: SeriesRow[], asked?: string): { rows: SeriesRow[]; truncatedTo?: number } {
+  const cap = rankLimit(asked);
+  if (rows.length <= cap) {
     return { rows };
   }
-  return { rows: rows.slice(0, RANK_CAP), truncatedTo: RANK_CAP };
+  return { rows: rows.slice(0, cap), truncatedTo: cap };
 }
 
 async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise<LoadedRecipe> {
@@ -58,7 +67,7 @@ async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise
       return { rows: [] };
     }
     const parsed = parseOwidCsv(await get(owidCsvUrl(spec.slug)), spec);
-    return spec.rank ? capRanking(parsed) : { rows: parsed };
+    return spec.rank ? capRanking(parsed, asked) : { rows: parsed };
   }
   if (recipe.family === 'usgs') {
     return { rows: parseUsgsGeojson(await get(USGS_M8_URL)) };
@@ -76,7 +85,7 @@ async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise
   if (recipe.seriesId === 'un_votes_ukraine') {
     return { rows: parseWikiUnVotes(body) };
   }
-  const page = readWiki(body, spec);
+  const page = readWiki(body, spec, rankLimit(asked));
   return {
     rows: page.rows,
     ...(page.snapshotYear ? { snapshotYear: page.snapshotYear } : {}),
@@ -101,7 +110,39 @@ export function rowsForAsked(rows: SeriesRow[], asked: string, now = Date.now())
   if (!isTimedRows(kept)) {
     return kept;
   }
-  return downsample(kept, rowCap(kept));
+  const sampled = downsample(kept, rowCap(kept));
+  if (matched?.quarterly) {
+    return sampled.map(asQuarter);
+  }
+  return sampled;
+}
+
+function asQuarter(row: SeriesRow): SeriesRow {
+  const match = String(row.x).trim().match(/^(\d{4})-(\d{2})$/);
+  if (!match?.[1] || !match[2]) {
+    return row;
+  }
+  const month = Number(match[2]);
+  const quarter = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
+  return { ...row, x: `Q${quarter} ${match[1]}` };
+}
+
+function yearOverYear(rows: SeriesRow[]): SeriesRow[] {
+  const sorted = [...rows].sort((a, b) => String(a.x).localeCompare(String(b.x)));
+  const byStamp = new Map(sorted.map((row) => [String(row.x), row.y]));
+  const out: SeriesRow[] = [];
+  for (const row of sorted) {
+    const match = String(row.x).match(/^(\d{4})-(\d{2})$/);
+    if (!match?.[1] || !match[2]) {
+      continue;
+    }
+    const base = byStamp.get(`${Number(match[1]) - 1}-${match[2]}`);
+    if (base === undefined || base === 0) {
+      continue;
+    }
+    out.push({ x: String(row.x), y: Math.round(((row.y / base) - 1) * 1000) / 10 });
+  }
+  return out;
 }
 
 function preferAskedCountries(rows: SeriesRow[], asked?: string): { rows: SeriesRow[]; truncatedTo?: number } {
@@ -114,11 +155,11 @@ function preferAskedCountries(rows: SeriesRow[], asked?: string): { rows: Series
     }
     return { rows: picked };
   }
-  return capRanking(rows);
+  return capRanking(rows, asked);
 }
 
 function keepAskedPlaces(rows: SeriesRow[], asked: string): SeriesRow[] {
-  if (!rows.some((row) => row.series)) {
+  if (!rows.some((row) => row.series && labelNamesPlace(row.series))) {
     return rows;
   }
   const wanted = placesInAsked(asked);
@@ -160,10 +201,75 @@ export async function fetchMatched(
   };
 }
 
+const INDEX_TO_RATE = new Set(['CPIAUCSL', 'CPILFESL']);
+
+function comparedName(seriesId: string, asRate: boolean, yLabel: string): string {
+  if (asRate) {
+    return 'CPI inflation';
+  }
+  if (seriesId === 'FEDFUNDS') {
+    return 'Federal funds rate';
+  }
+  return yLabel;
+}
+
+async function resolveComparison(
+  recipes: readonly Recipe[],
+  asked: string,
+  options: { get?: HttpGet; now?: number }
+): Promise<ResolvedSeries | null> {
+  const now = options.now ?? Date.now();
+  const get = options.get ?? defaultGet;
+  const parts: Array<{ recipe: Recipe; rows: SeriesRow[] }> = [];
+  for (const recipe of recipes) {
+    const loaded = await loadRecipe(recipe, get, asked);
+    if (loaded.rows.length < 2) {
+      return null;
+    }
+    const asRate = INDEX_TO_RATE.has(recipe.seriesId);
+    const base = asRate ? yearOverYear(loaded.rows) : loaded.rows;
+    const rows = rowsForAsked(base, asked, now).map((row) => ({
+      ...row,
+      series: comparedName(recipe.seriesId, asRate, recipe.yLabel),
+    }));
+    if (rows.length < 2) {
+      return null;
+    }
+    parts.push({ recipe, rows });
+  }
+  const shared = new Set(
+    (parts[0]?.rows ?? [])
+      .map((row) => row.x)
+      .filter((x) => parts.every((part) => part.rows.some((row) => row.x === x)))
+  );
+  const rows = parts.flatMap((part) => part.rows.filter((row) => shared.has(row.x)));
+  rows.sort((a, b) => String(a.x).localeCompare(String(b.x)) || String(a.series).localeCompare(String(b.series)));
+  const first = parts[0];
+  if (!first || rows.length < 2) {
+    return null;
+  }
+  const names = parts.map((part) => part.rows[0]?.series).filter((name): name is string => Boolean(name));
+  return {
+    family: first.recipe.family,
+    seriesId: parts.map((part) => part.recipe.seriesId).join('+'),
+    sourceLabel: `FRED — ${names.join(' and ')}`,
+    sourceUrl: first.recipe.sourceUrl,
+    method: 'official',
+    retrieved: now,
+    xLabel: 'Month',
+    yLabel: 'Percent',
+    rows,
+  };
+}
+
 export async function resolvePrompt(
   asked: string,
   options: { get?: HttpGet; now?: number } = {}
 ): Promise<ResolvedSeries | null> {
+  const recipes = matchAsked(asked);
+  if (recipes.length === 2) {
+    return resolveComparison(recipes, asked, options);
+  }
   const full = await fetchMatched(asked, options);
   if (!full) {
     return null;

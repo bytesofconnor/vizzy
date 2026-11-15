@@ -26,7 +26,7 @@ type FidelityPrompt = {
 
 const fixture = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../eval/fixtures/prompt-fidelity.json'), 'utf8')
-) as { prompts: FidelityPrompt[] };
+) as { clock: string; prompts: FidelityPrompt[] };
 
 function yearOf(value: string): number | undefined {
   const quarter = value.match(/^q[1-4]\s+((?:19|20)\d{2})$/i);
@@ -99,14 +99,13 @@ function solarTable(): string {
   return JSON.stringify({ parse: { text: { '*': html } } });
 }
 
-function co2Bank(): string {
-  const countries = Array.from({ length: 16 }, (_, index) => ({
-    country: { value: `Country ${String(index + 1).padStart(2, '0')}` },
-    date: '2022',
-    value: 30 - index,
-  }));
-  countries.push({ country: { value: 'Other economies' }, date: '2022', value: 500 });
-  return JSON.stringify([{ page: 1 }, countries]);
+function co2Csv(): string {
+  const lines = ['Entity,Code,Year,Annual CO2 emissions per capita'];
+  for (let index = 0; index < 16; index += 1) {
+    lines.push(`Country ${String(index + 1).padStart(2, '0')},C${index},2022,${30 - index}`);
+  }
+  lines.push('Other economies,OWID_OTH,2022,500');
+  return lines.join('\n');
 }
 
 function temperatureCsv(): string {
@@ -125,7 +124,7 @@ function arcticCsv(): string {
   return lines.join('\n');
 }
 
-function canned(url: string): string {
+async function canned(url: string): Promise<string> {
   if (url.includes('UNRATE')) {
     return monthly('UNRATE', '1948-01', '2026-10', (year, month) => 4 + (month % 3) / 10);
   }
@@ -144,8 +143,8 @@ function canned(url: string): string {
   if (url.includes('FEDFUNDS')) {
     return monthly('FEDFUNDS', '2010-01', '2026-10', () => 2.5);
   }
-  if (url.includes('EN.ATM.CO2E.PC')) {
-    return co2Bank();
+  if (url.includes('co-emissions-per-capita')) {
+    return co2Csv();
   }
   if (url.includes('Solar_power_by_country')) {
     return solarTable();
@@ -165,6 +164,7 @@ function yearsOf(rows: SeriesRow[]): number[] {
 
 describe('prompt fidelity', () => {
   it('locks the Nov 14 set at 14 prompts', () => {
+    expect(fixture.clock).toBe(new Date(NOW).toISOString().slice(0, 10));
     expect(fixture.prompts).toHaveLength(14);
     for (const prompt of fixture.prompts) {
       expect(prompt.series.length).toBeGreaterThan(0);

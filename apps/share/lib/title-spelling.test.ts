@@ -102,7 +102,7 @@ describe('chart titles use resolved spellings', () => {
     if (!minted.ok) {
       return;
     }
-    expect(minted.piece.title).toBe('Atmospheric CO2 at Mauna Loa');
+    expect(minted.piece.title).toBe('Atmospheric CO2 at Mauna Loa, 2020-2023');
   });
 
   it('leaves a plural stem alone', () => {

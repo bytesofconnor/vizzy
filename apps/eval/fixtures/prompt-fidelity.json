@@ -1,6 +1,6 @@
 {
   "id": "prompt-fidelity",
-  "note": "Nov 14 live-test prompts. The clock for a relative window is 2026-11-15. Each prompt names the series, the plotted year span, and the top N.",
+  "clock": "2026-11-15",
   "prompts": [
     {
       "id": "us-monthly-unemployment-since-2000",
@@ -77,13 +77,13 @@
     {
       "id": "co2-per-capita-top-15",
       "text": "CO2 per capita top 15",
-      "series": ["EN.ATM.CO2E.PC"],
+      "series": ["co2_per_capita"],
       "topN": 15
     },
     {
       "id": "co2-per-capita-wording",
       "text": "carbon dioxide emissions per capita, top 15",
-      "series": ["EN.ATM.CO2E.PC"],
+      "series": ["co2_per_capita"],
       "topN": 15
     },
     {

@@ -1,7 +1,7 @@
 import type { SeriesRow } from '../types';
 
 const SKIP_NAME =
-  /\b(world|income|ida |ibrd|oecd|euro area|european union|north america|south asia|sub-saharan|latin america|arab world|small states|fragile|dividend|classification|excluding|baltics|central europe|high income|low income|middle income|ida only|oecd members)\b/i;
+  /\b(world|income|ida |ibrd|oecd|euro area|european union|north america|south asia|sub-saharan|latin america|arab world|small states|fragile|dividend|classification|excluding|baltics|central europe|high income|low income|middle income|ida only|oecd members|other economies|rest of the world)\b/i;
 
 type BankRow = {
   country?: { value?: string; id?: string };

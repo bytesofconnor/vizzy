@@ -104,7 +104,22 @@ function alignMentionedValues(
         return sentence;
       }
       const y = target.y;
-      return sentence.replace(/\$?\d{1,3}(?:,\d{3})+(?:\.\d+)?|\$?\d+(?:\.\d+)?%?/g, (raw) => {
+      const labels = plotted
+        .flatMap((row) => [String(row.x), row.series ?? ''])
+        .map((label) => label.trim())
+        .filter((label) => label.length > 1)
+        .sort((a, b) => b.length - a.length);
+      const held: string[] = [];
+      let shielded = sentence;
+      for (const label of labels) {
+        if (!shielded.includes(label)) {
+          continue;
+        }
+        const token = `⟦${'x'.repeat(held.length + 1)}⟧`;
+        held.push(label);
+        shielded = shielded.split(label).join(token);
+      }
+      const replaced = shielded.replace(/\$?\d{1,3}(?:,\d{3})+(?:\.\d+)?|\$?\d+(?:\.\d+)?%?/g, (raw) => {
         const numeric = Number(raw.replace(/[$,%]/g, ''));
         if (!Number.isFinite(numeric) || numeric === y) {
           return raw;
@@ -117,6 +132,10 @@ function alignMentionedValues(
         }
         return formatLike(raw, y);
       });
+      return held.reduce(
+        (text, label, index) => text.split(`⟦${'x'.repeat(index + 1)}⟧`).join(label),
+        replaced
+      );
     })
     .join(' ');
 }

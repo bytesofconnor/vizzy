@@ -33,9 +33,12 @@ export type Dataset = {
   avoid?: readonly string[];
   /** Keep this series only when the prompt names at least two places. */
   places?: boolean;
+  place?: string;
+  coverage?: string;
   recentYears?: number;
   monthlyClose?: boolean;
   annual?: boolean;
+  quarterly?: boolean;
 };
 
 export type Recipe = Dataset;

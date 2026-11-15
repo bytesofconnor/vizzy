@@ -131,7 +131,13 @@ export const DATASETS: readonly Dataset[] = [
     xLabel: 'Country',
     yLabel: 'Tonnes per person',
     topics: ['climate', 'economy'],
-    aliases: ['co2 per capita', 'co₂ per capita', 'carbon dioxide per capita', 'co2 emissions per capita'],
+    aliases: [
+      'co2 per capita',
+      'co₂ per capita',
+      'carbon dioxide per capita',
+      'co2 emissions per capita',
+      'carbon dioxide emissions per capita',
+    ],
     avoid: ['mauna', 'atmospheric', 'ppm'],
   },
   {
@@ -263,6 +269,53 @@ export const DATASETS: readonly Dataset[] = [
   },
   {
     family: 'fred',
+    seriesId: 'A191RL1Q225SBEA',
+    sourceLabel: 'FRED — U.S. real GDP growth',
+    sourceUrl: 'https://fred.stlouisfed.org/series/A191RL1Q225SBEA',
+    xLabel: 'Quarter',
+    yLabel: 'Real GDP growth %',
+    topics: ['economy'],
+    aliases: [
+      'gdp growth by quarter',
+      'quarterly gdp growth',
+      'quarterly us gdp growth',
+      'us gdp growth by quarter',
+      'us quarterly gdp growth',
+    ],
+    avoid: ['per capita', 'per person', 'world', 'global', 'by country', 'by state'],
+    place: 'United States',
+    quarterly: true,
+  },
+  {
+    family: 'fred',
+    seriesId: 'A191RL1A225NBEA',
+    sourceLabel: 'FRED — U.S. real GDP growth',
+    sourceUrl: 'https://fred.stlouisfed.org/series/A191RL1A225NBEA',
+    xLabel: 'Year',
+    yLabel: 'Real GDP growth %',
+    topics: ['economy'],
+    aliases: ['gdp growth', 'real gdp growth', 'us gdp growth'],
+    avoid: ['per capita', 'per person', 'quarter', 'quarterly', 'world', 'global', 'by country', 'by state'],
+    place: 'United States',
+    annual: true,
+  },
+  {
+    family: 'fred',
+    seriesId: 'MEHOINUSMNA646N',
+    sourceLabel: 'FRED — median household income in Minnesota',
+    sourceUrl: 'https://fred.stlouisfed.org/series/MEHOINUSMNA646N',
+    xLabel: 'Year',
+    yLabel: 'Median household income ($)',
+    topics: ['economy'],
+    aliases: [
+      'minnesota median household income',
+      'median household income in minnesota',
+      'minnesota household income',
+    ],
+    annual: true,
+  },
+  {
+    family: 'fred',
     seriesId: 'CPIAUCSL',
     sourceLabel: 'FRED — U.S. CPI',
     sourceUrl: 'https://fred.stlouisfed.org/series/CPIAUCSL',
@@ -333,8 +386,8 @@ export const DATASETS: readonly Dataset[] = [
     xLabel: 'Month',
     yLabel: 'Rate %',
     topics: ['economy'],
-    aliases: ['30-year mortgage', '30 year mortgage', 'mortgage rate'],
-    avoid: ['15-year', '15 year'],
+    aliases: ['30-year mortgage', '30 year mortgage', 'mortgage rate', 'mortgage30us'],
+    avoid: ['15-year', '15 year', 'home price', 'case-shiller', 'case shiller'],
     monthlyClose: true,
   },
   {
@@ -387,6 +440,7 @@ export const DATASETS: readonly Dataset[] = [
     topics: ['climate', 'ecology'],
     aliases: ['sea ice', 'arctic ice', 'arctic summer ice'],
     avoid: ['antarctic', 'antarctica'],
+    coverage: 'September minimum',
   },
   {
     family: 'owid',
@@ -398,6 +452,7 @@ export const DATASETS: readonly Dataset[] = [
     topics: ['climate', 'ecology'],
     aliases: ['antarctic sea ice', 'antarctica sea ice', 'antarctic ice'],
     avoid: ['arctic'],
+    coverage: 'February minimum',
   },
   {
     family: 'owid',
@@ -796,11 +851,32 @@ export function matchPrompt(asked: string): Recipe | null {
   return top.dataset;
 }
 
+const VERSUS = /\s+(?:vs\.?|versus|against)\s+/i;
+
+export function matchAsked(asked: string): Dataset[] {
+  const parts = asked
+    .split(VERSUS)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 8);
+  if (parts.length === 2) {
+    const left = matchPrompt(parts[0] ?? '');
+    const right = matchPrompt(parts[1] ?? '');
+    if (left && right && (left.family !== right.family || left.seriesId !== right.seriesId)) {
+      return [left, right];
+    }
+  }
+  const one = matchPrompt(asked);
+  return one ? [one] : [];
+}
+
 function scoreDataset(asked: string, dataset: Dataset): number {
   if (dataset.avoid?.some((needle) => phraseIn(asked, needle))) {
     return 0;
   }
   if (dataset.places && placesInAsked(asked).length < 2) {
+    return 0;
+  }
+  if (dataset.place && placesInAsked(asked).some((entity) => entity !== dataset.place)) {
     return 0;
   }
   let best = 0;
