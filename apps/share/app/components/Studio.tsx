@@ -6,6 +6,7 @@ import { HomeCompose } from './HomeCompose';
 import { KickerNav } from './KickerNav';
 import { PieceStage } from './PieceStage';
 import { SiteFoot } from './SiteFoot';
+import { AccountGate } from './AccountGate';
 import { StudioDesk } from './StudioDesk';
 
 export function Studio({
@@ -30,6 +31,7 @@ export function Studio({
   initialPrompt?: string;
 }) {
   return (
+    <AccountGate signedIn={Boolean(email)}>
     <main id="content" className={`page-main${piece ? '' : ' page-home'}`}>
       <KickerNav here="home" email={email} known={known} owner={owner} />
       {piece ? (
@@ -52,6 +54,7 @@ export function Studio({
       </div>
       <SiteFoot />
     </main>
+    </AccountGate>
   );
 }
 

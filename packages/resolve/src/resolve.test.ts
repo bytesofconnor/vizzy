@@ -16,7 +16,12 @@ describe('matchPrompt', () => {
     expect(matchPrompt('Top ten languages by native speakers')?.seriesId).toBe('languages_native');
     expect(matchPrompt('Life expectancy at birth by country')?.family).toBe('worldbank');
     expect(matchPrompt('US unemployment rate since 2019')?.seriesId).toBe('UNRATE');
+    expect(matchPrompt('US unemployment since 2000')?.seriesId).toBe('UNRATE');
+    expect(matchPrompt('30-year mortgage rate')?.seriesId).toBe('MORTGAGE30US');
+    expect(matchPrompt('CO2 per capita')?.seriesId).toBe('co2_per_capita');
     expect(matchPrompt('US GDP since 2000')?.seriesId).toBe('GDPCA');
+    expect(matchPrompt('S&P 500 last 20 years')?.seriesId).toBe('SP500');
+    expect(matchPrompt('Federal funds rate')?.seriesId).toBe('FEDFUNDS');
     expect(matchPrompt('unemployment rate by US state')?.seriesId).toBe('state_unemployment');
     expect(matchPrompt('US GDP growth since 2000')?.seriesId).not.toBe('GDPCA');
     expect(matchPrompt('GDP per capita by country since 2000')?.seriesId).not.toBe('GDPCA');

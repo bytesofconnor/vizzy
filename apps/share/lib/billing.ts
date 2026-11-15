@@ -1,7 +1,17 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
+import { readDeviceStamp, withDeviceCookie, type DeviceStamp } from './device-allowance';
 import { FREE_PER_DAY, JUST_PAID_COOKIE, PACK_CREDITS, PACK_PRICE_LABEL, WALLET_COOKIE } from './pack';
 import { writerPlanEnabled } from './writer-plan';
+
+export type ComposeDevice = DeviceStamp & { hash: string };
+
+export function composeDevice(request: Request): ComposeDevice {
+  const stamp = readDeviceStamp(request.headers.get('cookie'));
+  return { ...stamp, hash: hashIp(`device:${stamp.id}`) };
+}
+
+export { withDeviceCookie };
 
 export type Quota = {
   configured: boolean;
@@ -169,7 +179,7 @@ export function clearJustPaidCookieOptions() {
   };
 }
 
-export async function peekQuota(request: Request): Promise<Quota> {
+export async function peekQuota(request: Request, device = composeDevice(request)): Promise<Quota> {
   const pack = { packCredits: PACK_CREDITS, packPriceLabel: PACK_PRICE_LABEL };
   if (!billingConfigured()) {
     return {
@@ -206,6 +216,7 @@ export async function peekQuota(request: Request): Promise<Quota> {
     day: utcDay(),
     walletToken: await walletTokenFromRequest(request),
     writerPlan: writerPlanEnabled(),
+    deviceHash: device.hash,
   });
   const jar = await cookies();
   const justPaid = Boolean(jar.get(JUST_PAID_COOKIE)?.value);
@@ -249,7 +260,7 @@ export async function signedInNav(): Promise<{ email?: string; known?: boolean; 
   }
 }
 
-export async function consumeSlot(request: Request): Promise<ConsumeResult> {
+export async function consumeSlot(request: Request, device = composeDevice(request)): Promise<ConsumeResult> {
   if (!billingConfigured()) {
     return { ok: true, via: 'open', freeLeft: FREE_PER_DAY, credits: 0 };
   }
@@ -263,10 +274,15 @@ export async function consumeSlot(request: Request): Promise<ConsumeResult> {
     day: utcDay(),
     walletToken: await walletTokenFromRequest(request),
     writerPlan: writerPlanEnabled(),
+    deviceHash: device.hash,
   });
 }
 
-export async function refundSlot(request: Request, via: 'credit' | 'free'): Promise<void> {
+export async function refundSlot(
+  request: Request,
+  via: 'credit' | 'free',
+  device = composeDevice(request)
+): Promise<void> {
   if (!billingConfigured()) {
     return;
   }
@@ -280,6 +296,7 @@ export async function refundSlot(request: Request, via: 'credit' | 'free'): Prom
     day: utcDay(),
     via,
     walletToken: await walletTokenFromRequest(request),
+    deviceHash: device.hash,
   });
 }
 

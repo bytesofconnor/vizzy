@@ -3,6 +3,7 @@ import {
   billingConfigured,
   ensureWallet,
   newWalletToken,
+  peekQuota,
   readWalletToken,
   walletCookieOptions,
 } from '../../../lib/billing';
@@ -59,6 +60,11 @@ export async function POST(request: Request) {
     'title' in body && typeof body.title === 'string' ? body.title.trim().slice(0, 160) : undefined;
   if (!billingConfigured()) {
     return Response.json({ ok: false, error: 'Pinning is not configured' }, { status: 503 });
+  }
+
+  const quota = await peekQuota(request);
+  if (!quota.saved) {
+    return Response.json({ ok: false, error: 'Sign in to save this chart', signIn: true }, { status: 401 });
   }
 
   const existing = await readWalletToken();

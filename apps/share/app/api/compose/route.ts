@@ -1,4 +1,11 @@
-import { consumeSlot, refundSlot, walletTokenFromRequest } from '../../../lib/billing';
+import {
+  composeDevice,
+  consumeSlot,
+  refundSlot,
+  walletTokenFromRequest,
+  withDeviceCookie,
+  type ComposeDevice,
+} from '../../../lib/billing';
 import { decideCompose, type MintOrder } from '../../../lib/compose-decision';
 import { reportProgress, clientPiece, type ComposeProgressReporter } from '../../../lib/compose-progress';
 import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
@@ -104,7 +111,8 @@ function streamCompose(
   request: Request,
   order: MintOrder,
   slot: Awaited<ReturnType<typeof consumeSlot>>,
-  walletToken: string | undefined
+  walletToken: string | undefined,
+  device: ComposeDevice
 ): Response {
   const encoder = new TextEncoder();
 
@@ -118,7 +126,7 @@ function streamCompose(
         const result = await runCompose(origin, request, order, send, walletToken);
         if (!result.ok) {
           if (slot.via === 'credit' || slot.via === 'free') {
-            await refundSlot(request, slot.via);
+            await refundSlot(request, slot.via, device);
           }
           send({
             stage: 'error',
@@ -130,7 +138,7 @@ function streamCompose(
       } catch (error) {
         if (slot.via === 'credit' || slot.via === 'free') {
           try {
-            await refundSlot(request, slot.via);
+            await refundSlot(request, slot.via, device);
           } catch (refundError) {
             console.error('compose refund failed', refundError);
           }
@@ -172,6 +180,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const device = composeDevice(request);
+  return withDeviceCookie(await composePost(request, device), device);
+}
+
+async function composePost(request: Request, device: ComposeDevice) {
   const origin = new URL(request.url).origin;
   let input: ComposeRequest;
   try {
@@ -200,7 +213,7 @@ export async function POST(request: Request) {
 
   let slot: Awaited<ReturnType<typeof consumeSlot>>;
   try {
-    slot = await consumeSlot(request);
+    slot = await consumeSlot(request, device);
   } catch (error) {
     console.error('compose quota failed', error);
     if (wantsHtml(request)) {
@@ -221,14 +234,14 @@ export async function POST(request: Request) {
   const walletToken = await walletTokenFromRequest(request);
 
   if (wantsStream(request) && !wantsHtml(request)) {
-    return streamCompose(origin, request, decision, slot, walletToken);
+    return streamCompose(origin, request, decision, slot, walletToken, device);
   }
 
   try {
     const result = await runCompose(origin, request, decision, undefined, walletToken);
     if (!result.ok) {
       if (slot.via === 'credit' || slot.via === 'free') {
-        await refundSlot(request, slot.via);
+        await refundSlot(request, slot.via, device);
       }
       if (wantsHtml(request)) {
         return Response.redirect(`${origin}/?error=${encodeURIComponent(result.minted.error)}`, 303);
@@ -249,7 +262,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (slot.via === 'credit' || slot.via === 'free') {
       try {
-        await refundSlot(request, slot.via);
+        await refundSlot(request, slot.via, device);
       } catch (refundError) {
         console.error('compose refund failed', refundError);
       }

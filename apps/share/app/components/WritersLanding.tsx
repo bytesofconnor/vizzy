@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { PIECES } from '../../lib/pieces';
 import { DUST, STUDIO } from '../../lib/theme';
+import { AccountGate } from './AccountGate';
 import { AgentPaste } from './AgentPaste';
 import { ComposeBox } from './ComposeBox';
 import { DustRail } from './DustRail';
@@ -47,6 +48,7 @@ export function WritersLanding({
   );
 
   return (
+    <AccountGate signedIn={Boolean(email)}>
     <main id="content" className="page-main page-writers">
       <KickerNav here="home" email={email} known={known} owner={owner} />
       <section className="writers-hero" aria-labelledby="writers-title">
@@ -103,5 +105,6 @@ export function WritersLanding({
       </section>
       <SiteFoot />
     </main>
+    </AccountGate>
   );
 }
