@@ -1,5 +1,6 @@
 import { CARDS, type CardSize } from './compose';
 import type { Piece } from './pieces';
+import { shareChannel, shareMarkHtml, type ShareBrandFlag } from './share-channel';
 
 export function pieceImagePath(slug: string, size: CardSize = 'md'): string {
   return size === 'md' ? `/c/${slug}.png` : `/c/${slug}/png?size=${size}`;
@@ -20,9 +21,10 @@ export function markdownEmbed(
 
 export function htmlEmbed(
   origin: string,
-  piece: Pick<Piece, 'slug' | 'title' | 'note'> & { source?: string },
+  piece: Pick<Piece, 'slug' | 'title' | 'note'> & { source?: string; config?: Piece['config'] },
   size: CardSize = 'md',
-  insight?: string
+  insight?: string,
+  brand?: ShareBrandFlag
 ): string {
   const src = `${origin}${pieceImagePath(piece.slug, size)}`;
   const caption = piece.source ? `${piece.note} ${piece.source}` : piece.note;
@@ -36,7 +38,16 @@ export function htmlEmbed(
         )
         .join('')
     : '';
-  return `<figure style="max-width:100%;margin:0">\n  <img src="${src}" alt="${piece.title}" width="${CARDS[size].width}" style="display:block;width:100%;height:auto" />\n  <figcaption>${escapeHtml(caption)}</figcaption>${insightBlock}\n</figure>`;
+  const mark = piece.config
+    ? shareMarkHtml(
+        shareChannel(
+          { slug: piece.slug, title: piece.title, note: piece.note, config: piece.config },
+          { origin, ...brand }
+        )
+      )
+    : '';
+  const markBlock = mark ? `\n  ${mark}` : '';
+  return `<figure style="max-width:100%;margin:0">\n  <img src="${src}" alt="${escapeHtml(piece.title)}" width="${CARDS[size].width}" style="display:block;width:100%;height:auto" />\n  <figcaption>${escapeHtml(caption)}</figcaption>${markBlock}${insightBlock}\n</figure>`;
 }
 
 function escapeHtml(value: string): string {

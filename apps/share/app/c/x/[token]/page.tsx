@@ -1,9 +1,11 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { CARD } from '../../../../lib/compose';
 import { signedInNav } from '../../../../lib/billing';
 import { hydrateToken } from '../../../../lib/mint';
+import { shareChannel, shareSocialImages } from '../../../../lib/share-channel';
+import { siteUrl } from '../../../../lib/site';
 import { writerPlanEnabled } from '../../../../lib/writer-plan';
+import { FunnelSharedView } from '../../../components/FunnelSharedView';
 import { Studio } from '../../../components/Studio';
 
 type PageProps = {
@@ -19,6 +21,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'Not found' };
   }
 
+  const social = shareSocialImages(`x/${token}`);
   return {
     title: piece.title,
     description: piece.note,
@@ -26,13 +29,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title: piece.title,
       description: piece.note,
-      images: [{ url: `/c/x/${token}.png`, width: CARD.width, height: CARD.height }],
+      ...social.openGraph,
     },
     twitter: {
-      card: 'summary_large_image',
       title: piece.title,
       description: piece.note,
-      images: [`/c/x/${token}.png`],
+      ...social.twitter,
     },
   };
 }
@@ -51,13 +53,18 @@ export default async function MintedPage({ params }: PageProps) {
     nav = {};
   }
 
+  const channel = shareChannel(piece, { origin: siteUrl() });
   return (
-    <Studio
-      piece={piece}
-      email={nav.email}
-      known={nav.known}
-      owner={Boolean(nav.owner)}
-      writerPlan={writerPlanEnabled()}
-    />
+    <>
+      <FunnelSharedView />
+      <Studio
+        piece={piece}
+        channel={channel}
+        email={nav.email}
+        known={nav.known}
+        owner={Boolean(nav.owner)}
+        writerPlan={writerPlanEnabled()}
+      />
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import { PIECES, type Piece } from '../../lib/pieces';
+import type { ShareChannel } from '../../lib/share-channel';
 import { AgentPaste } from './AgentPaste';
 import { DustRail } from './DustRail';
 import { HomeCompose } from './HomeCompose';
@@ -15,6 +16,8 @@ export function Studio({
   email,
   known,
   owner = false,
+  channel,
+  initialPrompt,
 }: {
   piece?: Piece;
   error?: string;
@@ -23,12 +26,14 @@ export function Studio({
   email?: string;
   known?: boolean;
   owner?: boolean;
+  channel?: ShareChannel;
+  initialPrompt?: string;
 }) {
   return (
     <main id="content" className={`page-main${piece ? '' : ' page-home'}`}>
       <KickerNav here="home" email={email} known={known} owner={owner} />
       {piece ? (
-        <StudioDesk piece={piece} error={error} askPay={askPay} writerPlan={writerPlan} />
+        <StudioDesk piece={piece} error={error} askPay={askPay} writerPlan={writerPlan} channel={channel} />
       ) : (
         <section className="home-hero" aria-labelledby="home-title">
           <h1 id="home-title" className="home-hero-title">
@@ -38,7 +43,7 @@ export function Studio({
           <p className="home-hero-lede">
             Ask a public question. Get the picture, the source, and a short explanation.
           </p>
-          <HomeCompose error={error} askPay={askPay} writerPlan={writerPlan} />
+          <HomeCompose error={error} askPay={askPay} writerPlan={writerPlan} initialPrompt={initialPrompt} />
           <AgentPaste />
         </section>
       )}

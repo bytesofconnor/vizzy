@@ -14,10 +14,12 @@ export function HomeCompose({
   error,
   askPay,
   writerPlan = false,
+  initialPrompt,
 }: {
   error?: string;
   askPay?: boolean;
   writerPlan?: boolean;
+  initialPrompt?: string;
 }) {
   const [piece, setPiece] = useState<Piece | null>(null);
   const [progress, setProgress] = useState<ComposeProgressEvent | null>(null);
@@ -69,6 +71,7 @@ export function HomeCompose({
       error={error}
       askPay={askPay}
       writerPlan={writerPlan}
+      initialPrompt={initialPrompt}
       variant="hero"
       seed={draftFresh || !piece ? undefined : seedFromPiece(piece)}
       showIdeas={!busy && !piece}

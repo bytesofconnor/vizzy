@@ -5,6 +5,7 @@ import { CARD } from '../../../lib/compose';
 import { loadPaste } from '../../../lib/paste';
 import { PIECES, pieceBySlug } from '../../../lib/pieces';
 import { siteUrl } from '../../../lib/site';
+import { shareChannel, shareSocialImages } from '../../../lib/share-channel';
 import { FunnelSharedView } from '../../components/FunnelSharedView';
 import { writerPlanEnabled } from '../../../lib/writer-plan';
 import { JsonLd } from '../../components/JsonLd';
@@ -27,6 +28,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const minted = !studio;
+  const social = shareSocialImages(slug);
   return {
     title: piece.title,
     description: piece.note,
@@ -35,13 +37,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title: piece.title,
       description: piece.note,
-      images: [{ url: `/c/${slug}.png`, width: CARD.width, height: CARD.height }],
+      ...social.openGraph,
     },
     twitter: {
-      card: 'summary_large_image',
       title: piece.title,
       description: piece.note,
-      images: [`/c/${slug}.png`],
+      ...social.twitter,
     },
   };
 }
@@ -61,8 +62,10 @@ export default async function PiecePage({ params }: PageProps) {
     nav = {};
   }
 
+  const origin = siteUrl();
+  const channel = shareChannel(piece, { origin });
+
   if (studio) {
-    const origin = siteUrl();
     return (
       <>
         <JsonLd
@@ -85,6 +88,7 @@ export default async function PiecePage({ params }: PageProps) {
         <FunnelSharedView />
         <Studio
           piece={piece}
+          channel={channel}
           email={nav.email}
           known={nav.known}
           owner={Boolean(nav.owner)}
@@ -99,6 +103,7 @@ export default async function PiecePage({ params }: PageProps) {
       <FunnelSharedView />
       <Studio
         piece={piece}
+        channel={channel}
         email={nav.email}
         known={nav.known}
         owner={Boolean(nav.owner)}

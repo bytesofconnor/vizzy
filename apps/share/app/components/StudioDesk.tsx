@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import type { Piece } from '../../lib/pieces';
+import type { ShareChannel } from '../../lib/share-channel';
 import { seedFromPiece } from '../../lib/seed';
 import { pointAddressAtChart } from '../../lib/chart-address';
 import type { ClientPiece, ComposeProgressEvent } from '../../lib/compose-progress';
@@ -15,11 +16,13 @@ export function StudioDesk({
   error,
   askPay,
   writerPlan = false,
+  channel,
 }: {
   piece: Piece;
   error?: string;
   askPay?: boolean;
   writerPlan?: boolean;
+  channel?: ShareChannel;
 }) {
   const [piece, setPiece] = useState<Piece>(initial);
   const [progress, setProgress] = useState<ComposeProgressEvent | null>(null);
@@ -73,6 +76,7 @@ export function StudioDesk({
           titleId="chart-title"
           titleAs="h1"
           busy={revising}
+          channel={channel}
           headLead={busy ? <ComposeProgressStrip progress={progress} /> : undefined}
           overlay={
             revising ? <ComposeBusyPlot variant="hero" progress={progress} chrome="plot" /> : undefined
