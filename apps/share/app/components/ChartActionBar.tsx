@@ -214,6 +214,7 @@ function ExportButton({ piece, insight }: { piece: Piece; insight: string | null
                     title={piece.title}
                     note={piece.note}
                     source={source}
+                    config={piece.config}
                     insight={insight}
                   />
                 </div>

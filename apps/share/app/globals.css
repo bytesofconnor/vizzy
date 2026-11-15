@@ -2920,6 +2920,35 @@ a.compose-hero-submit.is-amber:focus-visible {
   line-height: 1.45;
 }
 
+.share-mark {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  margin: 14px 0 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--mute);
+}
+
+.share-mark-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-mark a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+}
+
+.share-mark a:hover {
+  border-bottom-color: var(--ink);
+}
+
 .paste-menu {
   margin-top: 18px;
   width: 100%;

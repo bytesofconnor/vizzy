@@ -44,6 +44,7 @@ export function ComposeBox({
   askPay,
   writerPlan = false,
   seed,
+  initialPrompt,
   variant = 'default',
   onBusyProgress,
   onMinted,
@@ -56,6 +57,7 @@ export function ComposeBox({
   askPay?: boolean;
   writerPlan?: boolean;
   seed?: ChartSeed;
+  initialPrompt?: string;
   variant?: 'default' | 'hero';
   onBusyProgress?: (progress: ComposeProgressEvent | null) => void;
   onMinted?: (piece: ClientPiece, url: string) => void;
@@ -68,7 +70,7 @@ export function ComposeBox({
   const studio = Boolean(seed);
   const hero = home && !studio;
   const card = home || studio;
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [busy, setBusy] = useState(false);
   const [composeProgress, setComposeProgress] = useState<ComposeProgressEvent | null>(null);
   const [notice, setNotice] = useState<CardNotice>(

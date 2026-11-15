@@ -1,6 +1,7 @@
 import { Studio } from './components/Studio';
 import { JsonLd } from './components/JsonLd';
 import { signedInNav } from '../lib/billing';
+import { shareLandingPrompt } from '../lib/share-channel';
 import { SITE_DESCRIPTION, siteUrl } from '../lib/site';
 import { writerPlanEnabled } from '../lib/writer-plan';
 
@@ -11,9 +12,9 @@ export const metadata = {
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; pay?: string }>;
+  searchParams: Promise<{ error?: string; pay?: string; prompt?: string }>;
 }) {
-  const { error, pay } = await searchParams;
+  const { error, pay, prompt } = await searchParams;
   const origin = siteUrl();
   let nav: { email?: string; known?: boolean; owner?: boolean } = {};
   try {
@@ -47,6 +48,7 @@ export default async function HomePage({
         email={nav.email}
         known={nav.known}
         owner={Boolean(nav.owner)}
+        initialPrompt={shareLandingPrompt(prompt)}
       />
     </>
   );

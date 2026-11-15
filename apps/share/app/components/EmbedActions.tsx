@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import type { ChartConfig } from '@vizzy/core';
 import { CARD_SIZES, type CardSize } from '../../lib/compose';
 import { htmlEmbed, markdownEmbed, pieceImagePath } from '../../lib/embed';
 import { DUST } from '../../lib/theme';
@@ -49,12 +50,14 @@ export function EmbedActions({
   title,
   note,
   source,
+  config,
   insight,
 }: {
   slug: string;
   title: string;
   note: string;
   source?: string;
+  config?: ChartConfig;
   insight: string | null;
 }) {
   const [size, setSize] = useState<CardSize>('md');
@@ -122,7 +125,7 @@ export function EmbedActions({
   async function copyHtml() {
     const origin = window.location.origin;
     await navigator.clipboard.writeText(
-      htmlEmbed(origin, { slug, title, note, source }, size, exportInsight)
+      htmlEmbed(origin, { slug, title, note, source, config }, size, exportInsight)
     );
     mark('html');
   }

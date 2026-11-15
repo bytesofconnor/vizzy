@@ -86,3 +86,27 @@ export async function renderPiecePng(
   });
   return Buffer.from(resvg.render().asPng());
 }
+
+/** Plot only, for the social card. The card adds the title and the source. */
+export async function renderChartPng(piece: Piece, width = 1080, height = 400): Promise<Buffer> {
+  const config = validateChartConfig({
+    ...piece.config,
+    dimensions: {
+      ...piece.config.dimensions,
+      width,
+      height,
+      margin: { top: 16, right: 20, bottom: 56, left: 64 },
+    },
+  });
+  const chartSvg = (await withDom(() => renderToSVG(config, piece.data))).replace(/&nbsp;/g, '&#160;');
+  const resvg = new Resvg(chartSvg, {
+    fitTo: { mode: 'width', value: width },
+    background: STUDIO.paper,
+    font: {
+      fontFiles: [fontPath('Archivo-Regular.ttf'), fontPath('IBMPlexMono-Regular.ttf')],
+      defaultFontFamily: 'Archivo',
+      loadSystemFonts: false,
+    },
+  });
+  return Buffer.from(resvg.render().asPng());
+}

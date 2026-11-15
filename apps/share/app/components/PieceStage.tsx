@@ -5,6 +5,8 @@ import Link from 'next/link';
 import type { Piece } from '../../lib/pieces';
 import { seedFromPiece } from '../../lib/seed';
 import { displayChartTitle } from '../../lib/remix-prompt';
+import type { ShareChannel } from '../../lib/share-channel';
+import { ShareMark } from '../../lib/share-mark';
 import { ChartActionBar } from './ChartActionBar';
 import { ChartExtras } from './ChartExtras';
 import { ChartFrame } from './ChartFrame';
@@ -21,6 +23,7 @@ export function PieceStage({
   overlay,
   headLead,
   className,
+  channel,
 }: {
   piece: Piece;
   titleId?: string;
@@ -31,6 +34,7 @@ export function PieceStage({
   overlay?: ReactNode;
   headLead?: ReactNode;
   className?: string;
+  channel?: ShareChannel;
 }) {
   const shownTitle = displayChartTitle(piece.title, piece.note);
   const TitleTag = titleAs;
@@ -64,10 +68,11 @@ export function PieceStage({
           </>
         }
         foot={
-          piece.note || piece.config.source ? (
+          piece.note || piece.config.source || channel?.showMark ? (
             <>
               {piece.note ? <p className="studio-chart-note">{piece.note}</p> : null}
               {piece.config.source ? <SourceLine source={piece.config.source} /> : null}
+              {channel ? <ShareMark channel={channel} /> : null}
             </>
           ) : null
         }
