@@ -2015,6 +2015,8 @@ a.compose-hero-submit.is-amber:focus-visible {
   border-radius: 16px;
   background: color-mix(in srgb, var(--paper) 90%, white);
   overflow: visible;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .chart-kicker {
@@ -2951,11 +2953,15 @@ a.compose-hero-submit.is-amber:focus-visible {
 
 .piece-stage {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .piece-stage-plot {
   position: relative;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 220px;
 }
 
@@ -4518,11 +4524,12 @@ html:not(.is-inked) .compose-hero-card {
   margin-top: 14px;
   display: grid;
   gap: 36px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 @media (min-width: 900px) {
   .piece-list {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 28px 22px;
     align-items: start;
   }
@@ -4530,6 +4537,8 @@ html:not(.is-inked) .compose-hero-card {
 
 .chart-mount {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow: visible;
 }
 

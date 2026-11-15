@@ -61,7 +61,7 @@ jobs:
       - run: npm install
       - run: npx playwright install --with-deps chromium
         working-directory: apps/share
-      - run: npx playwright test e2e/home.spec.ts e2e/a11y.spec.ts
+      - run: npx playwright test e2e/home.spec.ts e2e/a11y.spec.ts e2e/chart-render.spec.ts
         working-directory: apps/share
         env:
           CI: true
