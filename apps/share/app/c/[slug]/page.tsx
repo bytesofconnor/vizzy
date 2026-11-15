@@ -5,6 +5,7 @@ import { CARD } from '../../../lib/compose';
 import { loadPaste } from '../../../lib/paste';
 import { PIECES, pieceBySlug } from '../../../lib/pieces';
 import { siteUrl } from '../../../lib/site';
+import { FunnelSharedView } from '../../components/FunnelSharedView';
 import { JsonLd } from '../../components/JsonLd';
 import { Studio } from '../../components/Studio';
 
@@ -80,10 +81,16 @@ export default async function PiecePage({ params }: PageProps) {
             },
           }}
         />
+        <FunnelSharedView />
         <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
       </>
     );
   }
 
-  return <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />;
+  return (
+    <>
+      <FunnelSharedView />
+      <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
+    </>
+  );
 }

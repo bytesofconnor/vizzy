@@ -13,6 +13,7 @@ import { DustRail } from './DustRail';
 import type { ClientPiece, ComposeProgressEvent } from '../../lib/compose-progress';
 import type { ClarifyAsk, ComposeDisposition } from '../../lib/compose-outcome';
 import { composeWithProgress } from '../../lib/compose-stream';
+import { track, trackFirstChart, trackUpgradeView } from '../../lib/funnel-browser';
 import { HeroExamples } from './HeroExamples';
 import { HeroTypewriter } from './HeroTypewriter';
 import { FILL_COMPOSE_PROMPT, type FillComposeDetail } from './TellMeMore';
@@ -70,6 +71,11 @@ export function ComposeBox({
     error ? { kind: 'fail', error, pay: Boolean(askPay) } : { kind: 'none' }
   );
   const [pay, setPay] = useState(Boolean(askPay));
+  useEffect(() => {
+    if (pay) {
+      trackUpgradeView();
+    }
+  }, [pay]);
   const [quota, setQuota] = useState<Quota | null>(null);
   const [buying, setBuying] = useState(false);
   const [held, setHeld] = useState(false);
@@ -299,6 +305,7 @@ export function ComposeBox({
 
     const latest = await pullQuota();
     if (composeNeedsPay(latest)) {
+      track('free_limit');
       setBusy(false);
       setPay(true);
       setNotice({ kind: 'fail', error: payMessage(), pay: true });
@@ -333,6 +340,7 @@ export function ComposeBox({
       const outcome = await composeWithProgress(payload, setComposeProgress);
       switch (outcome.kind) {
         case 'chart':
+          trackFirstChart(latest?.saved ? 'signed_in' : 'signed_out');
           if (onMinted && outcome.piece) {
             onMinted(outcome.piece, outcome.url);
             setPrompt('');

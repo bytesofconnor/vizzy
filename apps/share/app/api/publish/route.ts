@@ -4,6 +4,7 @@ import { pasteHref } from '../../../lib/paste';
 import { payBody, payMessage } from '../../../lib/pay';
 import { siteUrl } from '../../../lib/site';
 import { recordAfterChart } from '../../../lib/telemetry';
+import { track } from '../../../lib/track';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
   }
 
   if (!slot.ok) {
+    await track('free_limit');
     return Response.json(payBody(payMessage()), { status: 402 });
   }
 

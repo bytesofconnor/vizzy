@@ -1,3 +1,4 @@
+import type { FunnelReadout } from '../../../convex/funnel';
 import type { AccountChartRow, AccountLibraryKind, AccountLibraryPage } from './account-chart';
 import { signedInNav, walletTokenFromRequest } from './billing';
 
@@ -202,6 +203,16 @@ export async function getAdminInsights(walletToken: string): Promise<AdminInsigh
   });
 }
 
+export async function getFunnel(walletToken: string): Promise<FunnelReadout | null> {
+  if (!convexUrl()) {
+    return null;
+  }
+  return await convexCall('query', 'telemetry:getFunnel', {
+    walletToken,
+    now: Date.now(),
+  });
+}
+
 export async function ownerSession(): Promise<boolean> {
   const nav = await signedInNav();
   return Boolean(nav.owner);
@@ -227,4 +238,6 @@ export async function recordAfterChart(args: {
     route: args.route,
   });
   await bumpEvent(`chart_${args.route}`);
+  const { track } = await import('./track');
+  await track('library_save');
 }

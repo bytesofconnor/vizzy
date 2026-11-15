@@ -2,6 +2,7 @@ import { mutation, query, type QueryCtx } from './_generated/server';
 import { normalizeEmail } from './billing';
 import type { Doc } from './_generated/dataModel';
 import { v } from 'convex/values';
+import { aggregateFunnel } from './funnel';
 
 function ownerEmails(): string[] {
   const raw = process.env.OWNER_EMAILS ?? '';
@@ -292,5 +293,43 @@ export const getInsights = query({
       recentAi,
       recentSaved,
     };
+  },
+});
+
+const funnelStep = v.object({
+  event: v.string(),
+  label: v.string(),
+  count: v.number(),
+  rateFromPrevious: v.union(v.number(), v.null()),
+  rateFromVisit: v.union(v.number(), v.null()),
+  signedOut: v.optional(v.number()),
+  signedIn: v.optional(v.number()),
+});
+
+export const getFunnel = query({
+  args: {
+    secret: v.string(),
+    walletToken: v.string(),
+    now: v.number(),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      fromDay: v.string(),
+      toDay: v.string(),
+      steps: v.array(funnelStep),
+    })
+  ),
+  handler: async (ctx, args) => {
+    assertServer(args.secret);
+    const wallet = await walletByToken(ctx, args.walletToken);
+    if (!isOwnerWallet(wallet)) {
+      return null;
+    }
+    const events = await ctx.db.query('eventDaily').collect();
+    return aggregateFunnel(
+      events.map((row) => ({ name: row.name, day: row.day, count: row.count })),
+      args.now
+    );
   },
 });

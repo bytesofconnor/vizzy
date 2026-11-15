@@ -1,7 +1,7 @@
 import { creditPurchase } from './billing';
 import { normalizeEmail } from './claim';
 import { PACK_CREDITS } from './pack';
-import { bumpEvent } from './telemetry';
+import { track } from './track';
 
 export async function fulfillCheckoutSession(session: {
   id: string;
@@ -36,7 +36,7 @@ export async function fulfillCheckoutSession(session: {
     email,
   });
   if (result.ok && !result.duplicate) {
-    await bumpEvent('purchase');
+    await track('paid');
   }
   return { ok: result.ok, credits: result.credits, walletToken: result.walletToken };
 }
