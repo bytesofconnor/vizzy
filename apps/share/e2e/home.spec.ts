@@ -80,6 +80,10 @@ test('agents can find the contract', async ({ request }) => {
   expect(sitemap.ok()).toBeTruthy();
   const map = await sitemap.text();
   expect(map).toContain(`/c/${PIECES[0].slug}`);
+  expect(map).toContain('/gallery');
+  expect(map).toContain('/charts/us-unemployment-rate-since-2000');
+  expect(map).not.toContain('/charts/k7H3mQ9xAb12');
+  expect(map).not.toContain('/me');
   expect(map).toContain('/llms.txt');
   expect(map).toContain('/agents');
   expect(map).toContain('/openapi.json');
@@ -132,6 +136,29 @@ test('agents can find the contract', async ({ request }) => {
   const badBody = (await badPublish.json()) as { ok?: boolean; issues?: unknown[] };
   expect(badBody.ok).toBe(false);
   expect(Array.isArray(badBody.issues)).toBe(true);
+});
+
+test('a seeded chart page renders on the server', async ({ request }) => {
+  test.setTimeout(45_000);
+  const page = await request.get('/charts/us-unemployment-rate-since-2000');
+  expect(page.ok()).toBeTruthy();
+  const html = await page.text();
+  expect(html).toContain('US unemployment rate since 2000');
+  expect(html).toContain('FRED');
+  expect(html).toContain('application/ld+json');
+  expect(html).toContain('Dataset');
+  expect(html).toContain('fred.stlouisfed.org');
+
+  const hidden = await request.get('/charts/k7H3mQ9xAb12');
+  expect(hidden.status()).toBe(404);
+
+  const gallery = await request.get('/gallery');
+  expect(gallery.ok()).toBeTruthy();
+  const index = await gallery.text();
+  expect(index).toContain('Economy');
+  expect(index).toContain('Climate');
+  expect(index).toContain('/charts/us-unemployment-rate-since-2000');
+  expect(index).not.toContain('/charts/k7H3mQ9xAb12');
 });
 
 test('agents page is the repo contract', async ({ page }) => {

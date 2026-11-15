@@ -15,6 +15,10 @@ export function SiteFoot() {
   return (
     <footer className="site-foot" style={{ marginTop: 64 }}>
       <p style={kicker}>
+        <EventLink href="/gallery" name="tap_gallery">
+          Gallery
+        </EventLink>
+        {' · '}
         <EventLink href="/terms" name="tap_terms">
           Terms
         </EventLink>

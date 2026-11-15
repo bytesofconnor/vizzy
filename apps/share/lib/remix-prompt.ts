@@ -1,8 +1,15 @@
-import type { Piece } from './pieces';
+import type { ChartSource } from './source';
+
+type RemixChart = {
+  slug: string;
+  title: string;
+  note: string;
+  config: { source?: ChartSource };
+};
 
 /** A follow-on prompt that cites this chart so someone can ask the next public cut. */
-export function remixPrompt(piece: Pick<Piece, 'slug' | 'title' | 'note' | 'config'>, origin: string): string {
-  const url = `${origin.replace(/\/$/, '')}/c/${piece.slug}`;
+export function remixPrompt(piece: RemixChart, origin: string, path?: string): string {
+  const url = `${origin.replace(/\/$/, '')}${path ?? `/c/${piece.slug}`}`;
   const source = piece.config.source;
   const sourceBit = source
     ? `Source: ${source.label}${source.method === 'official' ? ' (official)' : ` (${source.method})`}`
@@ -20,6 +27,18 @@ export function remixPrompt(piece: Pick<Piece, 'slug' | 'title' | 'note' | 'conf
   ]
     .filter((line): line is string => line !== null)
     .join('\n');
+}
+
+export function promptFromQuery(value: string | string[] | undefined): string {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string') {
+    return '';
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return '';
+  }
+  return trimmed.slice(0, 4000);
 }
 
 export function remixFollowUp(prompt: string): string | null {

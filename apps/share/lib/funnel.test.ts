@@ -57,6 +57,8 @@ describe('track', () => {
     expect(JSON.stringify(parsed)).not.toContain('person@example.com');
     expect(parseTrackBody({ event: 'first_chart' })).toBeNull();
     expect(parseTrackBody({ event: 'tap_terms' })).toBeNull();
+    expect(parseTrackBody({ event: 'gallery_view' })).toEqual({ event: 'gallery_view' });
+    expect(parseTrackBody({ event: 'remix_click' })).toEqual({ event: 'remix_click' });
     expect(parseTrackBody({ event: 'signup', props: { email: 'person@example.com' } })).toEqual({
       event: 'signup',
     });
@@ -112,6 +114,16 @@ describe('weekly funnel aggregation', () => {
     expect(byEvent.get('library_save')?.rateFromPrevious).toBe(4);
     expect(byEvent.get('share_created')).toMatchObject({ count: 0, rateFromPrevious: 0 });
     expect(byEvent.get('paid')?.count).toBe(0);
+    const withGallery = aggregateFunnel(
+      [
+        { name: 'visit', day: '2026-11-15', count: 1 },
+        { name: 'gallery_view', day: '2026-11-15', count: 5 },
+        { name: 'remix_click', day: '2026-11-15', count: 2 },
+      ],
+      NOW
+    );
+    expect(withGallery.steps.map((step) => step.event)).not.toContain('gallery_view');
+    expect(withGallery.steps[0]?.count).toBe(1);
   });
 
   it('leaves the rate blank when the previous step is zero', () => {
