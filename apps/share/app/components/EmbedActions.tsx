@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } f
 import { CARD_SIZES, type CardSize } from '../../lib/compose';
 import { htmlEmbed, markdownEmbed, pieceImagePath } from '../../lib/embed';
 import { DUST } from '../../lib/theme';
+import { track } from '../../lib/funnel-browser';
 
 type Mode = 'image' | 'markdown' | 'html' | null;
 
@@ -72,6 +73,9 @@ export function EmbedActions({
   }, [insight]);
 
   function mark(mode: Mode) {
+    if (mode === 'markdown' || mode === 'html') {
+      track('share_created');
+    }
     setCopied(mode);
     setFail(null);
     window.setTimeout(() => setCopied(null), 2000);

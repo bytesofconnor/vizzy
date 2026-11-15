@@ -9,7 +9,7 @@ import {
   walletCookieOptions,
 } from '../../../lib/billing';
 import { PACK_CREDITS } from '../../../lib/pack';
-import { bumpEvent } from '../../../lib/telemetry';
+import { track } from '../../../lib/track';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -84,7 +84,7 @@ async function startCheckout(request: Request) {
     return Response.json({ ok: false, error: 'Could not start checkout' }, { status: 502 });
   }
 
-  await bumpEvent('checkout');
+  await track('checkout_started');
   const response = NextResponse.json({ ok: true, url: session.url });
   if (!existing) {
     const cookie = walletCookieOptions();

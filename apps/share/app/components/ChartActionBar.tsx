@@ -10,6 +10,7 @@ import { ExportMark, RemixMark, ShareMark } from './ChartMarks';
 import { EmbedActions } from './EmbedActions';
 import { PinButton } from './PinButton';
 import { fillComposePrompt } from './TellMeMore';
+import { track } from '../../lib/funnel-browser';
 
 export function ChartActionBar({ piece, insight }: { piece: Piece; insight: string | null }) {
   return (
@@ -31,6 +32,7 @@ function ShareButton({ slug, title }: { slug: string; title: string }) {
     try {
       if (typeof navigator.share === 'function') {
         await navigator.share({ title, text: title, url });
+        track('share_created');
         setCopied(false);
         flash();
         return;
@@ -42,6 +44,7 @@ function ShareButton({ slug, title }: { slug: string; title: string }) {
     }
     try {
       await navigator.clipboard.writeText(url);
+      track('share_created');
       setCopied(true);
       flash();
     } catch {
@@ -62,6 +65,9 @@ function RemixButton({ piece }: { piece: Piece }) {
   const { spoken, flash } = useSpokenTip();
 
   function remix() {
+    if (window.location.pathname.startsWith('/c/')) {
+      track('shared_compose');
+    }
     const prompt = remixPrompt(piece, window.location.origin);
     fillComposePrompt(prompt, true);
     const desk = document.getElementById('make-one') ?? document.getElementById('again');

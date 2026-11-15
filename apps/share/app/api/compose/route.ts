@@ -7,6 +7,7 @@ import { payBody, payMessage } from '../../../lib/pay';
 import { parseChartSeed, type ChartSeed } from '../../../lib/seed';
 import { siteUrl } from '../../../lib/site';
 import { recordAfterChart } from '../../../lib/telemetry';
+import { track } from '../../../lib/track';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -209,6 +210,7 @@ export async function POST(request: Request) {
   }
 
   if (!slot.ok) {
+    await track('free_limit');
     const message = payMessage();
     if (wantsHtml(request)) {
       return Response.redirect(`${origin}/?error=${encodeURIComponent(message)}&pay=1`, 303);

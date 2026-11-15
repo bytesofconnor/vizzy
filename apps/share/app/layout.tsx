@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Archivo, IBM_Plex_Mono } from 'next/font/google';
+import { FunnelVisit } from './components/FunnelVisit';
 import { GutterDust } from './components/GutterDust';
 import { PwaBoot } from './components/PwaBoot';
 import { SITE_DESCRIPTION, siteUrl } from '../lib/site';
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           fontFamily: 'var(--font-sans), Helvetica, sans-serif',
         }}
       >
+        <FunnelVisit />
         <PwaBoot />
         <GutterDust />
         <a className="skip-link" href="#content">

@@ -68,6 +68,9 @@ export default async function AdminPage({
   return (
     <main id="content" className="page-main">
       <KickerNav here="admin" owner email={nav.email} known={nav.known ?? Boolean(token)} />
+      <p style={{ ...body, marginTop: 8 }}>
+        <a href="/admin/funnel">Weekly funnel</a>
+      </p>
       <AdminDesk
         view={parseAdminView(viewParam)}
         evalLabel={evalRun ? `Eval ${Math.round(evalRun.rate * 100)}%` : 'Eval'}
@@ -266,8 +269,20 @@ function eventLabel(name: string): string {
     chart_compose: 'Chart saved from prompt',
     chart_publish: 'Chart saved from API',
     checkout: 'Checkout started',
+    checkout_started: 'Checkout started',
     purchase: 'Purchase completed',
+    paid: 'Paid',
     sign_in: 'Google sign-in',
+    signup: 'Signup',
+    visit: 'Visit',
+    first_chart_signed_out: 'First chart, signed out',
+    first_chart_signed_in: 'First chart, signed in',
+    library_save: 'Save to Library',
+    share_created: 'Share or embed',
+    shared_view: 'Shared chart view',
+    shared_compose: 'Open composer from a shared chart',
+    free_limit: 'Free limit hit',
+    upgrade_view: 'Upgrade view',
     tap_agents: 'Agents link tapped',
     tap_writers: 'Writers link tapped',
     tap_terms: 'Terms link tapped',

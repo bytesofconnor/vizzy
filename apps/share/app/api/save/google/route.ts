@@ -9,7 +9,7 @@ import {
   sealGooglePending,
   verifyGoogleCredential,
 } from '../../../../lib/google';
-import { bumpEvent } from '../../../../lib/telemetry';
+import { track } from '../../../../lib/track';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,7 @@ async function attachWallet(
     }
     return NextResponse.redirect(me(request), 303);
   }
-  await bumpEvent('sign_in');
+  await track('signup');
   const dest = asJson
     ? NextResponse.json({
         ok: true,
