@@ -1,7 +1,7 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex, seriesIsSketch } from '@vizzy/core';
-import { datasetForSourceUrl, labelIsPlace, matchPrompt, placesInAsked } from '@vizzy/resolve';
+import { datasetForSourceUrl, labelIsPlace, matchAsked, placesInAsked, topCountFromAsked } from '@vizzy/resolve';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { honestSeriesTitle, mintFromOfficial, textClashesWithSeries } from './official-mint';
@@ -158,7 +158,7 @@ export async function pieceFromPrompt(
     reportProgress(onProgress, {
       stage: 'lookup',
       progress: 18,
-      message: matchPrompt(lookupAsked) ? 'Reading an official series…' : 'Searching public sources…',
+      message: matchAsked(lookupAsked).length > 0 ? 'Reading an official series…' : 'Searching public sources…',
     });
     try {
       gathered = await gatherFacts(lookupAsked, { allowTools: !from });
@@ -202,7 +202,7 @@ export async function pieceFromPrompt(
     .filter(Boolean)
     .join('\n\n');
 
-  if (!from && matchPrompt(lookupAsked)) {
+  if (!from && matchAsked(lookupAsked).length > 0) {
     if (gathered.official && gathered.official.rows.length >= 2) {
       reportProgress(onProgress, {
         stage: 'mint',
@@ -762,7 +762,7 @@ const NAMED_CAP = 15;
 const FULL_SET_CAP = 60;
 
 export function categoryRowCap(asked: string): number {
-  return wantsEveryCategory(asked) ? FULL_SET_CAP : NAMED_CAP;
+  return topCountFromAsked(asked) ?? (wantsEveryCategory(asked) ? FULL_SET_CAP : NAMED_CAP);
 }
 
 function wantsEveryCategory(asked: string): boolean {

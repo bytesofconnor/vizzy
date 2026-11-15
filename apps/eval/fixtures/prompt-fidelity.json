@@ -1,0 +1,113 @@
+{
+  "id": "prompt-fidelity",
+  "clock": "2026-11-15",
+  "prompts": [
+    {
+      "id": "us-monthly-unemployment-since-2000",
+      "text": "US monthly unemployment rate since 2000",
+      "series": ["UNRATE"],
+      "since": 2000,
+      "until": 2026,
+      "timeSeries": true
+    },
+    {
+      "id": "us-gdp-growth-by-quarter",
+      "text": "US GDP growth by quarter last 10 years",
+      "series": ["A191RL1Q225SBEA"],
+      "since": 2016,
+      "until": 2026,
+      "quarters": true,
+      "timeSeries": true
+    },
+    {
+      "id": "quarterly-us-gdp-growth",
+      "text": "quarterly US GDP growth over the last 10 years",
+      "series": ["A191RL1Q225SBEA"],
+      "since": 2016,
+      "until": 2026,
+      "quarters": true,
+      "timeSeries": true
+    },
+    {
+      "id": "minnesota-median-income",
+      "text": "Minnesota median household income",
+      "series": ["MEHOINUSMNA646N"],
+      "since": 1984,
+      "until": 2025,
+      "timeSeries": true
+    },
+    {
+      "id": "minnesota-income-word-order",
+      "text": "median household income in Minnesota",
+      "series": ["MEHOINUSMNA646N"],
+      "since": 1984,
+      "until": 2025,
+      "timeSeries": true
+    },
+    {
+      "id": "mortgage-30y-since-1990",
+      "text": "30-year mortgage rate since 1990",
+      "series": ["MORTGAGE30US"],
+      "since": 1990,
+      "until": 2026,
+      "forbidSource": "bankrate",
+      "timeSeries": true
+    },
+    {
+      "id": "mortgage-30y-us",
+      "text": "US 30-year mortgage rate since 1990",
+      "series": ["MORTGAGE30US"],
+      "since": 1990,
+      "until": 2026,
+      "forbidSource": "bankrate",
+      "timeSeries": true
+    },
+    {
+      "id": "solar-share-top-10",
+      "text": "Solar share top 10",
+      "series": ["solar_share"],
+      "topN": 10
+    },
+    {
+      "id": "solar-share-top-10-countries",
+      "text": "Top 10 solar share of electricity",
+      "series": ["solar_share"],
+      "topN": 10
+    },
+    {
+      "id": "co2-per-capita-top-15",
+      "text": "CO2 per capita top 15",
+      "series": ["co2_per_capita"],
+      "topN": 15
+    },
+    {
+      "id": "co2-per-capita-wording",
+      "text": "carbon dioxide emissions per capita, top 15",
+      "series": ["co2_per_capita"],
+      "topN": 15
+    },
+    {
+      "id": "cpi-vs-fed-funds",
+      "text": "CPI inflation vs fed funds rate since 2015",
+      "series": ["CPIAUCSL", "FEDFUNDS"],
+      "since": 2015,
+      "until": 2026,
+      "timeSeries": true
+    },
+    {
+      "id": "arctic-sea-ice-extent",
+      "text": "Arctic sea ice extent",
+      "series": ["arctic_sea_ice"],
+      "coverage": "September minimum",
+      "timeSeries": true
+    },
+    {
+      "id": "temperature-since-1880",
+      "text": "Global temperature anomaly since 1880",
+      "series": ["temperature_anomaly"],
+      "since": 1880,
+      "until": 2026,
+      "timeSeries": true
+    }
+  ]
+}

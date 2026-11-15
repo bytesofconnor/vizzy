@@ -150,6 +150,43 @@ function secondTip(seed: ChartSeed, y: string): string {
   return `Compare ${y} with an earlier published point.`;
 }
 
+function formatValue(value: number, yLabel: string): string {
+  if (/%|percent/i.test(yLabel)) {
+    return `${formatPct(value)}%`;
+  }
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function timeEndpoints(
+  seed: ChartSeed
+): { first: { x: string | number; y: number }; last: { x: string | number; y: number } } | null {
+  if (drawnYearSpan(seed.rows) === null) {
+    return null;
+  }
+  const timed = seed.rows.filter(
+    (row): row is { x: string | number; y: number; series?: string } =>
+      yearFromX(row.x) !== undefined && row.y !== null && Number.isFinite(row.y)
+  );
+  if (timed.length < 2) {
+    return null;
+  }
+  const ordered = [...timed].sort((a, b) => {
+    const ay = yearFromX(a.x) ?? 0;
+    const by = yearFromX(b.x) ?? 0;
+    if (ay !== by) {
+      return ay - by;
+    }
+    return String(a.x).localeCompare(String(b.x));
+  });
+  const first = ordered[0];
+  const last = ordered[ordered.length - 1];
+  if (!first || !last || String(first.x) === String(last.x)) {
+    return null;
+  }
+  return { first, last };
+}
+
 function citedYearPercent(seed: ChartSeed): { year: number; label: string } | null {
   if (!/%|percent|\bshare\b/i.test(seed.yLabel) || drawnYearSpan(seed.rows) === null) {
     return null;
@@ -195,8 +232,16 @@ export function heuristicInsight(seed: ChartSeed): string {
   const top = sorted[0];
   const bottom = sorted[sorted.length - 1];
   const y = yWord(seed);
-  const lead = top ? `${formatX(top.x)} sits at the high end of ${y}` : seed.title;
-  const low = bottom && top && bottom !== top ? `, with ${formatX(bottom.x)} at the other end` : '';
+  const ends = timeEndpoints(seed);
+  const seriesNames = [...new Set(seed.rows.map((row) => row.series).filter((name): name is string => Boolean(name)))];
+  const lead = ends
+    ? seriesNames.length >= 2
+      ? `From ${formatX(ends.first.x)} to ${formatX(ends.last.x)}, ${seriesNames.join(' and ')} are plotted together`
+      : `From ${formatX(ends.first.x)} to ${formatX(ends.last.x)}, ${y} went from ${formatValue(ends.first.y, seed.yLabel)} to ${formatValue(ends.last.y, seed.yLabel)}`
+    : top
+      ? `${formatX(top.x)} sits at the high end of ${y}`
+      : seed.title;
+  const low = !ends && bottom && top && bottom !== top ? `, with ${formatX(bottom.x)} at the other end` : '';
   const span = drawnYearSpan(seed.rows);
   const cited = citedYearPercent(seed);
   const fact = [
@@ -231,9 +276,48 @@ export function heuristicLesson(seed: ChartSeed, layer = 1): ChartLesson {
   const bottom = sorted[sorted.length - 1];
   const mid = sorted[Math.floor(sorted.length / 2)];
   const y = yWord(seed);
-  const hi = top ? formatX(top.x) : 'the leader';
-  const lo = bottom ? formatX(bottom.x) : 'the tail';
+  const ends = timeEndpoints(seed);
+  const hi = ends ? formatX(ends.first.x) : top ? formatX(top.x) : 'the leader';
+  const lo = ends ? formatX(ends.last.x) : bottom ? formatX(bottom.x) : 'the tail';
   const midLabel = mid ? formatX(mid.x) : 'the middle';
+  const index = Math.min(MAX_LESSON_LAYERS, Math.max(1, layer)) - 1;
+  if (ends) {
+    const startValue = formatValue(ends.first.y, seed.yLabel);
+    const endValue = formatValue(ends.last.y, seed.yLabel);
+    const timed: ChartLesson[] = [
+      {
+        notice: `${y} moved from ${startValue} in ${hi} to ${endValue} in ${lo}.`,
+        teach: `The change across this whole span is the one the chart can support.\n\nA peak or a trough in between is a year inside the series, not a second series.`,
+        question: `What would have to persist for the ${lo} reading to become the new normal?`,
+        tryNext: firstTip(seed, y),
+      },
+      {
+        notice: `${hi} and ${lo} are the ends of this ${y} series.`,
+        teach: `Reading only the loudest year drops the path between the ends.\n\nThe next cut is the change from one published point to the next, still on this series.`,
+        question: `Does the move from ${hi} to ${lo} survive a change in units?`,
+        tryNext: secondTip(seed, y),
+      },
+      {
+        notice: `Both a slow climb and a late jump can connect ${hi} to ${lo}.`,
+        teach: `One story is a steady change in what ${y} measures. The other is a shock near one end.\n\nThe rows show the path. They do not name the cause.`,
+        question: `Shock near ${lo}, or a build that started at ${hi}?`,
+        tryNext: firstTip(seed, y),
+      },
+      {
+        notice: `The ${lo} reading is only as solid as the next published point.`,
+        teach: `A revision, a lag, or a reporting rule can move the end without touching ${hi}.\n\nUntil the next point lands, the latest reading is the fragile one.`,
+        question: `What would the next point have to do to undo ${lo}?`,
+        tryNext: secondTip(seed, y),
+      },
+      {
+        notice: `The years before ${hi} are outside this chart.`,
+        teach: `${hi} is where this cut starts, not where the phenomenon starts.\n\nA serious next look is the same ${y} on a longer published span.`,
+        question: `What happened to ${y} before ${hi}?`,
+        tryNext: firstTip(seed, y),
+      },
+    ];
+    return alignLesson(timed[index] ?? timed[0]!, seed);
+  }
   if (top && hi === lo) {
     const only: ChartLesson = {
       notice: `${hi} is the only category with a plotted ${y}.`,
@@ -243,7 +327,6 @@ export function heuristicLesson(seed: ChartSeed, layer = 1): ChartLesson {
     };
     return alignLesson(only, seed);
   }
-  const index = Math.min(MAX_LESSON_LAYERS, Math.max(1, layer)) - 1;
   const pack: ChartLesson[] = [
     {
       notice: `${hi} leads on ${y}, well ahead of ${lo}.`,

@@ -13,7 +13,7 @@ export function parseFredCsv(csv: string): SeriesRow[] {
     }
     const date = line.slice(0, comma).trim();
     const y = parseNumber(line.slice(comma + 1));
-    if (!date || y === undefined) {
+    if (!/^(?:19|20)\d{2}-\d{2}-\d{2}$/.test(date) || y === undefined) {
       continue;
     }
     rows.push({ x: date.slice(0, 7), y });

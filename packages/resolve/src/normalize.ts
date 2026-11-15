@@ -20,6 +20,22 @@ export function sinceYearFromAsked(asked: string): number | undefined {
   return year;
 }
 
+const TOP_WORDS: Record<string, number> = { five: 5, ten: 10, fifteen: 15, twenty: 20 };
+
+export function topCountFromAsked(asked: string): number | undefined {
+  const folded = foldAsked(asked);
+  const digit = folded.match(/\btop\s+(\d{1,2})\b/);
+  if (digit?.[1]) {
+    const count = Number(digit[1]);
+    if (count >= 2 && count <= 60) {
+      return count;
+    }
+  }
+  const word = folded.match(/\btop\s+(five|ten|fifteen|twenty)\b/);
+  const named = word?.[1] ? TOP_WORDS[word[1]] : undefined;
+  return named;
+}
+
 export function yearSpanFromAsked(asked: string, now = Date.now()): { since?: number; until?: number } {
   const folded = foldAsked(asked);
   const range = folded.match(

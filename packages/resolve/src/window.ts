@@ -121,8 +121,11 @@ function thinEachSeries(rows: SeriesRow[]): SeriesRow[] {
     list.push(row);
     groups.set(key, list);
   }
+  const lists = [...groups.values()];
+  const longest = lists.reduce((best, list) => (list.length > best.length ? list : best), lists[0] ?? []);
   const per = Math.max(2, Math.floor(MULTI_CAP / Math.max(groups.size, 1)));
-  return [...groups.values()].flatMap((group) => pickEvenly(group, per));
+  const picked = new Set(pickEvenly(longest, per).map((row) => String(row.x)));
+  return lists.flatMap((group) => group.filter((row) => picked.has(String(row.x))));
 }
 
 function pickEvenly(rows: SeriesRow[], max: number): SeriesRow[] {

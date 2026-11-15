@@ -174,6 +174,9 @@ describe('matchPrompt', () => {
     );
     expect(matchPrompt('Compare US vs China vs India GDP growth since 2000')?.seriesId).toBe('gdp_growth');
     expect(matchPrompt('Compare US vs China vs India GDP growth since 2000')?.seriesId).not.toBe(
+      'A191RL1A225NBEA'
+    );
+    expect(matchPrompt('Compare US vs China vs India GDP growth since 2000')?.seriesId).not.toBe(
       'marine_protected'
     );
     expect(matchPrompt('Antarctic sea ice extent 1979-2023 NSIDC')?.seriesId).toBe('antarctic_sea_ice');

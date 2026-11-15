@@ -24,12 +24,15 @@ export function withTopCount(title: string, truncatedTo?: number): string {
   if (!truncatedTo || truncatedTo < 2) {
     return title;
   }
-  if (new RegExp(`\\btop\\s+${truncatedTo}\\b`, 'i').test(title)) {
-    return title;
-  }
   const trimmed = title.trim();
   if (!trimmed) {
     return `Top ${truncatedTo}`;
+  }
+  if (new RegExp(`\\btop\\s+${truncatedTo}\\b`, 'i').test(trimmed)) {
+    return trimmed;
+  }
+  if (/\btop\s+\d+\b/i.test(trimmed)) {
+    return trimmed.replace(/\btop\s+\d+\b/i, `top ${truncatedTo}`);
   }
   return `${trimmed}, top ${truncatedTo}`;
 }

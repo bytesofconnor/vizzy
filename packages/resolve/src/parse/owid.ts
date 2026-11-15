@@ -19,7 +19,8 @@ function skipEntity(entity: string): boolean {
     /\((fao|un m49|who|wb)\)/i.test(entity) ||
     /^all /i.test(entity) ||
     /^\(/i.test(entity) ||
-    /population-weighted/i.test(entity)
+    /population-weighted/i.test(entity) ||
+    /other economies|rest of the world/i.test(entity)
   );
 }
 

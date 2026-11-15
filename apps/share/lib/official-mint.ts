@@ -138,6 +138,16 @@ export function honestSeriesTitle(series: {
   return series.sourceLabel;
 }
 
+function disclose(text: string, asked: string, coverage: string | undefined): string {
+  if (!coverage) {
+    return text;
+  }
+  if (`${asked} ${text}`.toLowerCase().includes(coverage.toLowerCase())) {
+    return text;
+  }
+  return `${text}, ${coverage}`;
+}
+
 function titleWithSnapshotYear(title: string, sourceLabel: string): string {
   if (/\b(?:19|20)\d{2}\b/.test(title)) {
     return title;
@@ -179,7 +189,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
       : series.yLabel;
   const titled = { ...series, rows, xLabel, yLabel };
   const dataset = DATASETS.find((item) => item.family === series.family && item.seriesId === series.seriesId);
-  const title = withTopCount(
+  const spelled = withTopCount(
     spellTitleFromResolved(
       titleWithSnapshotYear(
         honestTitle({
@@ -200,7 +210,11 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     ),
     series.truncatedTo
   );
-  const note = withDrawnSpan(textClashesWithSeries(asked, series) ? title : series.sourceLabel, rows);
+  const title = withDrawnSpan(disclose(spelled, asked, dataset?.coverage), rows);
+  const note = withDrawnSpan(
+    disclose(textClashesWithSeries(asked, series) ? title : series.sourceLabel, asked, dataset?.coverage),
+    rows
+  );
   const config = studioChart(
     chartType === 'line' ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
     { x: 'x', y: 'y', ...(multi ? { color: 'series' as const } : {}) },
