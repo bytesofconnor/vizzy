@@ -36,3 +36,12 @@ test('agents page has no serious axe issues', async ({ page }) => {
 test('terms has no serious axe issues', async ({ page }) => {
   await noSeriousAxe(page, '/terms');
 });
+
+test('gallery has no serious axe issues', async ({ page }) => {
+  await noSeriousAxe(page, '/gallery');
+});
+
+test('a public chart page has no serious axe issues', async ({ page }) => {
+  test.setTimeout(45_000);
+  await noSeriousAxe(page, '/charts/us-unemployment-rate-since-2000');
+});

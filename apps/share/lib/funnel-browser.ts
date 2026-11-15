@@ -1,10 +1,10 @@
-import { gateOnce, type FunnelAuth, type FunnelEvent, type FunnelProps } from '../../../convex/funnel';
+import { gateOnce, type FunnelAuth, type FunnelProps, type TrackEvent } from '../../../convex/funnel';
 
 const VISIT_KEY = 'vizzy.funnel.visit';
 const FIRST_PREFIX = 'vizzy.funnel.first.';
 const UPGRADE_KEY = 'vizzy.funnel.upgrade';
 
-export function track(event: FunnelEvent, props?: FunnelProps): void {
+export function track(event: TrackEvent, props?: FunnelProps): void {
   const body = props?.auth ? { event, props: { auth: props.auth } } : { event };
   try {
     void fetch('/api/funnel', {

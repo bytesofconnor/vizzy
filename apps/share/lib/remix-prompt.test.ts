@@ -9,9 +9,6 @@ describe('remixPrompt', () => {
         title: 'Great Barrier Reef hard coral cover by sector',
         note: 'AIMS monitoring.',
         config: {
-          schemaVersion: 1,
-          chart: { type: 'line' },
-          dataMapping: { x: 'year', y: 'cover' },
           source: {
             label: 'AIMS Long-Term Monitoring',
             method: 'official',

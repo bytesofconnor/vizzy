@@ -4391,6 +4391,129 @@ html:not(.is-inked) .compose-hero-card {
   display: none;
 }
 
+.gallery-kicker {
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.gallery-dek {
+  margin: 0 0 18px;
+  max-width: 40rem;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.gallery-plot {
+  margin: 8px 0 0;
+}
+
+.gallery-plot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gallery-pending,
+.gallery-updated {
+  margin: 14px 0 0;
+  max-width: 40rem;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.gallery-updated {
+  color: var(--mute);
+}
+
+.gallery-chart .source-kicker,
+.gallery-chart .source-name,
+.gallery-chart .source-link-row,
+.gallery-chart .source-evidence,
+.gallery-chart .source-caveat {
+  font-size: 16px;
+}
+
+.gallery-actions {
+  margin: 18px 0 0;
+}
+
+.gallery-remix {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 1rem;
+  text-decoration: none;
+}
+
+.gallery-related {
+  margin-top: 32px;
+}
+
+.gallery-related h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.gallery-related ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.gallery-related a {
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.gallery-topic {
+  margin-top: 36px;
+}
+
+.gallery-topic h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.gallery-index-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gallery-index-list li {
+  border-top: 1px solid var(--rule);
+}
+
+.gallery-index-list a {
+  display: inline-block;
+  padding: 14px 0 2px;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.gallery-index-list a:hover,
+.gallery-index-list a:focus-visible {
+  text-decoration: underline;
+}
+
+.gallery-index-list p {
+  margin: 0 0 14px;
+  max-width: 40rem;
+  color: var(--mute);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
 .piece-list {
   margin-top: 14px;
   display: grid;

@@ -12,7 +12,13 @@ export const FUNNEL_EVENTS = [
   'paid',
 ] as const;
 
+export const GALLERY_EVENTS = ['gallery_view', 'remix_click'] as const;
+
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];
+
+export type GalleryEvent = (typeof GALLERY_EVENTS)[number];
+
+export type TrackEvent = FunnelEvent | GalleryEvent;
 
 export type FunnelAuth = 'signed_in' | 'signed_out';
 
@@ -40,6 +46,10 @@ export function isFunnelEvent(value: string): value is FunnelEvent {
   return (FUNNEL_EVENTS as readonly string[]).includes(value);
 }
 
+export function isTrackEvent(value: string): value is TrackEvent {
+  return isFunnelEvent(value) || (GALLERY_EVENTS as readonly string[]).includes(value);
+}
+
 export function readAuth(props: unknown): FunnelAuth | undefined {
   if (typeof props !== 'object' || props === null || !('auth' in props)) {
     return undefined;
@@ -51,7 +61,7 @@ export function readAuth(props: unknown): FunnelAuth | undefined {
   return undefined;
 }
 
-export function counterName(event: FunnelEvent, props?: FunnelProps): string | null {
+export function counterName(event: TrackEvent, props?: FunnelProps): string | null {
   if (event === 'first_chart') {
     if (!props?.auth || !AUTH.has(props.auth)) {
       return null;
@@ -61,12 +71,12 @@ export function counterName(event: FunnelEvent, props?: FunnelProps): string | n
   return event;
 }
 
-export function parseTrackBody(body: unknown): { event: FunnelEvent; props?: FunnelProps } | null {
+export function parseTrackBody(body: unknown): { event: TrackEvent; props?: FunnelProps } | null {
   if (typeof body !== 'object' || body === null || !('event' in body)) {
     return null;
   }
   const event = (body as { event: unknown }).event;
-  if (typeof event !== 'string' || !isFunnelEvent(event)) {
+  if (typeof event !== 'string' || !isTrackEvent(event)) {
     return null;
   }
   const auth = 'props' in body ? readAuth((body as { props: unknown }).props) : undefined;

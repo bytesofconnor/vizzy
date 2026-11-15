@@ -54,6 +54,8 @@ const nextConfig: NextConfig = {
       { source: '/c/x/:token.png', destination: '/c/x/:token/png' },
       { source: '/c/:slug.:size.png', destination: '/c/:slug/png?size=:size' },
       { source: '/c/:slug.png', destination: '/c/:slug/png' },
+      { source: '/charts/:slug.:size.png', destination: '/charts/:slug/png?size=:size' },
+      { source: '/charts/:slug.png', destination: '/charts/:slug/png' },
     ];
   },
   webpack: (config) => {

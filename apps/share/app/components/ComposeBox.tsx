@@ -44,8 +44,8 @@ export function ComposeBox({
   error,
   askPay,
   writerPlan = false,
-  seed,
   initialPrompt,
+  seed,
   variant = 'default',
   onBusyProgress,
   onMinted,
@@ -57,8 +57,8 @@ export function ComposeBox({
   error?: string;
   askPay?: boolean;
   writerPlan?: boolean;
-  seed?: ChartSeed;
   initialPrompt?: string;
+  seed?: ChartSeed;
   variant?: 'default' | 'hero';
   onBusyProgress?: (progress: ComposeProgressEvent | null) => void;
   onMinted?: (piece: ClientPiece, url: string) => void;
@@ -90,12 +90,19 @@ export function ComposeBox({
   const [revisionLines, setRevisionLines] = useState<readonly string[]>(() =>
     seed ? heuristicRevisionPrompts(seed) : []
   );
-  const [promptFresh, setPromptFresh] = useState(false);
+  const [promptFresh, setPromptFresh] = useState((initialPrompt ?? '').length > 0);
   const gate = useAccountGate();
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
   const submitRef = useRef<(fresh?: boolean, askedOverride?: string) => void>(() => {});
   const typeRef = useRef<HTMLDivElement | null>(null);
   const reviseTypeRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!initialPrompt) {
+      return;
+    }
+    promptRef.current?.focus();
+  }, [initialPrompt]);
 
   const promptIdle = !busy && prompt.length === 0;
   const showTypewriter = hero;

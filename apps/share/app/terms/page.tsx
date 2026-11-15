@@ -79,7 +79,7 @@ export default async function TermsPage() {
         this page with the checkout email.
       </p>
       <p style={body}>
-        The paste URL is the chart. We keep the draft behind that unguessable link. There is no public gallery.
+        The paste URL is the chart. We keep that draft behind an unguessable link. Curated public charts are listed in the gallery.
         Payments go through Stripe. Unused charts can be refunded through Stripe. A spent prompt is spent.
       </p>
       <p style={{ ...kicker, marginTop: 36 }}>This browser</p>
