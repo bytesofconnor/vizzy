@@ -12,7 +12,7 @@ export function SaveGoogle({ compact = false }: { compact?: boolean }) {
   const hostRef = useRef<HTMLSpanElement | null>(null);
   const painted = useRef(false);
   const keepRef = useRef<(credential: string) => void>(() => {});
-  const [google, setGoogle] = useState<GoogleAccounts | null>(null);
+  const [google, setGoogle] = useState<NonNullable<Window['google']> | null>(null);
   const [loopback, setLoopback] = useState(false);
   const [fail, setFail] = useState('');
   const [busy, setBusy] = useState(false);
