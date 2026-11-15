@@ -18,7 +18,8 @@ const nextConfig: NextConfig = {
       '@vizzy/resolve': '../../packages/resolve/src',
     },
   },
-  serverExternalPackages: ['jsdom', '@resvg/resvg-js', 'stripe'],
+  // d3-transition patches d3-selection. Bundling splits those copies, and the server chart render throws.
+  serverExternalPackages: ['jsdom', '@resvg/resvg-js', 'stripe', 'd3'],
   transpilePackages: ['@vizzy/core', '@vizzy/react', '@vizzy/resolve'],
   outputFileTracingIncludes: {
     '/agents': ['./content/AGENTS.md'],

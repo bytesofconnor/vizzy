@@ -1,4 +1,6 @@
 import * as d3 from 'd3';
+// Bundlers drop d3's side-effect re-export, so selection.transition is missing until this import.
+import 'd3-transition';
 import { formatDataValue } from '../format';
 import {
   compactAxisLabel,

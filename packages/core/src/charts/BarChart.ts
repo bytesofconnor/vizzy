@@ -1,4 +1,6 @@
 import * as d3 from 'd3';
+// Bundlers drop d3's side-effect re-export, so selection.transition is missing until this import.
+import 'd3-transition';
 import { barSpeak, seriesIsSketch, sketchFrame, type BarSpeak } from '../bar-reading';
 import { bindChartTip, formatTipNumber, seriesTipLabel } from '../chart-tip';
 import { formatDataValue } from '../format';
