@@ -1,48 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { bootGoogleSignIn, registerNavGoogle } from './google-sign-in';
 
 const SOURCE = 'https://accounts.google.com/gsi/client';
 
-type GoogleAccounts = {
-  accounts: {
-    id: {
-      initialize: (config: {
-        client_id: string;
-        callback: (response: { credential: string }) => void;
-        auto_select?: boolean;
-        ux_mode?: 'popup' | 'redirect';
-        login_uri?: string;
-        use_fedcm_for_prompt?: boolean;
-        itp_support?: boolean;
-      }) => void;
-      prompt: () => void;
-      renderButton: (
-        parent: HTMLElement,
-        options: {
-          type?: 'standard' | 'icon';
-          theme?: 'outline' | 'filled_blue' | 'filled_black';
-          size?: 'large' | 'medium' | 'small';
-          text?: 'signin_with' | 'continue_with' | 'signin';
-          ux_mode?: 'popup' | 'redirect';
-        }
-      ) => void;
-    };
-  };
-};
-
-declare global {
-  interface Window {
-    google?: GoogleAccounts;
-  }
-}
-
-let gisInit = false;
-
 export function SaveGoogle({ compact = false }: { compact?: boolean }) {
+  const router = useRouter();
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const hostRef = useRef<HTMLSpanElement | null>(null);
   const painted = useRef(false);
+  const keepRef = useRef<(credential: string) => void>(() => {});
   const [google, setGoogle] = useState<GoogleAccounts | null>(null);
   const [loopback, setLoopback] = useState(false);
   const [fail, setFail] = useState('');
@@ -80,29 +49,22 @@ export function SaveGoogle({ compact = false }: { compact?: boolean }) {
   }, [clientId]);
 
   useEffect(() => {
+    registerNavGoogle((credential) => {
+      keepRef.current(credential);
+    });
+  }, []);
+
+  useEffect(() => {
     if (!clientId || !google || !hostRef.current || painted.current) {
       return;
     }
-    if (!gisInit) {
-      google.accounts.id.initialize({
-        client_id: clientId,
-        callback: (response) => {
-          void keep(response.credential);
-        },
-        auto_select: false,
-        ux_mode: 'redirect',
-        login_uri: `${window.location.origin}/api/save/google`,
-        use_fedcm_for_prompt: false,
-        itp_support: true,
-      });
-      gisInit = true;
-    }
+    bootGoogleSignIn(clientId);
     google.accounts.id.renderButton(hostRef.current, {
       type: 'standard',
       theme: 'outline',
       size: compact ? 'small' : 'medium',
       text: 'signin',
-      ux_mode: 'redirect',
+      ux_mode: 'popup',
     });
     painted.current = true;
   }, [clientId, compact, google]);
@@ -118,7 +80,7 @@ export function SaveGoogle({ compact = false }: { compact?: boolean }) {
       });
       const body: unknown = await response.json();
       if (typeof body === 'object' && body !== null && 'ok' in body && body.ok === true) {
-        window.location.assign('/');
+        router.refresh();
         return;
       }
       const message =
@@ -131,6 +93,10 @@ export function SaveGoogle({ compact = false }: { compact?: boolean }) {
     }
     setBusy(false);
   }
+
+  keepRef.current = (credential: string) => {
+    void keep(credential);
+  };
 
   if (!clientId) {
     return null;

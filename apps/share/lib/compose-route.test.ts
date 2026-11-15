@@ -14,6 +14,8 @@ vi.mock('./billing', () => ({
   refundSlot: mocks.refundSlot,
   signedInNav: vi.fn(async () => ({})),
   walletTokenFromRequest: vi.fn(async () => undefined),
+  composeDevice: () => ({ id: 'd'.repeat(32), hash: 'device-hash', fresh: false }),
+  withDeviceCookie: (response: Response) => response,
 }));
 
 vi.mock('./from-prompt', () => ({

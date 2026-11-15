@@ -24,7 +24,13 @@ test('landing is the chart prompt', async ({ page }) => {
   await expect(page.getByText(/Get the picture, the source, and a short explanation/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Generate my chart' })).toBeVisible();
   await expect(page.getByLabel('Example questions')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Shuffle' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'US unemployment since 2000' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '30-year mortgage rate' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CO2 per capita' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'US GDP since 2000' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'S&P 500 last 20 years' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Federal funds rate' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Shuffle' })).toHaveCount(0);
   await expect(page.getByText(/free today, then \$8 for 25/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Copy a vizzy prompt' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Share chart' }).first()).toBeVisible();
@@ -176,7 +182,7 @@ test('idle free count matches the server before submit', async ({ page }) => {
 
   await page.locator('#prompt').fill('Bitcoin price from March to June 2021');
   await page.getByRole('button', { name: 'Generate my chart' }).click();
-  await expect(page.locator('.compose-fail')).toContainText('free charts for today');
+  await expect(page.getByRole('dialog', { name: 'Sign in to keep charting' })).toBeVisible();
   expect(composePosts).toBe(0);
 });
 
@@ -223,6 +229,114 @@ test('quota peek is not cached', async ({ request }) => {
   const response = await request.get('/api/quota');
   expect(response.ok()).toBeTruthy();
   expect(response.headers()['cache-control']).toContain('no-store');
+});
+
+test('signed-out example renders a sourced chart and save signs in to the library', async ({ page }) => {
+  const piece = {
+    ...PIECES[0],
+    slug: 'unemployment',
+    title: 'US unemployment since 2000',
+    config: {
+      ...PIECES[0].config,
+      source: {
+        label: 'FRED — U.S. unemployment rate',
+        method: 'official' as const,
+        url: 'https://fred.stlouisfed.org/series/UNRATE',
+        retrieved: '2026-11-15',
+      },
+    },
+  };
+  await page.route('**/api/quota', async (route) => {
+    await route.fulfill({ json: quotaBody(3) });
+  });
+  await page.route('**/api/compose', async (route) => {
+    await route.fulfill({
+      json: {
+        ok: true,
+        url: '/c/unemployment',
+        piece,
+      },
+    });
+  });
+  let librarySave: { slug?: string; title?: string; pinned?: boolean } | null = null;
+  await page.route('**/api/pin**', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: { ok: true, pinned: false } });
+      return;
+    }
+    librarySave = route.request().postDataJSON() as { slug?: string; title?: string; pinned?: boolean };
+    await route.fulfill({ json: { ok: true, pinned: true } });
+  });
+  await page.route('**/api/save/google', async (route) => {
+    await route.fulfill({ json: { ok: true, credits: 0, unlimited: false } });
+  });
+  await page.addInitScript(() => {
+    const host = window as Window & {
+      __gis?: (response: { credential: string }) => void;
+      google?: {
+        accounts: {
+          id: {
+            initialize: (config: { callback: (response: { credential: string }) => void }) => void;
+            prompt: () => void;
+            renderButton: () => void;
+          };
+        };
+      };
+    };
+    host.google = {
+      accounts: {
+        id: {
+          initialize(config) {
+            host.__gis = config.callback;
+          },
+          prompt() {
+            host.__gis?.({ credential: 'test-credential' });
+          },
+          renderButton() {},
+        },
+      },
+    };
+  });
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  const examples = page.getByLabel('Example questions');
+  await expect(examples).toBeVisible();
+  const desktop = await examples.boundingBox();
+  expect(desktop).toBeTruthy();
+  expect(desktop!.x).toBeGreaterThanOrEqual(0);
+  expect(desktop!.x + desktop!.width).toBeLessThanOrEqual(1280);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const phone = await examples.boundingBox();
+  expect(phone).toBeTruthy();
+  expect(phone!.x).toBeGreaterThanOrEqual(-1);
+  expect(phone!.x + phone!.width).toBeLessThanOrEqual(391);
+
+  await page.getByRole('button', { name: 'US unemployment since 2000' }).click();
+  const slot = page.locator('.home-chart-slot');
+  await expect(slot.getByText('Source')).toBeVisible();
+  await expect(slot.locator('.source-name')).toContainText('FRED — U.S. unemployment rate');
+  expect(librarySave).toBeNull();
+
+  await slot.getByRole('button', { name: 'Save for later' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Sign in to save this chart' });
+  await expect(dialog).toBeVisible();
+  const sheet = await dialog.boundingBox();
+  expect(sheet).toBeTruthy();
+  expect(sheet!.x).toBeGreaterThanOrEqual(-1);
+  expect(sheet!.x + sheet!.width).toBeLessThanOrEqual(391);
+  expect(librarySave).toBeNull();
+
+  await dialog.getByRole('button', { name: 'Sign in with Google' }).click();
+  await expect(slot.getByRole('button', { name: 'Remove from saved' })).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+  await expect(slot.locator('.source-name')).toContainText('FRED — U.S. unemployment rate');
+  expect(librarySave).toMatchObject({
+    slug: 'unemployment',
+    title: 'US unemployment since 2000',
+    pinned: true,
+  });
 });
 
 test('terms still restores by checkout email', async ({ page }) => {

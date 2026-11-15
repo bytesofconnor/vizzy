@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { useAccountGate } from './AccountGate';
 import { useKickerTap } from './KickerDust';
 import { PinMark } from './PinMark';
 
 export function PinButton({ slug, title }: { slug: string; title: string }) {
+  const gate = useAccountGate();
   const tipId = useId();
   const [pinned, setPinned] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -40,13 +42,12 @@ export function PinButton({ slug, title }: { slug: string; title: string }) {
     spokenTimer.current = window.setTimeout(() => setSpoken(false), 1400);
   }
 
-  async function toggle() {
+  async function writePin(next: boolean) {
     if (busy) {
       return;
     }
     setBusy(true);
     setError(null);
-    const next = !pinned;
     setPinned(next);
     flashTip();
     try {
@@ -68,6 +69,25 @@ export function PinButton({ slug, title }: { slug: string; title: string }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function toggle() {
+    if (busy) {
+      return;
+    }
+    const next = !pinned;
+    if (
+      next &&
+      gate.requireAccount({
+        kind: 'save',
+        run: () => {
+          void writePin(true);
+        },
+      })
+    ) {
+      return;
+    }
+    void writePin(next);
   }
 
   const label = pinned ? 'Remove from saved' : 'Save for later';

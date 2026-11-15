@@ -1,6 +1,7 @@
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import type { Doc } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import { v } from 'convex/values';
+import { freeChartsLeft } from './free-charts';
 
 export const FREE_PER_DAY = 3;
 export const PACK_CREDITS = 25;
@@ -162,6 +163,33 @@ async function resolvePaidWallet(
   return created;
 }
 
+async function dailyRow(ctx: QueryCtx | MutationCtx, hash: string, day: string) {
+  return await ctx.db
+    .query('dailyFree')
+    .withIndex('by_ip_day', (q) => q.eq('ipHash', hash).eq('day', day))
+    .unique();
+}
+
+async function bumpDaily(
+  ctx: MutationCtx,
+  hash: string,
+  day: string,
+  current: { _id: Id<'dailyFree'>; count: number } | null
+) {
+  if (current) {
+    await ctx.db.patch(current._id, { count: current.count + 1 });
+    return;
+  }
+  await ctx.db.insert('dailyFree', { ipHash: hash, day, count: 1 });
+}
+
+async function easeDaily(ctx: MutationCtx, hash: string, day: string) {
+  const row = await dailyRow(ctx, hash, day);
+  if (row && row.count > 0) {
+    await ctx.db.patch(row._id, { count: row.count - 1 });
+  }
+}
+
 function assertServer(secret: string): void {
   const expected = process.env.COMPOSE_SERVER_SECRET;
   if (!expected || secret !== expected) {
@@ -195,6 +223,7 @@ export const peek = query({
     day: v.string(),
     walletToken: v.optional(v.string()),
     writerPlan: v.optional(v.boolean()),
+    deviceHash: v.optional(v.string()),
   },
   returns: quotaReturn,
   handler: async (ctx, args) => {
@@ -205,12 +234,10 @@ export const peek = query({
           .withIndex('by_token', (q) => q.eq('token', args.walletToken as string))
           .unique()
       : null;
-    const daily = await ctx.db
-      .query('dailyFree')
-      .withIndex('by_ip_day', (q) => q.eq('ipHash', args.ipHash).eq('day', args.day))
-      .unique();
+    const daily = await dailyRow(ctx, args.ipHash, args.day);
+    const device = args.deviceHash ? await dailyRow(ctx, args.deviceHash, args.day) : null;
     const credits = wallet?.credits ?? 0;
-    const freeLeft = Math.max(0, FREE_PER_DAY - (daily?.count ?? 0));
+    const freeLeft = freeChartsLeft(daily?.count ?? 0, args.deviceHash ? (device?.count ?? 0) : 0, FREE_PER_DAY);
     const unlimited = isOwnerWallet(wallet);
     const writer = Boolean(args.writerPlan) && wallet?.plan === 'writer';
     return {
@@ -232,6 +259,7 @@ export const consume = mutation({
     day: v.string(),
     walletToken: v.optional(v.string()),
     writerPlan: v.optional(v.boolean()),
+    deviceHash: v.optional(v.string()),
   },
   returns: v.object({
     ok: v.boolean(),
@@ -276,27 +304,24 @@ export const consume = mutation({
       };
     }
 
+    const ipRow = await dailyRow(ctx, args.ipHash, args.day);
+    const deviceRow = args.deviceHash ? await dailyRow(ctx, args.deviceHash, args.day) : null;
+    const ipCount = ipRow?.count ?? 0;
+    const deviceCount = args.deviceHash ? (deviceRow?.count ?? 0) : 0;
+    const freeLeft = freeChartsLeft(ipCount, deviceCount, FREE_PER_DAY);
+
     if (wallet && wallet.credits > 0) {
       await ctx.db.patch(wallet._id, { credits: wallet.credits - 1 });
       await logUse(ctx, wallet._id, 'credit');
-      const daily = await ctx.db
-        .query('dailyFree')
-        .withIndex('by_ip_day', (q) => q.eq('ipHash', args.ipHash).eq('day', args.day))
-        .unique();
       return {
         ok: true,
         via: 'credit' as const,
-        freeLeft: Math.max(0, FREE_PER_DAY - (daily?.count ?? 0)),
+        freeLeft,
         credits: wallet.credits - 1,
       };
     }
 
-    const daily = await ctx.db
-      .query('dailyFree')
-      .withIndex('by_ip_day', (q) => q.eq('ipHash', args.ipHash).eq('day', args.day))
-      .unique();
-    const used = daily?.count ?? 0;
-    if (used >= FREE_PER_DAY) {
+    if (freeLeft <= 0) {
       return {
         ok: false,
         via: 'pay' as const,
@@ -305,14 +330,9 @@ export const consume = mutation({
       };
     }
 
-    if (daily) {
-      await ctx.db.patch(daily._id, { count: used + 1 });
-    } else {
-      await ctx.db.insert('dailyFree', {
-        ipHash: args.ipHash,
-        day: args.day,
-        count: 1,
-      });
+    await bumpDaily(ctx, args.ipHash, args.day, ipRow);
+    if (args.deviceHash) {
+      await bumpDaily(ctx, args.deviceHash, args.day, deviceRow);
     }
     if (wallet) {
       await logUse(ctx, wallet._id, 'free');
@@ -321,7 +341,7 @@ export const consume = mutation({
     return {
       ok: true,
       via: 'free' as const,
-      freeLeft: FREE_PER_DAY - used - 1,
+      freeLeft: freeChartsLeft(ipCount + 1, args.deviceHash ? deviceCount + 1 : 0, FREE_PER_DAY),
       credits: wallet?.credits ?? 0,
     };
   },
@@ -334,6 +354,7 @@ export const refund = mutation({
     day: v.string(),
     via: v.union(v.literal('credit'), v.literal('free')),
     walletToken: v.optional(v.string()),
+    deviceHash: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -349,12 +370,9 @@ export const refund = mutation({
       return null;
     }
 
-    const daily = await ctx.db
-      .query('dailyFree')
-      .withIndex('by_ip_day', (q) => q.eq('ipHash', args.ipHash).eq('day', args.day))
-      .unique();
-    if (daily && daily.count > 0) {
-      await ctx.db.patch(daily._id, { count: daily.count - 1 });
+    await easeDaily(ctx, args.ipHash, args.day);
+    if (args.deviceHash) {
+      await easeDaily(ctx, args.deviceHash, args.day);
     }
     return null;
   },

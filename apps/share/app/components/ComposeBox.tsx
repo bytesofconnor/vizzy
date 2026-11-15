@@ -15,7 +15,8 @@ import type { ClarifyAsk, ComposeDisposition } from '../../lib/compose-outcome';
 import { composeWithProgress } from '../../lib/compose-stream';
 import { track, trackFirstChart, trackUpgradeView } from '../../lib/funnel-browser';
 import { showWriterPaywall } from '../../lib/writer-plan';
-import { HeroExamples } from './HeroExamples';
+import { useAccountGate } from './AccountGate';
+import { FastExamples } from './FastExamples';
 import { HeroTypewriter } from './HeroTypewriter';
 import { FILL_COMPOSE_PROMPT, type FillComposeDetail } from './TellMeMore';
 import { usePromptTypewriter } from './usePromptTypewriter';
@@ -90,6 +91,7 @@ export function ComposeBox({
     seed ? heuristicRevisionPrompts(seed) : []
   );
   const [promptFresh, setPromptFresh] = useState(false);
+  const gate = useAccountGate();
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
   const submitRef = useRef<(fresh?: boolean, askedOverride?: string) => void>(() => {});
   const typeRef = useRef<HTMLDivElement | null>(null);
@@ -320,6 +322,16 @@ export function ComposeBox({
     if (composeNeedsPay(latest)) {
       track('free_limit');
       setBusy(false);
+      if (
+        gate.requireAccount({
+          kind: 'allowance',
+          run: () => {
+            void submit(fresh, askedOverride, disposition);
+          },
+        })
+      ) {
+        return;
+      }
       setPay(true);
       if (writerPlan) {
         setNotice({ kind: 'none' });
@@ -370,11 +382,23 @@ export function ComposeBox({
           setNotice({ kind: 'clarify', ask: outcome.ask });
           break;
         case 'fail':
-          if (outcome.pay && writerPlan) {
+          if (outcome.pay) {
             track('free_limit');
-            setPay(true);
-            setNotice({ kind: 'none' });
-            break;
+            if (
+              gate.requireAccount({
+                kind: 'allowance',
+                run: () => {
+                  void submit(fresh, askedOverride, disposition);
+                },
+              })
+            ) {
+              break;
+            }
+            if (writerPlan) {
+              setPay(true);
+              setNotice({ kind: 'none' });
+              break;
+            }
           }
           setNotice({ kind: 'fail', error: outcome.error, pay: Boolean(outcome.pay) });
           if (outcome.pay) {
@@ -605,7 +629,16 @@ export function ComposeBox({
         ) : null}
         </div>
         {children}
-        {home && showIdeas ? <HeroExamples onPick={onPickIdea} disabled={busy} /> : null}
+        {home && showIdeas ? (
+          <FastExamples
+            disabled={busy}
+            onPick={(next) => {
+              setPrompt(next);
+              setHeld(true);
+              submitRef.current(false, next);
+            }}
+          />
+        ) : null}
       </div>
     </form>
   );

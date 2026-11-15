@@ -9,6 +9,7 @@ import { ChartTipButton, useSpokenTip } from './ChartTipButton';
 import { ExportMark, RemixMark, ShareMark } from './ChartMarks';
 import { EmbedActions } from './EmbedActions';
 import { PinButton } from './PinButton';
+import { useAccountGate } from './AccountGate';
 import { fillComposePrompt } from './TellMeMore';
 import { track } from '../../lib/funnel-browser';
 
@@ -24,6 +25,7 @@ export function ChartActionBar({ piece, insight }: { piece: Piece; insight: stri
 }
 
 function ShareButton({ slug, title }: { slug: string; title: string }) {
+  const gate = useAccountGate();
   const { spoken, flash } = useSpokenTip();
   const [copied, setCopied] = useState(false);
 
@@ -55,7 +57,17 @@ function ShareButton({ slug, title }: { slug: string; title: string }) {
   const tip = spoken ? (copied ? 'Link copied' : 'Shared') : 'Share chart';
 
   return (
-    <ChartTipButton label="Share chart" tip={tip} spoken={spoken} onClick={() => void share()}>
+    <ChartTipButton
+      label="Share chart"
+      tip={tip}
+      spoken={spoken}
+      onClick={() => {
+        if (gate.requireAccount({ kind: 'share', run: () => void share() })) {
+          return;
+        }
+        void share();
+      }}
+    >
       <ShareMark on={spoken} />
     </ChartTipButton>
   );
@@ -88,6 +100,7 @@ function RemixButton({ piece }: { piece: Piece }) {
 }
 
 function ExportButton({ piece, insight }: { piece: Piece; insight: string | null }) {
+  const gate = useAccountGate();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -175,7 +188,12 @@ function ExportButton({ piece, insight }: { piece: Piece; insight: string | null
         tip={open ? 'Close export' : 'Export'}
         expanded={open}
         popup="dialog"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          if (!open && gate.requireAccount({ kind: 'embed', run: () => setOpen(true) })) {
+            return;
+          }
+          setOpen((current) => !current);
+        }}
       >
         <ExportMark on={open} />
       </ChartTipButton>
