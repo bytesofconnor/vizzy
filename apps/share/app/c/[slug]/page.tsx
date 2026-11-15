@@ -6,6 +6,7 @@ import { loadPaste } from '../../../lib/paste';
 import { PIECES, pieceBySlug } from '../../../lib/pieces';
 import { siteUrl } from '../../../lib/site';
 import { FunnelSharedView } from '../../components/FunnelSharedView';
+import { writerPlanEnabled } from '../../../lib/writer-plan';
 import { JsonLd } from '../../components/JsonLd';
 import { Studio } from '../../components/Studio';
 
@@ -82,7 +83,13 @@ export default async function PiecePage({ params }: PageProps) {
           }}
         />
         <FunnelSharedView />
-        <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
+        <Studio
+          piece={piece}
+          email={nav.email}
+          known={nav.known}
+          owner={Boolean(nav.owner)}
+          writerPlan={writerPlanEnabled()}
+        />
       </>
     );
   }
@@ -90,7 +97,13 @@ export default async function PiecePage({ params }: PageProps) {
   return (
     <>
       <FunnelSharedView />
-      <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
+      <Studio
+        piece={piece}
+        email={nav.email}
+        known={nav.known}
+        owner={Boolean(nav.owner)}
+        writerPlan={writerPlanEnabled()}
+      />
     </>
   );
 }

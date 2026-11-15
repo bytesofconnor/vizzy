@@ -89,7 +89,7 @@ export default async function MePage() {
               : ' to bring charts from another browser.'}
           </p>
         ) : null}
-        <AccountBuy more={Boolean(account)} />
+        {account?.writer ? null : <AccountBuy more={Boolean(account)} />}
       </div>
       {account ? (
         <nav className="me-jump" aria-label="On this page">
@@ -116,6 +116,9 @@ function meterLine(account: Awaited<ReturnType<typeof getAccount>>): string {
   if (!account) {
     return 'No charts on this browser yet.';
   }
+  if (account.writer) {
+    return 'Writer. Unlimited charts.';
+  }
   if (account.justPaid && account.credits > 0) {
     return `${account.credits} chart${account.credits === 1 ? '' : 's'} added.`;
   }
@@ -139,6 +142,9 @@ function statusLine(account: Awaited<ReturnType<typeof getAccount>>, google = fa
     return google
       ? `Sign in to bring charts from another browser. Or buy ${PACK_CREDITS} for ${PACK_PRICE_LABEL}.`
       : `Buy ${PACK_CREDITS} for ${PACK_PRICE_LABEL}, or make a free chart on the home page.`;
+  }
+  if (account.writer) {
+    return 'Unlimited charts on this account.';
   }
   if (account.justPaid) {
     return account.saved

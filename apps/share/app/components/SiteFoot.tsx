@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { writerPlanEnabled } from '../../lib/writer-plan';
 import { EventLink } from './EventLink';
 
 const kicker = {
@@ -17,6 +18,12 @@ export function SiteFoot() {
         <EventLink href="/terms" name="tap_terms">
           Terms
         </EventLink>
+        {writerPlanEnabled() ? (
+          <>
+            {' · '}
+            <Link href="/pricing">Pricing</Link>
+          </>
+        ) : null}
         {' · '}
         <EventLink href="/for/writers" name="tap_writers">
           Writers

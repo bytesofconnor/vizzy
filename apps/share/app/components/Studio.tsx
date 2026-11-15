@@ -11,6 +11,7 @@ export function Studio({
   piece,
   error,
   askPay,
+  writerPlan = false,
   email,
   known,
   owner = false,
@@ -18,6 +19,7 @@ export function Studio({
   piece?: Piece;
   error?: string;
   askPay?: boolean;
+  writerPlan?: boolean;
   email?: string;
   known?: boolean;
   owner?: boolean;
@@ -26,7 +28,7 @@ export function Studio({
     <main id="content" className={`page-main${piece ? '' : ' page-home'}`}>
       <KickerNav here="home" email={email} known={known} owner={owner} />
       {piece ? (
-        <StudioDesk piece={piece} error={error} askPay={askPay} />
+        <StudioDesk piece={piece} error={error} askPay={askPay} writerPlan={writerPlan} />
       ) : (
         <section className="home-hero" aria-labelledby="home-title">
           <h1 id="home-title" className="home-hero-title">
@@ -36,7 +38,7 @@ export function Studio({
           <p className="home-hero-lede">
             Ask a public question. Get the picture, the source, and a short explanation.
           </p>
-          <HomeCompose error={error} askPay={askPay} />
+          <HomeCompose error={error} askPay={askPay} writerPlan={writerPlan} />
           <AgentPaste />
         </section>
       )}

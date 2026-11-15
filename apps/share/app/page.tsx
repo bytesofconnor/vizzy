@@ -2,6 +2,7 @@ import { Studio } from './components/Studio';
 import { JsonLd } from './components/JsonLd';
 import { signedInNav } from '../lib/billing';
 import { SITE_DESCRIPTION, siteUrl } from '../lib/site';
+import { writerPlanEnabled } from '../lib/writer-plan';
 
 export const metadata = {
   alternates: { canonical: '/' },
@@ -39,7 +40,14 @@ export default async function HomePage({
           featureList: ['Bar charts', 'Line charts', 'Scatter plots', 'Paste URL', 'PNG export'],
         }}
       />
-      <Studio error={error} askPay={pay === '1'} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />
+      <Studio
+        error={error}
+        askPay={pay === '1'}
+        writerPlan={writerPlanEnabled()}
+        email={nav.email}
+        known={nav.known}
+        owner={Boolean(nav.owner)}
+      />
     </>
   );
 }

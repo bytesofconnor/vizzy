@@ -10,6 +10,8 @@ export default defineSchema({
     googleSub: v.optional(v.string()),
     credits: v.number(),
     createdAt: v.number(),
+    plan: v.optional(v.literal('writer')),
+    writerCheckoutSessionId: v.optional(v.string()),
   })
     .index('by_token', ['token'])
     .index('by_email', ['email'])
@@ -33,7 +35,7 @@ export default defineSchema({
 
   uses: defineTable({
     walletId: v.id('wallets'),
-    via: v.union(v.literal('credit'), v.literal('free'), v.literal('owner')),
+    via: v.union(v.literal('credit'), v.literal('free'), v.literal('owner'), v.literal('writer')),
     createdAt: v.number(),
   }).index('by_wallet', ['walletId']),
 

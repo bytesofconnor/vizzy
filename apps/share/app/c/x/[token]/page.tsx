@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { CARD } from '../../../../lib/compose';
 import { signedInNav } from '../../../../lib/billing';
 import { hydrateToken } from '../../../../lib/mint';
+import { writerPlanEnabled } from '../../../../lib/writer-plan';
 import { Studio } from '../../../components/Studio';
 
 type PageProps = {
@@ -50,5 +51,13 @@ export default async function MintedPage({ params }: PageProps) {
     nav = {};
   }
 
-  return <Studio piece={piece} email={nav.email} known={nav.known} owner={Boolean(nav.owner)} />;
+  return (
+    <Studio
+      piece={piece}
+      email={nav.email}
+      known={nav.known}
+      owner={Boolean(nav.owner)}
+      writerPlan={writerPlanEnabled()}
+    />
+  );
 }
