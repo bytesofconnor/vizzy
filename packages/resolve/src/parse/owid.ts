@@ -24,6 +24,11 @@ function skipEntity(entity: string): boolean {
 }
 
 export const OWID_SPEC: Record<string, OwidSpec> = {
+  co2_per_capita: {
+    slug: 'co-emissions-per-capita',
+    value: /emissions per capita/i,
+    rank: true,
+  },
   temperature_anomaly: {
     slug: 'temperature-anomaly',
     value: /^Average$/i,
