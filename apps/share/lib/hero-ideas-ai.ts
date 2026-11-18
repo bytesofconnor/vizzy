@@ -8,7 +8,7 @@ import { fallbackHeroIdeas, isHeroIdeaBatch, parseHeroIdeas, type HeroIdea } fro
 
 const FAMILIES = ['noaa', 'usgs', 'fred', 'worldbank', 'wiki', 'owid'] as const;
 
-const IdeaSchema = z.object({
+export const IdeaSchema = z.object({
   ideas: z
     .array(
       z.object({

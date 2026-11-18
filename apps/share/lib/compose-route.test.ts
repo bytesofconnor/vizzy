@@ -120,6 +120,26 @@ describe('POST /api/compose', () => {
     expect(mocks.pieceFromPrompt.mock.calls[0]?.[0]).toMatchObject({ kind: 'mint', prompt: 'eggs price' });
   });
 
+  it('returns 503 when every draft model failed', async () => {
+    const error = 'The chart models are unavailable right now. Try again in a moment.';
+    mocks.pieceFromPrompt.mockResolvedValue({
+      ok: false,
+      error,
+      issues: [],
+      unavailable: true,
+    });
+    const response = await post({ prompt: bitcoin }, 'application/json');
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ ok: false, error });
+  });
+
+  it('still drafts a chart when the meter throws a Convex server error', async () => {
+    mocks.consumeSlot.mockRejectedValue(new Error('[Request ID: abc] Server Error'));
+    const response = await post({ prompt: bitcoin }, 'application/json');
+    expect(mocks.pieceFromPrompt).toHaveBeenCalledTimes(1);
+    expect(response.status).not.toBe(500);
+  });
+
   it('does not meter eggs when the slot would be refused, and returns 402 for bitcoin', async () => {
     mocks.consumeSlot.mockResolvedValue({ ok: false, via: 'pay', freeLeft: 0, credits: 0 });
     const eggs = await post({ prompt: 'eggs' }, 'application/json');

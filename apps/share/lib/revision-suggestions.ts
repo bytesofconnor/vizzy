@@ -11,7 +11,7 @@ export { heuristicRevisionPrompts } from './revision-heuristics';
 
 export const REVISION_HINT_MODEL = 'groq/llama-3.3-70b-versatile';
 
-const RevisionSchema = z.object({
+export const RevisionSchema = z.object({
   prompts: z
     .array(z.string().describe('One short revision sentence the user could type'))
     .min(3)

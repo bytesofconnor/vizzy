@@ -51,7 +51,7 @@ import {
   type ChartSource,
 } from './source';
 
-const DraftSchema = z.object({
+export const DraftSchema = z.object({
   title: z.string().describe('Noun phrase for what the figure shows. Never the user instruction'),
   kicker: z.string().describe('Two or three word label above the title'),
   note: z.string().describe('One dry sentence under the chart'),
