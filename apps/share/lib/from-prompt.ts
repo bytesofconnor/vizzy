@@ -23,6 +23,7 @@ import {
 } from './seed';
 import { COMPOSE_MODELS } from './ai-models';
 import { logAiFromResult } from './ai-usage';
+import { trackModelAttempt } from './track';
 import {
   composeModelsForRevision,
   GATEWAY_NO_RETRY,
@@ -51,7 +52,7 @@ import {
   type ChartSource,
 } from './source';
 
-const DraftSchema = z.object({
+export const DraftSchema = z.object({
   title: z.string().describe('Noun phrase for what the figure shows. Never the user instruction'),
   kicker: z.string().describe('Two or three word label above the title'),
   note: z.string().describe('One dry sentence under the chart'),
@@ -69,13 +70,23 @@ const DraftSchema = z.object({
         y: z.number().describe('Numeric y'),
         series: z
           .string()
-          .optional()
-          .describe('Series name when the user named more than one. The same x repeats once per series.'),
+          .nullable()
+          .describe(
+            'Series name when the user named more than one. Null when the chart has one series. The same x repeats once per series.'
+          ),
       })
     )
     .min(2)
     .max(60),
 });
+
+type DraftModel = z.infer<typeof DraftSchema>;
+
+export type DraftChart = Omit<DraftModel, 'rows'> & {
+  rows: Array<Omit<DraftModel['rows'][number], 'series'> & { series?: string | null }>;
+};
+
+const MODELS_UNAVAILABLE = 'The chart models are unavailable right now. Try again in a moment.';
 
 const SYSTEM = `You emit a Vizzy chart draft. Types: bar, line, scatter only. No pie.
 Use the user's numbers when they paste a table.
@@ -325,23 +336,31 @@ export async function pieceFromPrompt(
     if (isRateLimited(lastError)) {
       return {
         ok: false,
+        unavailable: true,
         error:
           'Could not reach the drafting model. Try again in a moment. I can still sort this chart, switch to a line, or drop a year that’s already on it without a lookup.',
         issues: [],
       };
     }
-    return { ok: false, error: publicComposeError(lastError) || 'Could not revise that', issues: [] };
+    return {
+      ok: false,
+      unavailable: true,
+      error: publicComposeError(lastError) || 'Could not revise that',
+      issues: [],
+    };
   }
   if (isRateLimited(lastError)) {
     return {
       ok: false,
+      unavailable: true,
       error: 'The drafting model is busy. Wait a moment and generate again, or paste a table.',
       issues: [],
     };
   }
   return {
     ok: false,
-    error: 'Could not find published numbers for that. Paste a table or put a source URL in your prompt.',
+    unavailable: true,
+    error: MODELS_UNAVAILABLE,
     issues: [],
   };
 }
@@ -359,21 +378,27 @@ async function draftChart(model: (typeof COMPOSE_MODELS)[number], prompt: string
 }
 
 async function draftChartOnce(model: (typeof COMPOSE_MODELS)[number], prompt: string) {
-  const result = await generateText({
-    model,
-    output: Output.object({ schema: DraftSchema }),
-    system: SYSTEM,
-    prompt,
-    maxRetries: GATEWAY_NO_RETRY,
-  });
-  await logAiFromResult('compose', model, result.usage, result.totalUsage);
-  return result.output;
+  try {
+    const result = await generateText({
+      model,
+      output: Output.object({ schema: DraftSchema }),
+      system: SYSTEM,
+      prompt,
+      maxRetries: GATEWAY_NO_RETRY,
+    });
+    await trackModelAttempt('compose', model, null);
+    await logAiFromResult('compose', model, result.usage, result.totalUsage);
+    return result.output;
+  } catch (error) {
+    await trackModelAttempt('compose', model, error);
+    throw error;
+  }
 }
 
 export function mintDraft(
   asked: string,
   gathered: { notes: string; urls: string[] },
-  output: z.infer<typeof DraftSchema>,
+  output: DraftChart,
   from?: ChartSeed
 ): MintResult {
   const pastedYs = pastedNumberSeries(asked);

@@ -26,7 +26,7 @@ export interface MintInput {
 
 export type MintResult =
   | { ok: true; token: string; piece: Piece }
-  | { ok: false; error: string; issues: ValidationIssue[] };
+  | { ok: false; error: string; issues: ValidationIssue[]; unavailable?: boolean };
 
 export function hydrateToken(token: string, slug = `x/${token}`): Piece | null {
   const draft = decodePortableDraft(token);

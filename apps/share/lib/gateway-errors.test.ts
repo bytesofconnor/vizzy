@@ -24,7 +24,8 @@ describe('composeModelsForRevision', () => {
   it('starts on OpenAI so generate is not stuck on Google free-tier RPM', () => {
     expect(composeModelsForRevision(false)[0]).toBe('openai/gpt-4.1-mini');
     expect(composeModelsForRevision(true)[0]).toBe('openai/gpt-4.1-mini');
-    expect(composeModelsForRevision(false)).toContain('groq/llama-3.3-70b-versatile');
+    expect(composeModelsForRevision(false)).toContain('google/gemini-2.5-flash');
+    expect(composeModelsForRevision(false)).not.toContain('groq/llama-3.3-70b-versatile');
   });
 });
 

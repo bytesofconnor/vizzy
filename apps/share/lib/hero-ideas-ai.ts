@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { isAiGatewayConfigured } from './ai-gateway';
 import { HINT_MODEL } from './ai-models';
 import { logAiFromResult } from './ai-usage';
+import { trackModelAttempt } from './track';
 import { GATEWAY_NO_RETRY } from './gateway-errors';
 import { fallbackHeroIdeas, isHeroIdeaBatch, parseHeroIdeas, type HeroIdea } from './hero-ideas';
 
 const FAMILIES = ['noaa', 'usgs', 'fred', 'worldbank', 'wiki', 'owid'] as const;
 
-const IdeaSchema = z.object({
+export const IdeaSchema = z.object({
   ideas: z
     .array(
       z.object({
@@ -75,10 +76,12 @@ async function aiHeroIdeas(exclude: string[], salt: string, reshuffle: boolean):
       maxOutputTokens: 1200,
       maxRetries: GATEWAY_NO_RETRY,
     });
+    await trackModelAttempt('prompt-ideas', HINT_MODEL, null);
     await logAiFromResult('hero_ideas', HINT_MODEL, result.usage, result.totalUsage);
     const cleaned = parseHeroIdeas(result.output.ideas);
     return isHeroIdeaBatch(cleaned) ? cleaned : [];
   } catch (error) {
+    await trackModelAttempt('prompt-ideas', HINT_MODEL, error);
     console.error('hero ideas failed', error);
     return [];
   }

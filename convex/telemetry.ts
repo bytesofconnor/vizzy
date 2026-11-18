@@ -333,3 +333,28 @@ export const getFunnel = query({
     );
   },
 });
+
+export const listModelAttempts = query({
+  args: { secret: v.string(), walletToken: v.string() },
+  returns: v.union(
+    v.null(),
+    v.array(
+      v.object({
+        name: v.string(),
+        day: v.string(),
+        count: v.number(),
+      })
+    )
+  ),
+  handler: async (ctx, args) => {
+    assertServer(args.secret);
+    const wallet = await walletByToken(ctx, args.walletToken);
+    if (!isOwnerWallet(wallet)) {
+      return null;
+    }
+    const events = await ctx.db.query('eventDaily').collect();
+    return events
+      .filter((row) => row.name.startsWith('model_attempt:'))
+      .map((row) => ({ name: row.name, day: row.day, count: row.count }));
+  },
+});

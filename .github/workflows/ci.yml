@@ -49,6 +49,10 @@ jobs:
       - run: npm install
       - run: npx turbo run build --filter=@vizzy/core --filter=@vizzy/resolve --filter=@vizzy/react
       - run: npm test --workspace=@vizzy/core --workspace=@vizzy/react --workspace=@vizzy/mcp --workspace=@vizzy/resolve --workspace=@vizzy/eval --workspace=@vizzy/share --if-present
+      - name: Production build for the share app
+        run: npm run build --workspace=@vizzy/share
+        env:
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
 
   probe:
     runs-on: ubuntu-latest

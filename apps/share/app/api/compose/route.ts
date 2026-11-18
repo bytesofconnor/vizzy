@@ -7,6 +7,7 @@ import {
   type ComposeDevice,
 } from '../../../lib/billing';
 import { decideCompose, type MintOrder } from '../../../lib/compose-decision';
+import { openSlotWhenMeterDown } from '../../../lib/meter-down';
 import { reportProgress, clientPiece, type ComposeProgressReporter } from '../../../lib/compose-progress';
 import { pieceFromPrompt, publicComposeError } from '../../../lib/from-prompt';
 import { pasteHref } from '../../../lib/paste';
@@ -216,10 +217,14 @@ async function composePost(request: Request, device: ComposeDevice) {
     slot = await consumeSlot(request, device);
   } catch (error) {
     console.error('compose quota failed', error);
-    if (wantsHtml(request)) {
+    const open = openSlotWhenMeterDown(error);
+    if (open) {
+      slot = open;
+    } else if (wantsHtml(request)) {
       return Response.redirect(`${origin}/?error=${encodeURIComponent('Could not generate that chart. Try again in a moment.')}`, 303);
+    } else {
+      return Response.json({ ok: false, error: 'Could not generate that chart. Try again in a moment.' }, { status: 500 });
     }
-    return Response.json({ ok: false, error: 'Could not generate that chart. Try again in a moment.' }, { status: 500 });
   }
 
   if (!slot.ok) {
@@ -245,6 +250,9 @@ async function composePost(request: Request, device: ComposeDevice) {
       }
       if (wantsHtml(request)) {
         return Response.redirect(`${origin}/?error=${encodeURIComponent(result.minted.error)}`, 303);
+      }
+      if (result.minted.unavailable) {
+        return Response.json({ ok: false, error: result.minted.error }, { status: 503 });
       }
       return Response.json(result.minted, { status: 400 });
     }

@@ -22,6 +22,25 @@ export function shouldSkipGoogleModel(model: string, googleLimited: boolean): bo
   return googleLimited && model.startsWith('google/');
 }
 
+export type ModelFailure = 'not_found' | 'forbidden' | 'rate_limit' | 'schema' | 'error';
+
+export function classifyGatewayFailure(error: unknown): ModelFailure {
+  const text = errorText(error);
+  if (/GatewayModelNotFoundError|model[_ ]not[_ ]found|does not exist|no such model/i.test(text)) {
+    return 'not_found';
+  }
+  if (/free tier users do not have access|\b403\b|forbidden/i.test(text)) {
+    return 'forbidden';
+  }
+  if (isGatewayRateLimited(error)) {
+    return 'rate_limit';
+  }
+  if (/invalid schema|response_format|Missing '/i.test(text)) {
+    return 'schema';
+  }
+  return 'error';
+}
+
 /**
  * Same stack for generate and revise. Each model is tried in order; a 429 does not skip the rest of that provider.
  */

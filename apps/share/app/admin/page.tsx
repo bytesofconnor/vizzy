@@ -70,6 +70,8 @@ export default async function AdminPage({
       <KickerNav here="admin" owner email={nav.email} known={nav.known ?? Boolean(token)} />
       <p style={{ ...body, marginTop: 8 }}>
         <a href="/admin/funnel">Weekly funnel</a>
+        {' · '}
+        <a href="/admin/usage">Gateway usage</a>
       </p>
       <AdminDesk
         view={parseAdminView(viewParam)}

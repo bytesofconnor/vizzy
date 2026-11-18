@@ -3,7 +3,9 @@ import { unstable_cache } from 'next/cache';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { isAiGatewayConfigured } from './ai-gateway';
+import { INSIGHT_MODELS } from './ai-models';
 import { logAiFromResult } from './ai-usage';
+import { trackModelAttempt } from './track';
 import { GATEWAY_NO_RETRY, isGatewayRateLimited } from './gateway-errors';
 import { seedBriefing, type ChartSeed } from './seed';
 import { alignPlottedClaims } from './plotted-claims';
@@ -19,8 +21,7 @@ import {
 export { heuristicInsight, heuristicLesson, MAX_LESSON_LAYERS };
 export type { ChartLesson };
 
-/** OpenAI first — Google Flash-lite shares the Gateway free-tier RPM with compose. */
-export const INSIGHT_MODELS = ['openai/gpt-4.1-mini', 'openai/gpt-4o-mini'] as const;
+export { INSIGHT_MODELS } from './ai-models';
 export const INSIGHT_MODEL_BUDGET_MS = 8_000;
 
 const InsightSchema = z.object({
@@ -176,12 +177,14 @@ async function generateInsightOnce(seed: ChartSeed): Promise<string | null> {
         abortSignal: budget,
         timeout: INSIGHT_MODEL_BUDGET_MS,
       });
+      await trackModelAttempt('insight', model, null);
       await logAiFromResult('chart_insight', model, result.usage, result.totalUsage);
       const insight = trimInsight(result.output?.insight ?? '');
       if (insight.length >= 40) {
         return insight;
       }
     } catch (error) {
+      await trackModelAttempt('insight', model, error);
       console.error('chart insight failed', model, error);
       if (budget.aborted) {
         break;
@@ -248,12 +251,14 @@ async function generateLessonOnce(
         abortSignal: budget,
         timeout: INSIGHT_MODEL_BUDGET_MS,
       });
+      await trackModelAttempt('insight', model, null);
       await logAiFromResult('chart_lesson', model, result.usage, result.totalUsage);
       const lesson = coerceLesson(result.output);
       if (lesson) {
         return lesson;
       }
     } catch (error) {
+      await trackModelAttempt('insight', model, error);
       console.error('chart lesson failed', model, error);
       if (budget.aborted) {
         break;

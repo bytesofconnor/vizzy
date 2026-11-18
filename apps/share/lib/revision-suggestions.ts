@@ -2,16 +2,17 @@ import { createHash } from 'node:crypto';
 import { unstable_cache } from 'next/cache';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
+import { REVISION_HINT_MODEL } from './ai-models';
 import { isAiGatewayConfigured } from './ai-gateway';
 import { logAiFromResult } from './ai-usage';
+import { trackModelAttempt } from './track';
 import { heuristicRevisionPrompts } from './revision-heuristics';
 import { revisionYearSpan, seedBriefing, yearishRows, type ChartSeed } from './seed';
 
 export { heuristicRevisionPrompts } from './revision-heuristics';
+export { REVISION_HINT_MODEL } from './ai-models';
 
-export const REVISION_HINT_MODEL = 'groq/llama-3.3-70b-versatile';
-
-const RevisionSchema = z.object({
+export const RevisionSchema = z.object({
   prompts: z
     .array(z.string().describe('One short revision sentence the user could type'))
     .min(3)
@@ -88,10 +89,12 @@ async function aiRevisionPromptsUncached(seed: ChartSeed): Promise<string[] | nu
       maxOutputTokens: 220,
       maxRetries: 0,
     });
+    await trackModelAttempt('revisions', REVISION_HINT_MODEL, null);
     await logAiFromResult('revision_hints', REVISION_HINT_MODEL, result.usage, result.totalUsage);
     const cleaned = uniquePrompts(result.output.prompts).filter((line) => promptFitsSeed(line, seed));
     return cleaned.length >= 3 ? cleaned.slice(0, 5) : null;
   } catch (error) {
+    await trackModelAttempt('revisions', REVISION_HINT_MODEL, error);
     console.error('revision hints failed', error);
     return null;
   }
