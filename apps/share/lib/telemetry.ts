@@ -1,4 +1,5 @@
 import type { FunnelReadout } from '../../../convex/funnel';
+import type { AttemptCount } from './model-attempts';
 import type { AccountChartRow, AccountLibraryKind, AccountLibraryPage } from './account-chart';
 import { signedInNav, walletTokenFromRequest } from './billing';
 
@@ -201,6 +202,31 @@ export async function getAdminInsights(walletToken: string): Promise<AdminInsigh
     walletToken,
     now: Date.now(),
   });
+}
+
+export async function getModelAttempts(walletToken: string): Promise<AttemptCount[]> {
+  if (!convexUrl()) {
+    return [];
+  }
+  try {
+    const rows = await convexCall<unknown>('query', 'telemetry:listModelAttempts', { walletToken });
+    if (!Array.isArray(rows)) {
+      return [];
+    }
+    return rows.flatMap((row) => {
+      if (!row || typeof row !== 'object') {
+        return [];
+      }
+      const entry = row as { name?: unknown; day?: unknown; count?: unknown };
+      if (typeof entry.name !== 'string' || typeof entry.day !== 'string' || typeof entry.count !== 'number') {
+        return [];
+      }
+      return [{ name: entry.name, day: entry.day, count: entry.count }];
+    });
+  } catch (error) {
+    console.error('model attempts failed', error);
+    return [];
+  }
 }
 
 export async function getFunnel(walletToken: string): Promise<FunnelReadout | null> {

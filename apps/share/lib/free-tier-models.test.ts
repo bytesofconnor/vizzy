@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { matchAsked } from '@vizzy/resolve';
 import { STACK_MODELS } from './ai-models';
 
 const BANNED = [
@@ -10,6 +11,12 @@ const BANNED = [
 ] as const;
 
 type Snapshot = { source: string; retrieved: string; ids: string[] };
+
+describe('catalog prompts', () => {
+  it('matches US unemployment since 2000 to the official series', () => {
+    expect(matchAsked('US unemployment rate since 2000').map((row) => row.seriesId)).toEqual(['UNRATE']);
+  });
+});
 
 describe('configured model ids', () => {
   const snapshot = JSON.parse(

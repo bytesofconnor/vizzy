@@ -1,8 +1,10 @@
 import { generateText, isStepCount, tool } from 'ai';
 import { z } from 'zod';
+import { matchAsked } from '@vizzy/resolve';
 import { LOOKUP_MODEL, LOOKUP_SONAR_MODEL } from './ai-models';
 import { logAiFromResult } from './ai-usage';
 import { gatherOfficialSeries } from './series';
+import { trackModelAttempt } from './track';
 import { firstPromptUrl } from './source';
 import type { ResolvedSeries } from '@vizzy/resolve';
 
@@ -39,6 +41,12 @@ export async function gatherFacts(
       official: official.series,
     };
   }
+  if (matchAsked(asked).length > 0) {
+    return {
+      notes: '',
+      urls: seed ? [seed] : [],
+    };
+  }
 
   const fromSonar = await gatherWithSonar(asked);
   if (fromSonar && fromSonar.notes.length > 80) {
@@ -56,9 +64,9 @@ export async function gatherFacts(
   }
 
   const found: string[] = seed ? [seed] : [];
-  try {
   const lookupModel = LOOKUP_MODEL;
-  const lookupResult = await generateText({
+  try {
+    const lookupResult = await generateText({
     model: lookupModel,
     maxRetries: 0,
     stopWhen: isStepCount(3),
@@ -90,6 +98,7 @@ export async function gatherFacts(
       }),
     },
   });
+  await trackModelAttempt('lookup', lookupModel, null);
   await logAiFromResult('lookup', lookupModel, lookupResult.usage, lookupResult.totalUsage);
   const text = lookupResult.text;
 
@@ -97,7 +106,8 @@ export async function gatherFacts(
     notes: [fromSonar?.notes, text.trim()].filter(Boolean).join('\n\n'),
     urls: uniqueUrls([seed, ...fromSonar?.urls ?? [], ...found]),
   };
-  } catch {
+  } catch (error) {
+    await trackModelAttempt('lookup', lookupModel, error);
     return {
       notes: fromSonar?.notes || '',
       urls: uniqueUrls([seed, ...fromSonar?.urls ?? []]),
@@ -123,10 +133,12 @@ async function gatherWithSonar(asked: string): Promise<Gathered | null> {
       maxRetries: 0,
       prompt: `Find the latest public numbers for this chart request. Aim for about 15 real rows on a ranking. If the user asked for every member of a set, such as every US state or a breakdown by US state, return the full set, up to 60 rows. Do not stop around 15. A season or monthly series can be the full published set. Return a markdown table with the NAME in the first column (skill, team, city, state) and one metric. When the user names several series (countries, companies, cities, or fuels), return every one of them: a year column plus one column per series, or a long table with a series column. If a named series is missing from the page, say which series you found. Never use Rank 1 as the name. Never the same name under Rank and under usage %. Include the exact source URL. Do not summarize a ranking as its top 3 unless the user asked for a top N. If the page only publishes a few numbers, return those and say the list is short. Do not invent rows.\n\n${asked}`,
     });
+    await trackModelAttempt('lookup', sonarModel, null);
     await logAiFromResult('lookup_sonar', sonarModel, result.usage, result.totalUsage);
     const urls = urlsFromUnknown(result.sources).concat(urlsInText(result.text));
     return { notes: result.text.trim(), urls };
-  } catch {
+  } catch (error) {
+    await trackModelAttempt('lookup', LOOKUP_SONAR_MODEL, error);
     return null;
   }
 }
