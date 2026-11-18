@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@vizzy/core', '@vizzy/react', '@vizzy/resolve'],
   outputFileTracingIncludes: {
     '/agents': ['./content/AGENTS.md'],
+    '/c/[slug]/png': ['./fonts/**/*'],
+    '/c/[slug]/opengraph-image': ['./fonts/**/*'],
+    '/c/[slug]/twitter-image': ['./fonts/**/*'],
+    '/c/x/[token]/png': ['./fonts/**/*'],
+    '/c/x/[token]/opengraph-image': ['./fonts/**/*'],
+    '/c/x/[token]/twitter-image': ['./fonts/**/*'],
+    '/charts/[slug]/png': ['./fonts/**/*'],
+    '/api/export/png': ['./fonts/**/*'],
   },
   async headers() {
     return [

@@ -29,6 +29,16 @@ test('line, bar, and multi-series charts draw without an error', async ({ page }
   await expect(reef.locator('.axis-label', { hasText: 'Hard coral cover' })).toBeVisible();
 });
 
+test('a chart png and its open graph image are png responses', async ({ request }) => {
+  for (const path of ['/c/reef.png', '/c/reef/opengraph-image']) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(200);
+    expect(response.headers()['content-type'] ?? '', path).toContain('image/png');
+    const body = await response.body();
+    expect(body.subarray(0, 4).toString('hex'), path).toBe('89504e47');
+  }
+});
+
 test('a chart page does not scroll sideways at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/c/reef');
