@@ -59,14 +59,14 @@ export function printColorScheme() {
 }
 
 const SERIES_LINE_PALETTE = [
-  STUDIO.ink,
-  DUST_MID[5],
-  DUST[0],
-  DUST_MID[0],
-  DUST[5],
-  DUST_MID[3],
-  DUST[2],
-  DUST_MID[6],
+  '#1e3a8a',
+  '#c2410c',
+  '#166534',
+  '#9d174d',
+  '#5b21b6',
+  '#155e75',
+  '#84cc16',
+  '#eab308',
 ] as const;
 
 export function rankedBarsShowValues(config: ChartConfig): ChartConfig {

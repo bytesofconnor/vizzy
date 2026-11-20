@@ -81,7 +81,9 @@ async function loadRecipe(
     return { rows: parseUsgsGeojson(await get(USGS_M8_URL)) };
   }
   if (recipe.family === 'eia') {
-    const parsed = parseEiaGeneration(await get(EIA_GENERATION_URL), now);
+    const span = asked ? yearSpanFromAsked(asked, now) : {};
+    const askedYear = span.since !== undefined && span.until === span.since ? span.since : undefined;
+    const parsed = parseEiaGeneration(await get(EIA_GENERATION_URL), now, askedYear);
     return {
       rows: parsed.rows,
       ...(parsed.snapshotYear ? { snapshotYear: parsed.snapshotYear } : {}),
@@ -97,7 +99,12 @@ async function loadRecipe(
     if (asked && wantsCountryPanel(asked)) {
       return keepPanel(parsed, asked);
     }
-    return preferAskedCountries(eurostatSnapshot(parsed), asked);
+    const shot = eurostatSnapshot(parsed);
+    const ranked = preferAskedCountries(shot.rows, asked);
+    return {
+      ...ranked,
+      ...(shot.year ? { snapshotYear: shot.year } : {}),
+    };
   }
   if (recipe.family === 'worldbank') {
     const take = recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high';

@@ -178,26 +178,32 @@ describe('DataProcessor', () => {
       expect(result.domains.y).toEqual([0, 26.2]);
     });
 
-    it('does not flatten clustered scores against zero', () => {
+    it('starts all-positive bars at zero, including a tight cluster', () => {
+      const renewables = processor.process([
+        { category: 'Spain', value: 26 },
+        { category: 'France', value: 23.9 },
+        { category: 'Germany', value: 23.9 },
+      ]);
+      const low = renewables.domains.y[0];
+      expect(typeof low).toBe('number');
+      expect(low).toBeLessThanOrEqual(0);
+
       const scores = processor.process([
         { category: 'pdf', value: 9.8 },
         { category: 'frontend-design', value: 9.5 },
         { category: 'docx', value: 9.1 },
       ]);
-
-      expect(scores.domains.y[0]).toBeGreaterThan(8);
-      expect(scores.domains.y[1]).toBeGreaterThan(9.8);
+      expect(scores.domains.y[0]).toBeLessThanOrEqual(0);
     });
 
-    it('does not start year bars at zero', () => {
+    it('starts year bars at zero', () => {
       const years = processor.process([
         { category: 'Wabasha', value: 1830 },
         { category: 'Stillwater', value: 1854 },
         { category: 'Minneapolis', value: 1867 },
       ]);
 
-      expect(years.domains.y[0]).toBeGreaterThan(1700);
-      expect(years.domains.y[0]).toBeLessThan(1830);
+      expect(years.domains.y[0]).toBeLessThanOrEqual(0);
       expect(years.domains.y[1]).toBeGreaterThan(1867);
     });
   });

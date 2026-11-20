@@ -15,10 +15,15 @@ const MAJORS: ReadonlyArray<{ id: string; name: string }> = [
 
 export function parseEiaGeneration(
   text: string,
-  now = Date.now()
+  now = Date.now(),
+  askedYear?: number
 ): { rows: SeriesRow[]; snapshotYear?: string } {
   const annual = readAnnual(text);
-  const year = latestFullYear(annual, new Date(now).getUTCFullYear());
+  const asked = askedYear === undefined ? undefined : String(askedYear);
+  const year =
+    asked !== undefined && fullYear(annual, asked)
+      ? asked
+      : latestFullYear(annual, new Date(now).getUTCFullYear());
   if (!year) {
     return { rows: [] };
   }
@@ -83,13 +88,15 @@ function readAnnual(text: string): Map<string, Map<string, number>> {
   return annual;
 }
 
+function fullYear(annual: Map<string, Map<string, number>>, year: string): boolean {
+  const values = annual.get(year);
+  const total = values?.get(TOTAL);
+  return total !== undefined && total > 0 && MAJORS.every((major) => values.has(major.id));
+}
+
 function latestFullYear(annual: Map<string, Map<string, number>>, currentYear: number): string | undefined {
   const years = [...annual.keys()].filter((year) => Number(year) < currentYear).sort((a, b) => b.localeCompare(a));
-  return years.find((year) => {
-    const values = annual.get(year);
-    const total = values?.get(TOTAL);
-    return total !== undefined && total > 0 && MAJORS.every((major) => values?.has(major.id));
-  });
+  return years.find((year) => fullYear(annual, year));
 }
 
 function cells(line: string): string[] {

@@ -323,6 +323,48 @@ export interface LinePointLabelPlacement {
   dominantBaseline: 'auto' | 'hanging';
 }
 
+export function separateLabelYs(
+  anchors: readonly number[],
+  gap: number,
+  min: number,
+  max: number
+): number[] {
+  if (anchors.length === 0) {
+    return [];
+  }
+  const order = anchors
+    .map((y, index) => ({ y, index }))
+    .sort((left, right) => left.y - right.y || left.index - right.index);
+  const placed = order.map((item) => item.y);
+  const push = () => {
+    for (let index = 1; index < placed.length; index += 1) {
+      const floor = (placed[index - 1] ?? 0) + gap;
+      if ((placed[index] ?? 0) < floor) {
+        placed[index] = floor;
+      }
+    }
+  };
+  push();
+  const overflow = (placed[placed.length - 1] ?? 0) - max;
+  if (overflow > 0) {
+    for (let index = 0; index < placed.length; index += 1) {
+      placed[index] = (placed[index] ?? 0) - overflow;
+    }
+  }
+  const underflow = min - (placed[0] ?? 0);
+  if (underflow > 0) {
+    for (let index = 0; index < placed.length; index += 1) {
+      placed[index] = (placed[index] ?? 0) + underflow;
+    }
+  }
+  push();
+  const result = new Array<number>(anchors.length);
+  order.forEach((item, index) => {
+    result[item.index] = placed[index] ?? item.y;
+  });
+  return result;
+}
+
 /** Place a line-chart value label so it does not sit on the incoming segment. */
 export function linePointLabelPlacement(args: {
   x: number;
