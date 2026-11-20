@@ -60,6 +60,49 @@ export function axisLabelWithoutScale(label: string): string {
   return stripped || label;
 }
 
+function printedMagnitude(shown: number): number {
+  const abs = Math.abs(shown);
+  if (abs >= 1e12) {
+    return 1e12;
+  }
+  if (abs >= 1e9) {
+    return 1e9;
+  }
+  if (abs >= 1e6) {
+    return 1e6;
+  }
+  if (abs >= 1e3) {
+    return 1e3;
+  }
+  return 1;
+}
+
+/** Drop a stored scale word once the drawn ticks use a different magnitude. */
+export function noteWithoutStoredScale(note: string, labels: string[], samples: number[]): string {
+  const finite = samples.filter((value) => Number.isFinite(value)).map((value) => Math.abs(value));
+  if (!note.trim() || finite.length === 0) {
+    return note;
+  }
+  const peak = Math.max(...finite);
+  let next = note;
+  for (const label of labels) {
+    const unit = unitScale(label);
+    if (unit.factor === 1) {
+      continue;
+    }
+    if (printedMagnitude(peak * unit.factor) === unit.factor) {
+      continue;
+    }
+    next = next
+      .replace(/\s*\(\s*\$?\s*(?:thousands?|millions?|billions?|trillions?)(?:\s*,\s*[^)]*)?\s*\)/gi, '')
+      .replace(/\$\s*(?:thousands?|millions?|billions?|trillions?)\b/gi, '')
+      .replace(/[ ]{2,}/g, ' ')
+      .replace(/\s+([,.])/g, '$1')
+      .trim();
+  }
+  return next;
+}
+
 function formatMagnitude(n: number, domain: [number, number]): string {
   const yearAxis = domain[0] >= 1000 && domain[1] <= 2100 && domain[1] - domain[0] < 800;
   if (yearAxis) {

@@ -58,6 +58,17 @@ export function printColorScheme() {
   };
 }
 
+const SERIES_LINE_PALETTE = [
+  STUDIO.ink,
+  DUST_MID[5],
+  DUST[0],
+  DUST_MID[0],
+  DUST[5],
+  DUST_MID[3],
+  DUST[2],
+  DUST_MID[6],
+] as const;
+
 export function rankedBarsShowValues(config: ChartConfig): ChartConfig {
   if (config.chart.type !== 'bar' || seriesIsSketch(config.source) || config.chart.showValues) {
     return config;
@@ -87,6 +98,7 @@ export function studioChart(
   const xLabel = typeof extraAxes?.x?.label === 'string' ? extraAxes.x.label : undefined;
   const yLabel = typeof extraAxes?.y?.label === 'string' ? extraAxes.y.label : undefined;
   const seriesColor = Boolean(mapping.color && mapping.color !== 'tone');
+  const namedLines = chart.type === 'line' && seriesColor;
   const source = extra.source as Source | undefined;
   const resolvedChart =
     chart.type === 'bar'
@@ -114,7 +126,7 @@ export function studioChart(
       height: 400,
       margin: {
         top: seriesColor ? 56 : 40,
-        right: 40,
+        right: namedLines ? 148 : 40,
         bottom: xLabel ? 96 : 64,
         left: yLabel ? 70 : 48,
       },
@@ -127,7 +139,7 @@ export function studioChart(
       background: STUDIO.paper,
       text: STUDIO.ink,
       grid: STUDIO.rule,
-      palette: [STUDIO.ink, STUDIO.mid, STUDIO.wash],
+      palette: namedLines ? [...SERIES_LINE_PALETTE] : [STUDIO.ink, STUDIO.mid, STUDIO.wash],
       ...extraColors,
     },
     animation: { enabled: false, duration: 0 },

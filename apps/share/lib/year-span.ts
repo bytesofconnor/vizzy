@@ -20,7 +20,7 @@ const FULL_MONTHS = [
 ] as const;
 
 export function timeStamp(value: string | number): TimeStamp | undefined {
-  const text = String(value).trim();
+  const text = String(value).trim().replace(/[*†]+$/u, '');
   const month = text.match(/^((?:1[89]|20)\d{2})-(\d{2})(?:$|[-/.])/);
   if (month?.[1] && month[2]) {
     const valueMonth = Number(month[2]);
@@ -148,7 +148,7 @@ function namesRange(text: string, span: YearSpan): boolean {
 export function withDrawnSpan(text: string, rows: Array<{ x: string | number }>): string {
   const span = drawnYearSpan(rows);
   if (!span) {
-    return text;
+    return withProvisional(text, rows);
   }
   const label = spanLabel(span);
   const range = /\b((?:1[89]|20)\d{2})\s*(?:-|–|—|to|through)\s*((?:1[89]|20)\d{2})\b/g;
@@ -171,11 +171,41 @@ export function withDrawnSpan(text: string, rows: Array<{ x: string | number }>)
     return full;
   });
   if (next.includes(label) || namesRange(next, span)) {
-    return next;
+    return withProvisional(next, rows);
   }
-  const trimmed = next.trim();
-  if (!trimmed) {
-    return label;
+  const trimmed = next.trim().replace(/[.,;:]+\s*$/u, '');
+  const joined = trimmed ? `${trimmed}, ${label}` : label;
+  return withProvisional(joined, rows);
+}
+
+function provisionalMarks(rows: Array<{ x: string | number }>): string[] {
+  const marks: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const raw = String(row.x).trim();
+    const mark = raw.match(/[*†]$/u)?.[0];
+    const year = timeStamp(raw)?.year;
+    if (!mark || !year) {
+      continue;
+    }
+    const label = `${year}${mark}`;
+    if (seen.has(label)) {
+      continue;
+    }
+    seen.add(label);
+    marks.push(label);
   }
-  return `${trimmed}, ${label}`;
+  return marks;
+}
+
+function withProvisional(text: string, rows: Array<{ x: string | number }>): string {
+  const marks = provisionalMarks(rows);
+  if (marks.length === 0 || /provisional/i.test(text)) {
+    return text;
+  }
+  const body = text.trim().replace(/[.\s]+$/u, '');
+  const listed = marks.join(' and ');
+  const verb = marks.length === 1 ? 'is' : 'are';
+  const sentence = `${listed} ${verb} provisional`;
+  return body ? `${body}. ${sentence}` : sentence;
 }
