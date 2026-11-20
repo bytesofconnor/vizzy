@@ -140,6 +140,7 @@ export default defineSchema({
   }).index('by_rec', ['recId']),
 
   seriesCache: defineTable({
+    cacheKey: v.optional(v.string()),
     family: v.string(),
     seriesId: v.string(),
     sourceLabel: v.string(),
@@ -149,7 +150,9 @@ export default defineSchema({
     xLabel: v.string(),
     yLabel: v.string(),
     rows: v.array(v.object({ x: v.string(), y: v.number(), series: v.optional(v.string()) })),
-  }).index('by_series', ['family', 'seriesId']),
+  })
+    .index('by_series', ['family', 'seriesId'])
+    .index('by_cache', ['cacheKey']),
 
   resolveEvents: defineTable({
     family: v.optional(v.string()),

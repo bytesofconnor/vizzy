@@ -751,6 +751,18 @@ describe('resolvePrompt', () => {
     expect(Math.max(...sampled.map((row) => row.y))).toBeGreaterThanOrEqual(14.7);
     expect(Math.min(...sampled.map((row) => row.y))).toBeLessThanOrEqual(3.5);
     expect(sampled.length).toBeLessThanOrEqual(252);
+    const grains = new Set(sampled.map((row) => stampGrain(row.x)));
+    expect(grains.size).toBe(1);
+    expect(sampled.some((row) => row.x === '2020-04')).toBe(false);
+    expect(sampled.some((row) => row.y === 14.8)).toBe(true);
+  });
+
+  it('keeps a monthly extreme out of a yearly thinning', () => {
+    const rows = Array.from({ length: 80 }, (_, index) => ({ x: String(1900 + index), y: index }));
+    rows.push({ x: '2020-04', y: 999 });
+    const slim = downsample(rows);
+    expect(slim.some((row) => row.x === '2020-04')).toBe(false);
+    expect(slim.some((row) => row.y === 999)).toBe(false);
   });
 
   it('does not jump Antarctic years from 2001 to 2004 when thinning 1979-2026', () => {
@@ -767,6 +779,19 @@ describe('resolvePrompt', () => {
 });
 
 const AS_OF = Date.UTC(2026, 9, 29);
+
+function stampGrain(value: string): 'month' | 'quarter' | 'year' | 'other' {
+  if (/^(?:19|20)\d{2}-\d{2}$/.test(value)) {
+    return 'month';
+  }
+  if (/^(?:19|20)\d{2}-Q[1-4]$/i.test(value) || /^Q[1-4]\s+(?:19|20)\d{2}$/i.test(value)) {
+    return 'quarter';
+  }
+  if (/^(?:19|20)\d{2}$/.test(value)) {
+    return 'year';
+  }
+  return 'other';
+}
 
 function monthIndex(value: string): number {
   const [yearText = '0', monthText = '1'] = value.split('-');

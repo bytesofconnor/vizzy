@@ -61,6 +61,7 @@ export function windowSpan(
 }
 
 const MONTH_STAMP = /^(?:19|20)\d{2}-\d{2}$/;
+const QUARTER_STAMP = /^(?:(?:19|20)\d{2}-q[1-4]|q[1-4]\s+(?:19|20)\d{2})$/i;
 
 export function isTimedRows(rows: SeriesRow[]): boolean {
   if (rows.length === 0) {
@@ -77,10 +78,42 @@ export const CHART_ROW_CAP = 21 * 12;
 const MONTHLY_SHARE = 0.7;
 
 export function rowCap(rows: SeriesRow[]): number {
-  if (mostlyMonthly(rows)) {
+  if (mostlyMonthly(rows) || mostlyQuarterly(rows)) {
     return CHART_ROW_CAP;
   }
   return MAX_ROWS;
+}
+
+function mostlyQuarterly(rows: SeriesRow[]): boolean {
+  const quarterly = rows.filter((row) => QUARTER_STAMP.test(String(row.x).trim())).length;
+  return quarterly >= Math.ceil(rows.length * MONTHLY_SHARE);
+}
+
+export function timeGrainLabel(rows: SeriesRow[]): 'Month' | 'Quarter' | 'Year' | null {
+  if (rows.length === 0) {
+    return null;
+  }
+  const stamps = rows.map((row) => String(row.x).trim());
+  const need = Math.ceil(stamps.length * MONTHLY_SHARE);
+  const count = (pattern: RegExp) => stamps.filter((stamp) => pattern.test(stamp)).length;
+  if (count(MONTH_STAMP) >= need) {
+    return 'Month';
+  }
+  if (count(QUARTER_STAMP) >= need) {
+    return 'Quarter';
+  }
+  if (count(/^(?:19|20)\d{2}$/) >= need) {
+    return 'Year';
+  }
+  return null;
+}
+
+export function alignGrainLabel(label: string, rows: SeriesRow[]): string {
+  const grain = timeGrainLabel(rows);
+  if (!grain || !/^(?:months?|quarters?|years?)$/i.test(label.trim())) {
+    return label;
+  }
+  return grain;
 }
 
 function mostlyMonthly(rows: SeriesRow[]): boolean {
@@ -165,6 +198,26 @@ function thinMonthly(rows: SeriesRow[], cap: number): SeriesRow[] {
   return pinRawExtrema(fitted, rows, cap);
 }
 
+function foldExtrema(sampled: SeriesRow[], extrema: SeriesRow[], grain: 'quarter' | 'year'): SeriesRow[] {
+  const base = new Map(sampled.map((row) => [String(row.x).toLowerCase(), row.y]));
+  const next = new Map(base);
+  for (const extreme of extrema) {
+    const key = (grain === 'quarter' ? quarterKey(String(extreme.x)) : yearKey(String(extreme.x)))?.toLowerCase();
+    if (!key || !base.has(key)) {
+      continue;
+    }
+    const origin = base.get(key) ?? extreme.y;
+    const current = next.get(key) ?? origin;
+    if (Math.abs(extreme.y - origin) >= Math.abs(current - origin)) {
+      next.set(key, extreme.y);
+    }
+  }
+  return sampled.map((row) => {
+    const y = next.get(String(row.x).toLowerCase());
+    return y === undefined || y === row.y ? row : { ...row, y };
+  });
+}
+
 function pinRawExtrema(sampled: SeriesRow[], original: SeriesRow[], cap: number): SeriesRow[] {
   const finite = original.filter((row) => Number.isFinite(row.y));
   if (finite.length === 0) {
@@ -179,6 +232,14 @@ function pinRawExtrema(sampled: SeriesRow[], original: SeriesRow[], cap: number)
     if (row.y > high.y) {
       high = row;
     }
+  }
+  const grain = sampled.every((row) => QUARTER_STAMP.test(String(row.x).trim()))
+    ? 'quarter'
+    : sampled.every((row) => /^(?:19|20)\d{2}$/.test(String(row.x).trim()))
+      ? 'year'
+      : null;
+  if (grain) {
+    return foldExtrema(sampled, [high, low], grain);
   }
   const present = new Set(sampled.map((row) => row.y));
   const extra = [low, high].filter((row, index, list) => {
@@ -212,16 +273,18 @@ function isYearly(rows: SeriesRow[]): boolean {
 }
 
 function thinYears(rows: SeriesRow[], cap: number): SeriesRow[] {
-  if (rows.length <= cap) {
-    return rows;
+  const yearly = rows.filter((row) => !MONTH_STAMP.test(String(row.x).trim()));
+  const source = yearly.length >= 2 ? yearly : rows;
+  if (source.length <= cap) {
+    return source;
   }
-  const ordered = rows
+  const ordered = source
     .map((row, index) => ({ row, index, year: yearOfX(row.x) }))
     .filter((item): item is { row: SeriesRow; index: number; year: number } => item.year !== undefined)
     .sort((a, b) => a.year - b.year || a.index - b.index);
   const last = ordered[ordered.length - 1]?.year;
   if (last === undefined) {
-    return pickEvenly(rows, Math.min(cap, MAX_ROWS));
+    return pickEvenly(source, Math.min(cap, MAX_ROWS));
   }
   for (const step of NICE_YEAR_STEPS) {
     const kept = ordered.filter((item) => item.year % step === 0 || item.year === last);
@@ -234,7 +297,7 @@ function thinYears(rows: SeriesRow[], cap: number): SeriesRow[] {
       return kept.map((item) => item.row);
     }
   }
-  return pickEvenly(rows, Math.min(cap, MAX_ROWS));
+  return pickEvenly(source, Math.min(cap, MAX_ROWS));
 }
 
 function thinEachSeries(rows: SeriesRow[]): SeriesRow[] {

@@ -117,6 +117,9 @@ describe('answers the prompt', () => {
 
   it('plots renewable share for Germany, France, and Spain', async () => {
     expect(matchPrompt('Renewables share in Germany, France, Spain')?.seriesId).toBe('EG.ELC.RNEW.ZS');
+    expect(matchPrompt('renewable share of energy consumption in Germany, France, and Spain')?.seriesId).toBe(
+      'EG.FEC.RNEW.ZS'
+    );
     const series = await resolvePrompt('Renewables share in Germany, France, Spain', {
       get: async () =>
         bank([
@@ -146,5 +149,41 @@ describe('answers the prompt', () => {
     expect(series?.yLabel.toLowerCase()).toMatch(/inflation|%/);
     expect(series?.rows.every((row) => row.y < 30)).toBe(true);
     expect(series?.rows.some((row) => /venezuela/i.test(String(row.x)))).toBe(false);
+  });
+
+  it('does not draw US CPI for UK inflation since 1800', async () => {
+    const series = await resolvePrompt('UK inflation since 1800', {
+      get: async () => fred('CPIAUCSL', [
+        ['1950-01-01', 24],
+        ['1951-01-01', 26],
+        ['2000-01-01', 172],
+        ['2020-01-01', 258],
+        ['2024-01-01', 308],
+      ]),
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(series?.seriesId ?? null).not.toBe('CPIAUCSL');
+    expect(series).toBeNull();
+  });
+
+  it('reads Japan population since 1960 from the World Bank through 2020', async () => {
+    expect(matchPrompt('Japan population since 1960')?.seriesId).toBe('SP.POP.TOTL');
+    const series = await resolvePrompt('Japan population since 1960', {
+      get: async (url) => {
+        expect(url).toContain('SP.POP.TOTL');
+        return bank([
+          { country: 'Japan', date: '1960', value: 93216000 },
+          { country: 'Japan', date: '1983', value: 119259000 },
+          { country: 'Japan', date: '2020', value: 126261000 },
+          { country: 'Japan', date: '2023', value: 124516000 },
+          { country: 'China', date: '2023', value: 1410710000 },
+        ]);
+      },
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(series?.sourceUrl).toContain('SP.POP.TOTL');
+    const years = (series?.rows ?? []).map((row) => Number(row.x));
+    expect(Math.max(...years)).toBeGreaterThanOrEqual(2020);
+    expect(series?.rows.every((row) => row.series === 'Japan' || row.x === 'Japan')).toBe(true);
   });
 });

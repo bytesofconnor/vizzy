@@ -25,8 +25,7 @@ const cachedSeries = v.object({
 export const getCached = query({
   args: {
     secret: v.string(),
-    family: v.string(),
-    seriesId: v.string(),
+    cacheKey: v.string(),
     now: v.number(),
     maxAgeMs: v.number(),
   },
@@ -35,7 +34,7 @@ export const getCached = query({
     assertServer(args.secret);
     const row = await ctx.db
       .query('seriesCache')
-      .withIndex('by_series', (q) => q.eq('family', args.family).eq('seriesId', args.seriesId))
+      .withIndex('by_cache', (q) => q.eq('cacheKey', args.cacheKey))
       .unique();
     if (!row) {
       return null;
@@ -60,6 +59,7 @@ export const getCached = query({
 export const putCached = mutation({
   args: {
     secret: v.string(),
+    cacheKey: v.string(),
     family: v.string(),
     seriesId: v.string(),
     sourceLabel: v.string(),
@@ -74,9 +74,10 @@ export const putCached = mutation({
     assertServer(args.secret);
     const existing = await ctx.db
       .query('seriesCache')
-      .withIndex('by_series', (q) => q.eq('family', args.family).eq('seriesId', args.seriesId))
+      .withIndex('by_cache', (q) => q.eq('cacheKey', args.cacheKey))
       .unique();
     const body = {
+      cacheKey: args.cacheKey,
       family: args.family,
       seriesId: args.seriesId,
       sourceLabel: args.sourceLabel,

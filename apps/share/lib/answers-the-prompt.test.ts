@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { resolvePrompt } from '@vizzy/resolve';
 import { compositionRows } from './composition';
 import { decideCompose } from './compose-decision';
-import { mintDraft } from './from-prompt';
+import { mintDraft, pieceFromPrompt } from './from-prompt';
 import { mintFromOfficial } from './official-mint';
 
 const fixture = JSON.parse(
@@ -247,5 +247,47 @@ describe('answers the prompt', () => {
       return;
     }
     expect(minted.piece.data.map((row) => String(row.x)).sort()).toEqual(['France', 'Germany', 'Spain']);
+  });
+
+  it('puts a partial country list in the subtitle', () => {
+    const asked = 'Renewables share in Germany, France, Spain';
+    const minted = mintFromOfficial(asked, {
+      family: 'worldbank',
+      seriesId: 'EG.ELC.RNEW.ZS',
+      sourceLabel: 'World Bank — renewable electricity output',
+      sourceUrl: 'https://data.worldbank.org/indicator/EG.ELC.RNEW.ZS',
+      method: 'official',
+      retrieved: Date.UTC(2026, 10, 20),
+      xLabel: 'Country',
+      yLabel: 'Renewable share of electricity %',
+      rows: [
+        { x: 'Germany', y: 43 },
+        { x: 'France', y: 24 },
+      ],
+    });
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(minted.piece.title).not.toMatch(/not shown/i);
+    expect(minted.piece.title).not.toMatch(/^Showing /);
+    expect(minted.piece.title.toLowerCase()).toMatch(/germany/);
+    expect(minted.piece.title.toLowerCase()).toMatch(/france/);
+    expect(minted.piece.title.toLowerCase()).not.toMatch(/spain/);
+    expect(minted.piece.subtitle ?? '').toMatch(/Not shown: Spain/);
+  });
+
+  it('refuses UK inflation since 1800 instead of drawing US CPI', async () => {
+    const decision = decideCompose({ prompt: 'UK inflation since 1800', disposition: 'send' });
+    expect(decision.kind).toBe('mint');
+    if (decision.kind !== 'mint') {
+      return;
+    }
+    const minted = await pieceFromPrompt(decision);
+    expect(minted.ok).toBe(false);
+    if (!minted.ok) {
+      expect(minted.error).toMatch(/United Kingdom/);
+      expect(minted.error).not.toMatch(/since 1950/);
+    }
   });
 });

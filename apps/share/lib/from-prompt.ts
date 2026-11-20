@@ -1,7 +1,7 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex, seriesIsSketch } from '@vizzy/core';
-import { checkAnswer, datasetForSourceUrl, labelIsPlace, matchAsked, placesInAsked, titleClaimsMissing, topCountFromAsked } from '@vizzy/resolve';
+import { checkAnswer, datasetForSourceUrl, labelIsPlace, matchAsked, placeRefusal, placesInAsked, titleClaimsMissing, topCountFromAsked } from '@vizzy/resolve';
 import { compositionRows, numericAside, wantsComposition } from './composition';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
@@ -10,6 +10,7 @@ import type { MintOrder } from './compose-decision';
 import { honestTitle, withTopCount } from './honor-prompt';
 import { titleForChart } from './remix-prompt';
 import { chartDrawnWords, spellTitleFromResolved } from './title-spelling';
+import { spanDisclosure } from './year-span';
 import { isGrayscaleOnlyRevision, wantsPrintGrayscale } from './print-grayscale';
 import { tryLocalRevision } from './revision-apply';
 import {
@@ -125,6 +126,12 @@ export async function pieceFromPrompt(
 ): Promise<MintResult> {
   const asked = order.prompt;
   const from = order.seed;
+  if (!from) {
+    const refusal = placeRefusal(asked);
+    if (refusal) {
+      return { ok: false, error: refusal, issues: [] };
+    }
+  }
   if (from && isUnsupportedVizOnlyRevision(asked)) {
     return {
       ok: false,
@@ -564,8 +571,18 @@ export function mintDraft(
     }
   );
 
+  const aside =
+    !answered.ok && (answered.code === 'entity' || answered.code === 'series') ? answered.aside ?? '' : '';
+  const shortfall = spanDisclosure(
+    asked,
+    rows.map((row) => ({ x: row.x })),
+    Date.now()
+  );
+  const subtitle = [aside, shortfall].filter(Boolean).join(' ');
+
   return mintPiece({
     title: withTopCount(spelled, tidied.truncatedTo),
+    ...(subtitle ? { subtitle } : {}),
     kicker: sketch ? output.kicker || 'Illustrative' : output.kicker,
     note,
     data: rows,

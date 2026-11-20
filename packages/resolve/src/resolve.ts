@@ -16,7 +16,7 @@ import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
 import { parseWikiUnVotes, readWiki, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
 import type { HttpGet, Recipe, ResolvedSeries, SeriesRow } from './types';
-import { downsample, isTimedRows, rowCap, windowSpan } from './window';
+import { alignGrainLabel, downsample, isTimedRows, rowCap, windowSpan } from './window';
 
 type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string; truncatedTo?: number; panel?: boolean };
 
@@ -163,11 +163,25 @@ function yearOverYear(rows: SeriesRow[]): SeriesRow[] {
 }
 
 function wantsCountryPanel(asked: string): boolean {
-  if (placesInAsked(asked).length < 2) {
+  if (placesInAsked(asked).length < 1) {
     return false;
   }
   const span = yearSpanFromAsked(asked);
   return span.since !== undefined || span.until !== undefined;
+}
+
+export function seriesCacheKey(family: string, seriesId: string, asked: string): string {
+  const version = 'v2';
+  if (family !== 'worldbank') {
+    return `${version}|${family}|${seriesId}`;
+  }
+  const panel = wantsCountryPanel(asked);
+  const span = yearSpanFromAsked(asked);
+  const places = [...placesInAsked(asked)].sort().join(',');
+  const top = panel ? '' : String(topCountFromAsked(asked) ?? '');
+  const since = panel ? String(span.since ?? '') : '';
+  const until = panel ? String(span.until ?? '') : '';
+  return `${version}|${family}|${seriesId}|${panel ? 'panel' : 'snapshot'}|${since}|${until}|${places}|${top}`;
 }
 
 function keepPanel(rows: SeriesRow[], asked: string): LoadedRecipe {
@@ -378,7 +392,7 @@ async function resolveComparison(
       sourceUrl: first.recipe.sourceUrl,
       method: 'official',
       retrieved: now,
-      xLabel: first.recipe.xLabel,
+      xLabel: alignGrainLabel(first.recipe.xLabel, rows),
       yLabel: first.axisLabel,
       rows,
       ...(missed.length > 0 ? { missingSeries: missed.join(', ') } : {}),
@@ -405,7 +419,7 @@ async function resolveComparison(
       sourceUrl: first.recipe.sourceUrl,
       method: 'official',
       retrieved: now,
-      xLabel: lineAxis(parts, 'x'),
+      xLabel: alignGrainLabel(lineAxis(parts, 'x'), rows),
       yLabel: lineAxis(parts, 'y'),
       rows,
       chartType: 'line',
@@ -427,7 +441,7 @@ async function resolveComparison(
       sourceUrl: first.recipe.sourceUrl,
       method: 'official',
       retrieved: now,
-      xLabel: first.recipe.xLabel,
+      xLabel: alignGrainLabel(first.recipe.xLabel, kept),
       yLabel: first.axisLabel,
       rows: kept,
       missingSeries: second.seriesName,
@@ -482,7 +496,7 @@ export async function resolvePrompt(
   if (rows.length < 2) {
     return null;
   }
-  return { ...shown, rows };
+  return { ...shown, rows, xLabel: alignGrainLabel(shown.xLabel, rows) };
 }
 
 export function notesFromResolved(series: {
