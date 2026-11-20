@@ -88,6 +88,22 @@ describe('xAxisRoom', () => {
     expect(phone.bottom).toBeGreaterThanOrEqual(desktop.bottom);
   });
 
+  it('keeps ten two-word energy categories in full', () => {
+    const names = [
+      'Natural gas',
+      'Other gases',
+      'Other renewable sources',
+      'Conventional hydropower',
+      'Petroleum liquids',
+      'Nuclear power',
+      'Solar photovoltaic',
+      'Wind turbines',
+      'Wood biomass',
+      'Pumped storage',
+    ];
+    expect(shortCategoryNames(names)).toEqual(names);
+  });
+
   it('labels a crowded people set by last name', () => {
     const names = [
       'Alan Shearer',

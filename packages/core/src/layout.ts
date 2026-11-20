@@ -5,13 +5,14 @@ import { timeKey } from './line-runs';
 const NAME_PARTICLE = /^(van|von|de|da|del|di|la|le|el|al|bin|ibn|st\.?)$/i;
 
 function sequentialX(name: string): boolean {
+  const text = name.trim().replace(/[*†]+$/u, '');
   return (
-    /^(?:19|20)\d{2}(?:\s*[-–/]\s*(?:\d{2}|(?:19|20)\d{2}))?$/.test(name) ||
-    /^(?:19|20)\d{2}\s*[-–]?\s*q[1-4]$/i.test(name) ||
-    /^q[1-4]\s+(?:19|20)\d{2}$/i.test(name) ||
-    /^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(name) ||
-    /^w(?:eek)?\s*\d+$/i.test(name) ||
-    /^\d{4}$/.test(name)
+    /^(?:19|20)\d{2}(?:\s*[-–/]\s*(?:\d{2}|(?:19|20)\d{2}))?$/.test(text) ||
+    /^(?:19|20)\d{2}\s*[-–]?\s*q[1-4]$/i.test(text) ||
+    /^q[1-4]\s+(?:19|20)\d{2}$/i.test(text) ||
+    /^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(text) ||
+    /^w(?:eek)?\s*\d+$/i.test(text) ||
+    /^\d{4}$/.test(text)
   );
 }
 
@@ -26,7 +27,7 @@ export function looksSequentialX(names: string[]): boolean {
 const NICE_YEAR_STEPS = [1, 2, 5, 10, 20, 25, 50, 100];
 
 function plainYear(label: string): number | null {
-  const match = label.trim().match(/^(?:1[89]|20)\d{2}$/);
+  const match = label.trim().replace(/[*†]+$/u, '').match(/^(?:1[89]|20)\d{2}$/);
   return match ? Number(match[0]) : null;
 }
 
@@ -277,9 +278,17 @@ const PLACE_START =
 
 const PLACE_PHRASE = /\b(?:of|islands?|republic|states|kingdom|territor(?:y|ies)|province|county)\b/i;
 
+function personShaped(name: string): boolean {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2 || parts.length > 4 || /\d|[()]/.test(name)) {
+    return false;
+  }
+  return parts.every((part) => NAME_PARTICLE.test(part) || /^\p{Lu}/u.test(part));
+}
+
 function looksLikePeople(names: string[]): boolean {
-  const multi = names.filter((name) => name.trim().split(/\s+/).filter(Boolean).length >= 2);
-  if (multi.length < Math.ceil(names.length * 0.6)) {
+  const shaped = names.filter(personShaped);
+  if (shaped.length < Math.ceil(names.length * 0.6)) {
     return false;
   }
   return !names.some((name) => {

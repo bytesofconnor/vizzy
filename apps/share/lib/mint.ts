@@ -1,4 +1,5 @@
 import {
+  noteWithoutStoredScale,
   suggestChart,
   validateChartRequest,
   type DataPoint,
@@ -76,10 +77,30 @@ export function mintPiece(input: MintInput): MintResult {
   };
 
   const xKey = String(checked.config.dataMapping.x);
-  const note = withDrawnSpan(
+  const yKey = String(checked.config.dataMapping.y);
+  const spanned = withDrawnSpan(
     typeof input.note === 'string' ? input.note : '',
     (data as DataPoint[]).map((row) => ({ x: row[xKey] as string | number }))
   );
+  const scaleLabels = [checked.config.axes.y.label, checked.config.axes.x.label].filter(
+    (label): label is string => typeof label === 'string' && label.length > 0
+  );
+  const seriesField = checked.config.dataMapping.color ?? checked.config.dataMapping.group;
+  const samples: number[] = [];
+  for (const row of data as DataPoint[]) {
+    const y = Number(row[yKey]);
+    if (Number.isFinite(y)) {
+      samples.push(y);
+    }
+    if (!seriesField) {
+      continue;
+    }
+    const name = row[seriesField];
+    if (typeof name === 'string' && name && !scaleLabels.includes(name)) {
+      scaleLabels.push(name);
+    }
+  }
+  const note = noteWithoutStoredScale(spanned, scaleLabels, samples);
   const extras: Record<string, unknown> = {
     source,
     accessibility: {

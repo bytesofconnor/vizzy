@@ -117,19 +117,40 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       : svg.select('.lines-group');
 
     linesGroup.attr('transform', `translate(${margin.left}, ${margin.top})`);
-    this._clipPlot(linesGroup as any, dimensions.innerWidth, dimensions.innerHeight, 18);
 
-    // Group data by color field if present
     const colorField = config.dataMapping.color;
-    const groupedData = colorField 
+    const groupedData = colorField
       ? this._groupDataByField(this._processedData.processed, colorField)
       : [{ key: 'default', values: this._processedData.processed }];
+    this._clipPlot(
+      linesGroup as any,
+      dimensions.innerWidth,
+      dimensions.innerHeight,
+      18,
+      groupedData.length > 1 ? 148 : 0
+    );
 
-    // Render each line group
+    const labelPeaks = groupedData.every((group) => {
+      const cut = forecastStartIndex(
+        group.values,
+        config.dataMapping.x,
+        chartConfig.forecastFrom as string | number | undefined
+      );
+      const published = cut < 0 ? group.values : group.values.slice(0, Math.max(cut, 1));
+      return cut < 0 && this._findInflection(published) !== null;
+    });
+
     for (let i = 0; i < groupedData.length; i += 1) {
       const group = groupedData[i];
       if (group) {
-        await this._renderLineGroup(linesGroup as any, group, chartConfig, i, groupedData.length);
+        await this._renderLineGroup(
+          linesGroup as any,
+          group,
+          chartConfig,
+          i,
+          groupedData.length,
+          labelPeaks
+        );
       }
     }
   }
@@ -156,7 +177,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     lineData: { key: string; values: TData[] },
     chartConfig: LineSeriesOptions,
     seriesIndex: number,
-    seriesCount: number
+    seriesCount: number,
+    labelPeaks: boolean
   ): Promise<void> {
     const { dataMapping, colors, animation } = this._config;
     
@@ -225,8 +247,11 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     }
 
     const inflection = cut < 0 ? this._findInflection(published) : null;
-    if (inflection) {
+    if (labelPeaks && inflection) {
       this._renderInflection(group, inflection, lineColor, published);
+    }
+    if (seriesCount > 1 && lineData.key !== 'default') {
+      this._renderSeriesName(group, lineData.key, published, lineColor);
     }
     const last = published[published.length - 1];
     const showEndLabel =
@@ -454,7 +479,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
     width: number,
     height: number,
-    inset = 0
+    inset = 0,
+    rightPad = 0
   ): void {
     const svgEl = group.node()?.ownerSVGElement;
     if (!svgEl) {
@@ -474,7 +500,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     clip.select('rect')
       .attr('x', -inset)
       .attr('y', -inset)
-      .attr('width', width + inset * 2)
+      .attr('width', width + inset * 2 + rightPad)
       .attr('height', height + inset * 2);
     group.attr('clip-path', `url(#${clipId})`);
   }
@@ -631,6 +657,34 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       plotTop: Math.min(...yRange),
       plotBottom: Math.max(...yRange),
     };
+  }
+
+  private _renderSeriesName(
+    group: d3.Selection<SVGGElement, unknown, null, undefined>,
+    key: string,
+    values: TData[],
+    color: string
+  ): void {
+    const last = values[values.length - 1];
+    if (!last) {
+      return;
+    }
+    const { dataMapping } = this._config;
+    const x = this._scaleManager.getXValue(last[dataMapping.x]);
+    const y = this._scaleManager.getYValue(last[dataMapping.y]);
+    const mark = seriesMark('series-end-label', key);
+    const labels = group.selectAll(`.${mark}`).data([last]);
+    labels.exit().remove();
+    labels.join('text')
+      .attr('class', `series-end-label ${mark}`)
+      .attr('x', x + 10)
+      .attr('y', y)
+      .attr('text-anchor', 'start')
+      .attr('dominant-baseline', 'middle')
+      .attr('fill', color)
+      .style('font-size', '11px')
+      .style('font-family', 'var(--font-sans), "IBM Plex Sans", ui-sans-serif, sans-serif')
+      .text(key);
   }
 
   private _renderEndCap(

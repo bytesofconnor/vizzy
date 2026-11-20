@@ -314,8 +314,55 @@ function thinEachSeries(rows: SeriesRow[]): SeriesRow[] {
   const lists = [...groups.values()];
   const longest = lists.reduce((best, list) => (list.length > best.length ? list : best), lists[0] ?? []);
   const per = Math.max(2, Math.floor(MULTI_CAP / Math.max(groups.size, 1)));
+  const years = evenYearKeep(lists, per);
+  if (years) {
+    return lists.flatMap((group) =>
+      group.filter((row) => {
+        const year = yearOfX(row.x);
+        return year !== undefined && years.has(year);
+      })
+    );
+  }
   const picked = new Set(pickEvenly(longest, per).map((row) => String(row.x)));
   return lists.flatMap((group) => group.filter((row) => picked.has(String(row.x))));
+}
+
+function evenYearKeep(lists: SeriesRow[][], cap: number): Set<number> | null {
+  const longest = lists.reduce((best, list) => (list.length > best.length ? list : best), lists[0] ?? []);
+  if (!isYearly(longest)) {
+    return null;
+  }
+  const years = [
+    ...new Set(longest.map((row) => yearOfX(row.x)).filter((year): year is number => year !== undefined)),
+  ].sort((left, right) => left - right);
+  const first = years[0];
+  const last = years[years.length - 1];
+  if (first === undefined || last === undefined) {
+    return null;
+  }
+  const extra = new Set<number>([first, last]);
+  for (const list of lists) {
+    for (const index of extremeIndexes(list)) {
+      const year = yearOfX(list[index]?.x ?? '');
+      if (year !== undefined) {
+        extra.add(year);
+      }
+    }
+  }
+  for (const step of NICE_YEAR_STEPS) {
+    const base = years.filter((year) => year === first || year === last || year % step === 0);
+    if (base.length < 2 || base.length > cap) {
+      continue;
+    }
+    const kept = new Set(base);
+    for (const year of extra) {
+      if (years.includes(year)) {
+        kept.add(year);
+      }
+    }
+    return kept;
+  }
+  return null;
 }
 
 function extremeIndexes(rows: SeriesRow[]): number[] {

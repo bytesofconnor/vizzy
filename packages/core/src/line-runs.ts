@@ -13,8 +13,12 @@ const MONTH: Record<string, number> = {
   dec: 12,
 };
 
+function bareTimeLabel(label: string): string {
+  return label.trim().replace(/[*†]+$/u, '');
+}
+
 export function timeKey(label: string): number | null {
-  const text = label.trim();
+  const text = bareTimeLabel(label);
   const iso = text.match(/^((?:19|20)\d{2})-(\d{2})(?:-\d{2})?$/);
   if (iso) {
     const month = Number(iso[2]);
@@ -60,7 +64,7 @@ export function contiguousRuns<T>(values: T[], label: (value: T) => string): T[]
   for (let index = 1; index < values.length; index += 1) {
     const gap = (keys[index] as number) - (keys[index - 1] as number);
     const run = runs[runs.length - 1]!;
-    if (gap > cadence) {
+    if (gap >= cadence * 2) {
       runs.push([values[index]!]);
     } else {
       run.push(values[index]!);
@@ -83,4 +87,24 @@ function modalGap(gaps: number[]): number {
     }
   }
   return best;
+}
+
+/** Oldest to newest when most labels are dates. A category axis stays as it arrived. */
+export function orderByTime<T>(items: T[], label: (item: T) => string): T[] {
+  if (items.length < 2) {
+    return items;
+  }
+  const keyed = items.map((item, index) => ({ item, index, key: timeKey(label(item)) }));
+  const timed = keyed.filter((entry) => entry.key !== null).length;
+  if (timed < Math.ceil(items.length * 0.7)) {
+    return items;
+  }
+  return keyed
+    .sort((left, right) => {
+      if (left.key === null || right.key === null) {
+        return left.index - right.index;
+      }
+      return left.key - right.key || left.index - right.index;
+    })
+    .map((entry) => entry.item);
 }

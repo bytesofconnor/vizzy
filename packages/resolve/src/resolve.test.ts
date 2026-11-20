@@ -765,6 +765,28 @@ describe('resolvePrompt', () => {
     expect(slim.some((row) => row.y === 999)).toBe(false);
   });
 
+  it('thins seven annual series on one even step and keeps the ends and the extreme', () => {
+    const countries = ['Canada', 'France', 'Germany', 'Italy', 'Japan', 'United Kingdom', 'United States'];
+    const rows = countries.flatMap((series, seriesIndex) =>
+      Array.from({ length: 36 }, (_, offset) => {
+        const year = 1990 + offset;
+        const spike = series === 'United States' && year === 2007 ? 120000 : 0;
+        return { x: String(year), y: 20000 + offset * 900 + seriesIndex * 3000 + spike, series };
+      })
+    );
+    const slim = downsample(rows);
+    const years = [...new Set(slim.filter((row) => row.series === 'United States').map((row) => Number(row.x)))].sort(
+      (left, right) => left - right
+    );
+    expect(years[0]).toBe(1990);
+    expect(years.at(-1)).toBe(2025);
+    expect(years).toContain(2007);
+    const regular = years.filter((year) => year !== 2007);
+    const regularGaps = regular.slice(1).map((year, index) => year - regular[index]!);
+    expect(new Set(regularGaps).size).toBe(1);
+    expect([1, 2, 5, 10, 20, 25, 50]).toContain(regularGaps[0]);
+  });
+
   it('does not jump Antarctic years from 2001 to 2004 when thinning 1979-2026', () => {
     const rows = Array.from({ length: 48 }, (_, index) => ({ x: String(1979 + index), y: index }));
     const years = downsample(rows).map((row) => Number(row.x));

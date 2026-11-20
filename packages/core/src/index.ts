@@ -17,6 +17,7 @@ export type { ChartSuggestion, SuggestHints } from './suggest';
 export { compileChart } from './compile';
 export type { CompileInput, CompileResult, CompileSnippet } from './compile';
 export { renderToSVG } from './render-svg';
+export { noteWithoutStoredScale } from './format';
 export { forecastStartIndex } from './forecast';
 export { seriesIsSketch } from './bar-reading';
 export {

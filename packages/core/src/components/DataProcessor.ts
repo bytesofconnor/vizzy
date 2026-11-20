@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { orderByTime } from '../line-runs';
 import { gdpLifeScatter } from '../scatter-labels';
 import { DataPoint, ChartConfig, VizzyError } from '../types';
 
@@ -64,8 +65,10 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
       // Validate data mapping
       this._validateDataMapping();
       
-      // Clean and transform data
-      const processed = this._cleanData();
+      const cleaned = this._cleanData();
+      const processed = this._config.chart.type === 'line'
+        ? orderByTime(cleaned, (row) => String(row[this._config.dataMapping.x] ?? ''))
+        : cleaned;
       
       // Calculate statistics
       const statistics = this._calculateStatistics(processed);
