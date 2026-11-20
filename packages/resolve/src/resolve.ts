@@ -274,11 +274,30 @@ export async function resolvePrompt(
   if (!full) {
     return null;
   }
-  const rows = rowsForAsked(full.rows, asked, options.now ?? Date.now());
+  const rated = inflationFromIndex(asked, full);
+  const rows = rowsForAsked(rated.rows, asked, options.now ?? Date.now());
   if (rows.length < 2) {
     return null;
   }
-  return { ...full, rows };
+  return { ...rated, rows };
+}
+
+const INFLATION_ASK = /\binflat(?:ion|on)\b/i;
+
+function inflationFromIndex(asked: string, series: ResolvedSeries): ResolvedSeries {
+  if (!INFLATION_ASK.test(asked) || series.rows.some((row) => row.series)) {
+    return series;
+  }
+  const index = INDEX_TO_RATE.has(series.seriesId) || /\b(cpi|price index|index)\b/i.test(series.yLabel);
+  const alreadyRate = /%|percent|\brate\b/i.test(series.yLabel);
+  if (!index || alreadyRate) {
+    return series;
+  }
+  const rates = yearOverYear(series.rows);
+  if (rates.length < 2) {
+    return series;
+  }
+  return { ...series, rows: rates, yLabel: 'YoY %' };
 }
 
 export function notesFromResolved(series: {

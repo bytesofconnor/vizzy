@@ -1,5 +1,5 @@
-import { DATASETS, phraseIn, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
-import { withDrawnSpan } from './year-span';
+import { DATASETS, phraseIn, rowsForAsked, yearSpanFromAsked, type ResolvedSeries } from '@vizzy/resolve';
+import { drawnYearSpan, spanLabel, withDrawnSpan } from './year-span';
 import { fitChartType } from './compose-guards';
 import { honestTitle, withTopCount } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
@@ -183,10 +183,11 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   const yearly = yearlyOfficialRows(rows);
   const chartType = multi ? 'line' : fitChartType(yearly ? 'line' : 'bar', rows, asked);
   const xLabel = cut ? 'Year' : series.xLabel;
-  const yLabel =
+  const yLabel = capitalizeUnits(
     cut && wantsYearlyChange(asked) && !/^change in /i.test(series.yLabel)
       ? `Change in ${series.yLabel}`
-      : series.yLabel;
+      : series.yLabel
+  );
   const titled = { ...series, rows, xLabel, yLabel };
   const dataset = DATASETS.find((item) => item.family === series.family && item.seriesId === series.seriesId);
   const spelled = withTopCount(
@@ -211,9 +212,13 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     series.truncatedTo
   );
   const title = withDrawnSpan(disclose(spelled, asked, dataset?.coverage), rows);
-  const note = withDrawnSpan(
+  const shortfall = coverageShortfall(asked, rows, series.retrieved);
+  const subtitle = seriesSubtitle(yLabel, rows, shortfall);
+  const note = seriesNote(
     disclose(textClashesWithSeries(asked, series) ? title : series.sourceLabel, asked, dataset?.coverage),
-    rows
+    yLabel,
+    rows,
+    shortfall
   );
   const config = studioChart(
     chartType === 'line' ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
@@ -233,6 +238,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   const method = sourceMethodFor(series.sourceUrl, series.method);
   return mintPiece({
     title,
+    subtitle,
     kicker: FAMILY_KICKER[series.family],
     note,
     data: rows.map((row) => ({
@@ -248,4 +254,123 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
       retrieved: new Date(series.retrieved).toISOString().slice(0, 10),
     },
   });
+}
+
+const FULL_MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+
+export function capitalizeUnits(label: string): string {
+  return label.replace(/\b(usd|eur|gbp|jpy|cny|aud|cad)\b/gi, (token) => token.toUpperCase());
+}
+
+type Dated = { year: number; month?: number };
+
+function datedRow(value: string | number): Dated | undefined {
+  const text = String(value).trim();
+  const iso = text.match(/^((?:1[89]|20)\d{2})-(\d{2})(?:$|[-/.])/);
+  if (iso?.[1] && iso[2]) {
+    const month = Number(iso[2]);
+    if (month >= 1 && month <= 12) {
+      return { year: Number(iso[1]), month };
+    }
+  }
+  const quarter = text.match(/^(?:q([1-4])\s+((?:1[89]|20)\d{2})|((?:1[89]|20)\d{2})-q([1-4]))$/i);
+  if (quarter) {
+    const q = Number(quarter[1] || quarter[4]);
+    const year = Number(quarter[2] || quarter[3]);
+    if (q >= 1 && q <= 4 && year) {
+      return { year, month: q * 3 };
+    }
+  }
+  const year = text.match(/^((?:1[89]|20)\d{2})$/);
+  return year?.[1] ? { year: Number(year[1]) } : undefined;
+}
+
+function datedKey(stamp: Dated, edge: 'start' | 'end'): number {
+  const month = stamp.month ?? (edge === 'start' ? 1 : 12);
+  return stamp.year * 12 + month;
+}
+
+function datedLabel(stamp: Dated): string {
+  return stamp.month ? `${FULL_MONTHS[stamp.month - 1]} ${stamp.year}` : String(stamp.year);
+}
+
+function coverageShortfall(
+  asked: string,
+  rows: Array<{ x: string | number }>,
+  now: number
+): string | null {
+  const span = yearSpanFromAsked(asked, now);
+  if (span.since === undefined && span.until === undefined) {
+    return null;
+  }
+  const stamps = rows
+    .map((row) => datedRow(row.x))
+    .filter((stamp): stamp is Dated => stamp !== undefined)
+    .sort((left, right) => datedKey(left, 'start') - datedKey(right, 'start'));
+  const start = stamps[0];
+  const end = stamps[stamps.length - 1];
+  if (!start || !end || stamps.length < Math.ceil(rows.length * 0.7)) {
+    return null;
+  }
+  const bits: string[] = [];
+  if (span.since !== undefined) {
+    const askedStart = span.since * 12 + (span.sinceMonth ?? 1);
+    if (datedKey(start, 'start') > askedStart) {
+      const wanted = span.sinceMonth ? `${FULL_MONTHS[span.sinceMonth - 1]} ${span.since}` : String(span.since);
+      bits.push(`Starts in ${datedLabel(start)}, not ${wanted}`);
+    }
+  }
+  if (span.until !== undefined) {
+    const askedEnd = span.until * 12 + (span.untilMonth ?? 12);
+    if (datedKey(end, 'end') < askedEnd) {
+      const wanted = span.untilMonth ? `${FULL_MONTHS[span.untilMonth - 1]} ${span.until}` : String(span.until);
+      bits.push(`Ends in ${datedLabel(end)}, short of ${wanted}`);
+    }
+  } else if (span.since !== undefined && end.year < new Date(now).getUTCFullYear() - 1) {
+    bits.push(`Ends in ${end.year}, short of ${new Date(now).getUTCFullYear()}`);
+  }
+  return bits.length > 0 ? `${bits.join('. ')}.` : null;
+}
+
+function seriesSubtitle(
+  yLabel: string,
+  rows: Array<{ x: string | number }>,
+  shortfall: string | null
+): string {
+  const span = drawnYearSpan(rows);
+  const lead = [capitalizeUnits(yLabel), span ? spanLabel(span) : ''].filter(Boolean).join(', ');
+  if (!shortfall) {
+    return lead;
+  }
+  return lead ? `${lead}. ${shortfall}` : shortfall;
+}
+
+function seriesNote(
+  base: string,
+  yLabel: string,
+  rows: Array<{ x: string | number }>,
+  shortfall: string | null
+): string {
+  const lead = seriesSubtitle(yLabel, rows, null);
+  let note = lead ? `${lead}. ${base}` : base;
+  if (shortfall && !note.includes(shortfall)) {
+    note = `${note} ${shortfall}`;
+  }
+  if (note.trim() === base.trim()) {
+    return `${base}.`;
+  }
+  return note;
 }

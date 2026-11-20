@@ -233,12 +233,15 @@ describe('prompt fidelity', () => {
     const note = minted.piece.note;
     const stated = `${title} ${note}`;
     if (prompt.since !== undefined && prompt.until !== undefined) {
-      expect(stated).toContain(String(prompt.since));
-      expect(stated).toContain(String(prompt.until));
-      expect(title).toContain(String(prompt.since));
-      expect(title).toContain(String(prompt.until));
+      const subtitle = minted.piece.subtitle ?? '';
+      const visible = `${title} ${subtitle} ${note}`;
+      expect(visible).toContain(String(prompt.since));
+      expect(visible).toContain(String(prompt.until));
       expect(note).toContain(String(prompt.since));
       expect(note).toContain(String(prompt.until));
+      const spans = title.match(/\b(?:1[89]|20)\d{2}\s*(?:-|–|—|to|through)\s*(?:1[89]|20)\d{2}\b/gi) ?? [];
+      const since = /\b(?:since|from)\s+(?:1[89]|20)\d{2}\b/i.test(title);
+      expect(spans.length > 1 || (since && spans.length > 0)).toBe(false);
     }
     if (prompt.topN) {
       const tops = stated.match(new RegExp(`\\btop\\s+${prompt.topN}\\b`, 'gi')) ?? [];

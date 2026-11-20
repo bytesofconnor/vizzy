@@ -65,6 +65,7 @@ export function PieceStage({
             <TitleTag id={titleId} className="chart-title">
               {titleInner}
             </TitleTag>
+            {piece.subtitle ? <p className="chart-subtitle">{piece.subtitle}</p> : null}
           </>
         }
         foot={

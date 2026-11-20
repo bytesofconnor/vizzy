@@ -4,19 +4,22 @@ import { timeKey } from './line-runs';
 
 const NAME_PARTICLE = /^(van|von|de|da|del|di|la|le|el|al|bin|ibn|st\.?)$/i;
 
+function sequentialX(name: string): boolean {
+  return (
+    /^(?:19|20)\d{2}(?:\s*[-–/]\s*(?:\d{2}|(?:19|20)\d{2}))?$/.test(name) ||
+    /^(?:19|20)\d{2}\s*[-–]?\s*q[1-4]$/i.test(name) ||
+    /^q[1-4]\s+(?:19|20)\d{2}$/i.test(name) ||
+    /^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(name) ||
+    /^w(?:eek)?\s*\d+$/i.test(name) ||
+    /^\d{4}$/.test(name)
+  );
+}
+
 export function looksSequentialX(names: string[]): boolean {
   if (names.length < 4) {
     return false;
   }
-  const hits = names.filter((name) => {
-    const n = name.trim();
-    return (
-      /^20\d{2}(?:\s*[-–/]\s*(?:\d{2}|20\d{2}))?$/.test(n) ||
-      /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(n) ||
-      /^w(?:eek)?\s*\d+$/i.test(n) ||
-      /^\d{4}$/.test(n)
-    );
-  }).length;
+  const hits = names.filter((name) => sequentialX(name.trim())).length;
   return hits >= names.length * 0.7;
 }
 

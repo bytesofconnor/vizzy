@@ -4,6 +4,7 @@ import type { DataPoint, Source } from '@vizzy/core';
 export interface PortableDraft {
   kicker: string;
   title: string;
+  subtitle?: string;
   note: string;
   chart: { type: 'bar' | 'line' | 'scatter' } & Record<string, unknown>;
   mapping: { x: string; y: string; color?: string; size?: string; group?: string };

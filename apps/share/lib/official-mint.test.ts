@@ -68,7 +68,9 @@ describe('mintFromOfficial', () => {
       expect(minted.piece.config.chart.type).toBe('line');
       expect(minted.piece.config.axes.x.label).toBe('Month');
       expect(String(minted.piece.data[0]?.x)).toBe('2000-01');
-      expect(minted.piece.title).toBe('Fed funds since 2000, 2000-2001');
+      expect(minted.piece.title).toBe('Fed funds since 2000');
+      expect(minted.piece.subtitle).toMatch(/2000-2001/);
+      expect(minted.piece.note.trim()).not.toBe(co2.sourceLabel);
     }
   });
 

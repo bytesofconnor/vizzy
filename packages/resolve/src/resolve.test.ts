@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { datasetsForTopic, matchPrompt, rankDatasets } from './catalog';
+import { yearSpanFromAsked } from './normalize';
 import { notesFromResolved, resolvePrompt, rowsForAsked } from './resolve';
 import { parseFredCsv } from './parse/fred';
 import { parseNoaaCo2 } from './parse/noaa';
@@ -703,6 +704,39 @@ describe('resolvePrompt', () => {
     expect([1, 2, 5, 10, 20, 25, 50]).toContain(gaps[0]);
   });
 
+  it('parses month ranges, a single year, and since a year', () => {
+    expect(yearSpanFromAsked('30-year mortgage rate from January 2020 to December 2023')).toEqual({
+      since: 2020,
+      sinceMonth: 1,
+      until: 2023,
+      untilMonth: 12,
+    });
+    expect(yearSpanFromAsked('Bitcoin price in 2024', Date.UTC(2026, 10, 20))).toEqual({
+      since: 2024,
+      until: 2024,
+    });
+    expect(yearSpanFromAsked('US unemployment since 2000')).toEqual({ since: 2000 });
+  });
+
+  it('keeps the high and low months when a long monthly series is thinned', () => {
+    const rows = Array.from({ length: 322 }, (_, index) => {
+      const month = (index % 12) + 1;
+      const year = 2000 + Math.floor(index / 12);
+      return { x: `${year}-${String(month).padStart(2, '0')}`, y: 4 };
+    });
+    const peak = rows.find((row) => row.x === '2020-04');
+    const trough = rows.find((row) => row.x === '2000-02');
+    expect(peak && trough).toBeTruthy();
+    if (peak && trough) {
+      peak.y = 14.8;
+      trough.y = 3.5;
+    }
+    const sampled = rowsForAsked(rows, 'US unemployment since 2000', Date.UTC(2026, 10, 20));
+    expect(Math.max(...sampled.map((row) => row.y))).toBeGreaterThanOrEqual(14.7);
+    expect(Math.min(...sampled.map((row) => row.y))).toBeLessThanOrEqual(3.5);
+    expect(sampled.length).toBeLessThanOrEqual(252);
+  });
+
   it('does not jump Antarctic years from 2001 to 2004 when thinning 1979-2026', () => {
     const rows = Array.from({ length: 48 }, (_, index) => ({ x: String(1979 + index), y: index }));
     const years = downsample(rows).map((row) => Number(row.x));
@@ -868,21 +902,18 @@ describe('dense series for the asked window', () => {
     }
   });
 
-  it('thins a CPI history longer than the chart can hold', async () => {
+  it('keeps both ends of a long CPI inflation history as a rate', async () => {
     const series = await resolvePrompt('inflation rate usa since 1990', {
       get: async () => monthlyFred('CPIAUCSL', '1990-01', '2026-10'),
       now: AS_OF,
     });
     expect(series?.seriesId).toBe('CPIAUCSL');
+    expect(series?.yLabel).toBe('YoY %');
     const rows = series?.rows ?? [];
-    expect(rows).toHaveLength(24);
-    expect(rows[0]?.x.startsWith('1990')).toBe(true);
-    expect(rows.at(-1)?.x.startsWith('2026')).toBe(true);
-    const first = rows[0];
-    const second = rows[1];
-    expect(first && second).toBeTruthy();
-    if (first && second) {
-      expect(monthIndex(second.x) - monthIndex(first.x)).toBeGreaterThan(1);
-    }
+    expect(rows.length).toBeGreaterThan(24);
+    expect(rows.length).toBeLessThanOrEqual(252);
+    expect(String(rows[0]?.x)).toMatch(/^1991/);
+    expect(String(rows.at(-1)?.x)).toMatch(/^2026/);
+    expect(rows.every((row) => Math.abs(row.y) < 30)).toBe(true);
   });
 });
