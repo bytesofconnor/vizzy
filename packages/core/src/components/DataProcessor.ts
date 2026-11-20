@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { gdpLifeScatter } from '../scatter-labels';
 import { DataPoint, ChartConfig, VizzyError } from '../types';
 
 export interface ProcessedData<TData extends DataPoint = DataPoint> {
@@ -336,7 +337,16 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
       xDomain = axes.x.domain as [number, number];
     } else if (stats.xStats && this._numericX(data)) {
       const padding = (stats.xStats.max - stats.xStats.min) * 0.05;
-      xDomain = [stats.xStats.min - padding, stats.xStats.max + padding];
+      let low = stats.xStats.min - padding;
+      const high = stats.xStats.max + padding;
+      if (
+        gdpLifeScatter(this._config.axes.x.label, this._config.axes.y.label) &&
+        stats.xStats.min > 0 &&
+        low <= 0
+      ) {
+        low = stats.xStats.min * 0.85;
+      }
+      xDomain = [low, high];
     } else {
       xDomain = [...new Set(data.map(d => String(d[dataMapping.x])))];
     }

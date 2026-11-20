@@ -8,7 +8,9 @@ import {
   validateChartConfig,
   validateDataset,
 } from '../types';
-import { barsReadHorizontally, xAxisRoom } from '../layout';
+import { DataProcessor } from '../components/DataProcessor';
+import { yTickLabels } from '../format';
+import { barsReadHorizontally, xAxisRoom, yAxisGutter } from '../layout';
 import { PerformanceMonitor } from './PerformanceMonitor';
 import { EventEmitter } from './EventEmitter';
 
@@ -290,26 +292,28 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
     margin.left = this._marginHome.left;
     margin.bottom = this._marginHome.bottom;
     const chartWidth = Math.max(width, 120);
+    const horizontalBars = this._horizontalBars(chartWidth);
+    if (this.config.chart.type === 'bar') {
+      this.config.chart.orientation = horizontalBars ? 'horizontal' : 'vertical';
+    }
     if (this.config.chart.type === 'bar' || this.config.chart.type === 'line') {
-      const names = [
-        ...new Set(this._data.map((row) => String(row[this.config.dataMapping.x] ?? ''))),
-      ];
-      const innerGuess = Math.max(120, chartWidth - margin.left - margin.right);
-      const singleBars =
-        this.config.chart.type === 'bar' && this.config.chart.grouping !== 'grouped' && this.config.chart.grouping !== 'stacked';
-      const horizontal =
-        this.config.chart.type === 'bar' &&
-        (this._barOrientation === 'horizontal' || (singleBars && barsReadHorizontally(names, innerGuess)));
-      if (this.config.chart.type === 'bar') {
-        this.config.chart.orientation = horizontal ? 'horizontal' : 'vertical';
-      }
-      if (horizontal) {
+      if (horizontalBars) {
         this.config.axes.x.label = this._axisHome.y;
         this.config.axes.y.label = undefined;
       } else {
         this.config.axes.x.label = this._axisHome.x;
         this.config.axes.y.label = this._axisHome.y;
       }
+    }
+    if (!horizontalBars) {
+      this._growLeftForTicks();
+    }
+    if (this.config.chart.type === 'bar' || this.config.chart.type === 'line') {
+      const names = [
+        ...new Set(this._data.map((row) => String(row[this.config.dataMapping.x] ?? ''))),
+      ];
+      const innerGuess = Math.max(120, chartWidth - margin.left - margin.right);
+      const horizontal = horizontalBars;
       if (horizontal) {
         const longest = names.reduce((max, name) => Math.max(max, name.length), 1);
         margin.left = Math.min(
@@ -334,6 +338,42 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
       width: chartWidth,
       height: margin.top + innerPlot + margin.bottom,
     };
+  }
+
+  private _categoryNames(): string[] {
+    return [...new Set(this._data.map((row) => String(row[this.config.dataMapping.x] ?? '')))];
+  }
+
+  private _horizontalBars(chartWidth: number): boolean {
+    if (this.config.chart.type !== 'bar') {
+      return false;
+    }
+    const margin = this.config.dimensions.margin;
+    const innerGuess = Math.max(120, chartWidth - margin.left - margin.right);
+    const single =
+      this.config.chart.grouping !== 'grouped' && this.config.chart.grouping !== 'stacked';
+    return (
+      this._barOrientation === 'horizontal' ||
+      (single && barsReadHorizontally(this._categoryNames(), innerGuess))
+    );
+  }
+
+  private _growLeftForTicks(): void {
+    if (this.config.axes.y.show === false) {
+      return;
+    }
+    const processed = new DataProcessor(this.config).process(this._data);
+    const domain = processed.domains.y;
+    if (!Array.isArray(domain) || typeof domain[0] !== 'number' || typeof domain[1] !== 'number') {
+      return;
+    }
+    const labels = yTickLabels(
+      [domain[0], domain[1]],
+      this.config.axes.y.label,
+      this.config.axes.y.tickCount ?? 10
+    );
+    const gutter = yAxisGutter(labels, Boolean(this.config.axes.y.label));
+    this.config.dimensions.margin.left = Math.max(this.config.dimensions.margin.left, gutter.left);
   }
 
   private _fitSvgToDrawnMarks(): void {

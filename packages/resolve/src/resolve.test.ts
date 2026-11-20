@@ -374,6 +374,22 @@ describe('parsers', () => {
     );
     expect(rows.map((row) => row.x)).toEqual(['Japan', 'Spain']);
   });
+
+  it('drops World Bank regional and income aggregates', () => {
+    const rows = parseWorldBank(
+      JSON.stringify([
+        {},
+        [
+          { country: { id: 'JP', value: 'Japan' }, countryiso3code: 'JPN', date: '2023', value: 84 },
+          { country: { id: 'AFE', value: 'Africa Eastern and Southern' }, countryiso3code: '', date: '2023', value: 63 },
+          { country: { id: 'HIC', value: 'High income' }, countryiso3code: '', date: '2023', value: 81 },
+          { country: { id: 'NG', value: 'Nigeria' }, countryiso3code: 'NGA', date: '2023', value: 53 },
+          { country: { id: 'ZA', value: 'South Africa' }, countryiso3code: 'ZAF', date: '2023', value: 66 },
+        ],
+      ])
+    );
+    expect(rows.map((row) => row.x).sort()).toEqual(['Japan', 'Nigeria', 'South Africa']);
+  });
 });
 
 describe('resolvePrompt', () => {

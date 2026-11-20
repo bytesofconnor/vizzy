@@ -10,7 +10,7 @@ function visibleTickText(root: ParentNode, axis: string): string[] {
     .map((tick) => readLabel(tick.querySelector('text')?.textContent ?? ''));
 }
 import { VizzyChartEngine } from '../engine/VizzyChartEngine';
-import { xAxisRoom } from '../layout';
+import { archivoWidth, xAxisRoom } from '../layout';
 import { validateChartConfig, type ChartConfig } from '../types';
 import {
   SAMPLE_REVENUE,
@@ -745,5 +745,110 @@ describe('VizzyChartEngine', () => {
     const height = Number(chart.container.querySelector('svg')?.getAttribute('height'));
     expect(height).toBeGreaterThan(180);
     expect(height).toBeLessThan(420);
+  });
+
+  it('keeps a 100,000 tick clear of the y-axis title', async () => {
+    const config = lineConfig();
+    config.dimensions = {
+      ...config.dimensions,
+      margin: { top: 28, right: 24, bottom: 64, left: 70 },
+    };
+    config.axes = {
+      x: { show: true, label: 'Year' },
+      y: { show: true, label: 'People' },
+    };
+    const rows = [
+      { month: '2018', revenue: 20_000 },
+      { month: '2019', revenue: 48_000 },
+      { month: '2020', revenue: 100_000 },
+      { month: '2021', revenue: 125_000 },
+      { month: '2022', revenue: 150_000 },
+    ];
+    const chart = engine(config, rows);
+    await chart.render();
+    const ticks = [...chart.container.querySelectorAll('.y-axis .tick text')].map((node) => readLabel(node.textContent ?? ''));
+    expect(ticks.some((label) => label.replace(/,/g, '').length >= 6)).toBe(true);
+    const axis = chart.container.querySelector('.y-axis');
+    const title = axis?.querySelector('.axis-label');
+    const marginLeft = Number(/translate\(([-0-9.]+)/.exec(axis?.getAttribute('transform') ?? '')?.[1]);
+    const titleY = Number(title?.getAttribute('y'));
+    const titleRight = titleY + 3.02;
+    const titleLeft = marginLeft + titleY - 11.27;
+    expect(titleLeft).toBeGreaterThan(0);
+    for (const tick of axis?.querySelectorAll('.tick text') ?? []) {
+      const anchor = Number(tick.getAttribute('x'));
+      const width = archivoWidth(readLabel(tick.textContent ?? ''), 12);
+      const tickLeft = anchor - width;
+      expect(titleRight).toBeLessThan(tickLeft - 4);
+    }
+  });
+
+  it('paints a label on a bar shorter than 12px', async () => {
+    const config = barConfig();
+    config.axes = { x: { label: 'Place' }, y: { label: 'Count' } };
+    const chart = engine(config, [
+      { month: 'Alpha', revenue: 200 },
+      { month: 'Beta', revenue: 1 },
+      { month: 'Gamma', revenue: 160 },
+    ]);
+    await chart.render();
+    const bars = [...chart.container.querySelectorAll('rect.bar')];
+    const short = bars.find((bar) => Number(bar.getAttribute('height')) < 12);
+    expect(short).toBeTruthy();
+    const labels = [...chart.container.querySelectorAll('.bar-label')];
+    expect(labels).toHaveLength(3);
+    const beta = labels.find((label) => readLabel(label.textContent ?? '') === '1');
+    expect(beta).toBeTruthy();
+    expect(Number(beta?.style.opacity ?? '0')).toBeGreaterThan(0.5);
+    expect(Number(beta?.getAttribute('y'))).toBeLessThan(Number(short?.getAttribute('y')));
+  });
+
+  it('keeps one precision on bar labels that cross 1,000', async () => {
+    const config = barConfig();
+    const chart = engine(config, [
+      { month: 'A', revenue: 10_613 },
+      { month: 'B', revenue: 973.7 },
+    ]);
+    await chart.render();
+    const labels = [...chart.container.querySelectorAll('.bar-label')].map((node) => readLabel(node.textContent ?? ''));
+    const places = labels.map((label) => {
+      const dot = label.indexOf('.');
+      return dot < 0 ? 0 : label.length - dot - 1;
+    });
+    expect(labels).toEqual(['10,613', '974']);
+    expect(new Set(places).size).toBe(1);
+  });
+
+  it('plots GDP per person on a log x-axis and names a few countries', async () => {
+    const config = scatterConfig();
+    config.axes = {
+      x: { label: 'USD per person' },
+      y: { label: 'Years' },
+    };
+    config.dataMapping = { x: 'gdp', y: 'years' };
+    const rows = [
+      { gdp: 1000, years: 62, series: 'Nigeria' },
+      { gdp: 2500, years: 70, series: 'India' },
+      { gdp: 12000, years: 78, series: 'China' },
+      { gdp: 34000, years: 84, series: 'Japan' },
+      { gdp: 76000, years: 77, series: 'United States' },
+    ];
+    const chart = engine(config, rows);
+    await chart.render();
+    const ticks = [...chart.container.querySelectorAll('.x-axis .tick')].flatMap((tick) => {
+      const value = Number(readLabel(tick.querySelector('text')?.textContent ?? '').replace(/,/g, ''));
+      const x = Number(/translate\(([-0-9.]+)/.exec(tick.getAttribute('transform') ?? '')?.[1]);
+      return Number.isFinite(value) && value > 0 && Number.isFinite(x) ? [{ value, x }] : [];
+    });
+    expect(ticks.length).toBeGreaterThanOrEqual(3);
+    const slope = (a: { value: number; x: number }, b: { value: number; x: number }) =>
+      (Math.log(b.value) - Math.log(a.value)) / (b.x - a.x);
+    const first = slope(ticks[0]!, ticks[1]!);
+    const second = slope(ticks[1]!, ticks[2]!);
+    expect(Math.abs(first - second) / Math.abs(first)).toBeLessThan(0.08);
+    const names = [...chart.container.querySelectorAll('.point-label')].map((node) => readLabel(node.textContent ?? ''));
+    expect(names).toContain('United States');
+    expect(names).toContain('Japan');
+    expect(names.length).toBeLessThanOrEqual(6);
   });
 });

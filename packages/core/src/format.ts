@@ -21,22 +21,82 @@ export function plainScripts(value: string): string {
   return out;
 }
 
-export function formatDataValue(n: number, domain: [number, number]): string {
-  if (!Number.isFinite(n)) {
-    return '';
+const SCALE_WORDS: Array<[RegExp, number]> = [
+  [/\btrillions?\b/i, 1e12],
+  [/\bbillions?\b/i, 1e9],
+  [/\bmillions?\b/i, 1e6],
+  [/\bthousands?\b/i, 1e3],
+];
+
+export type UnitScale = { factor: number; money: boolean };
+
+/** The axis title's named scale. "$ millions" multiplies the stored number by 1e6. */
+export function unitScale(label: string | undefined): UnitScale {
+  if (!label) {
+    return { factor: 1, money: false };
   }
+  let factor = 1;
+  for (const [pattern, value] of SCALE_WORDS) {
+    if (pattern.test(label)) {
+      factor = value;
+      break;
+    }
+  }
+  return { factor, money: /\$|usd|dollar/i.test(label) };
+}
+
+/** Drop a scale the tick labels already include, so the title does not count it twice. */
+export function axisLabelWithoutScale(label: string): string {
+  if (unitScale(label).factor === 1) {
+    return label;
+  }
+  const stripped = label
+    .replace(
+      /\s*\(\s*\$?\s*(?:thousands?|millions?|billions?|trillions?)(?:\s*,\s*([^)]*))?\s*\)/i,
+      (_match, rest: string | undefined) => (rest ? ` (${rest.trim()})` : '')
+    )
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return stripped || label;
+}
+
+function formatMagnitude(n: number, domain: [number, number]): string {
   const yearAxis = domain[0] >= 1000 && domain[1] <= 2100 && domain[1] - domain[0] < 800;
   if (yearAxis) {
     return String(Math.round(n));
   }
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) {
+  const chartMax = Math.max(Math.abs(domain[0]), Math.abs(domain[1]));
+  if (chartMax >= 1_000_000) {
     return d3.format('.3~s')(n).replace('G', 'B');
   }
-  if (abs >= 1000) {
+  if (chartMax >= 1000) {
     return d3.format(',.0f')(n);
   }
   return Number.isInteger(n) ? String(n) : d3.format('.1f')(n);
+}
+
+export function formatDataValue(n: number, domain: [number, number], unitLabel?: string): string {
+  if (!Number.isFinite(n)) {
+    return '';
+  }
+  const unit = unitScale(unitLabel);
+  const shown = n * unit.factor;
+  const shownDomain: [number, number] = [domain[0] * unit.factor, domain[1] * unit.factor];
+  const body = formatMagnitude(shown, shownDomain);
+  if (!unit.money || unit.factor === 1) {
+    return body;
+  }
+  return body.startsWith('-') ? `-$${body.slice(1)}` : `$${body}`;
+}
+
+export function yTickLabels(
+  domain: [number, number],
+  unitLabel: string | undefined,
+  tickCount = 10
+): string[] {
+  const scale = d3.scaleLinear().domain(domain).nice();
+  const shown = scale.domain() as [number, number];
+  return scale.ticks(tickCount).map((tick) => formatDataValue(tick, shown, unitLabel));
 }
 
 type Point = { x: number; y: number };

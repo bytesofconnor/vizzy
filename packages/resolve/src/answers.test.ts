@@ -59,12 +59,30 @@ describe('answers the prompt', () => {
       now: Date.UTC(2026, 10, 20),
     });
     expect(series?.chartType).toBe('scatter');
-    expect(series?.xLabel.toLowerCase()).toMatch(/year/);
-    expect(series?.yLabel.toLowerCase()).toMatch(/usd|per person/);
+    expect(series?.xLabel.toLowerCase()).toMatch(/usd|per person/);
+    expect(series?.yLabel.toLowerCase()).toMatch(/year/);
     expect(series?.sourceLabel.toLowerCase()).toContain('world bank');
     expect(series?.sourceLabel).not.toMatch(/^FRED/);
     expect(series?.yLabel).not.toBe('Percent');
     expect((series?.rows.length ?? 0) >= 2).toBe(true);
+  });
+
+  it('keeps at least 150 countries and drops aggregates on a life-expectancy scatter', async () => {
+    const countries = Array.from({ length: 160 }, (_item, index) => `Country ${index}`);
+    const extras = ['Africa Eastern and Southern', 'High income', 'World'];
+    const all = [...countries, ...extras];
+    const life = bank(all.map((country, index) => ({ country, date: '2023', value: 50 + (index % 30) })));
+    const gdp = bank(all.map((country, index) => ({ country, date: '2023', value: 800 + index * 400 })));
+    const series = await resolvePrompt('Life expectancy vs GDP per capita', {
+      get: async (url) => (url.includes('SP.DYN.LE00.IN') ? life : gdp),
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(series?.chartType).toBe('scatter');
+    expect(series?.xLabel.toLowerCase()).toMatch(/usd|per person/);
+    expect(series?.yLabel.toLowerCase()).toMatch(/year/);
+    const names = (series?.rows ?? []).map((row) => String(row.series));
+    expect(names.length).toBeGreaterThanOrEqual(150);
+    expect(names.some((name) => /africa eastern|high income|^world$/i.test(name))).toBe(false);
   });
 
   it('keeps federal debt and the 10-year yield on labeled axes', async () => {
