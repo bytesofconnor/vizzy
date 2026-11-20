@@ -32,6 +32,13 @@ describe('xAxisRoom', () => {
     expect(xTickRotate(years, 320)).toBe(0);
   });
 
+  it('treats pre-2000 months, quarters, and plain years as a line', () => {
+    expect(looksSequentialX(['1990-01', '1990-04', '1990-07', '1990-10', '1991-01', '1991-04'])).toBe(true);
+    expect(looksSequentialX(['1979', '1980', '1981', '1982', '1983', '1984'])).toBe(true);
+    expect(looksSequentialX(['Q1 1998', 'Q2 1998', 'Q3 1998', 'Q4 1998', 'Q1 1999'])).toBe(true);
+    expect(looksSequentialX(['1998-Q1', '1998-Q2', '1998-Q3', '1998-Q4', '1999-Q1'])).toBe(true);
+  });
+
   it('keeps calendar months and years readable', () => {
     expect(compactAxisLabel('2000-01')).toBe('Jan 2000');
     expect(compactAxisLabel('2020-01')).toBe('Jan 2020');

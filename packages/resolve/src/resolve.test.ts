@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { datasetsForTopic, matchPrompt, rankDatasets } from './catalog';
+import { yearSpanFromAsked } from './normalize';
 import { notesFromResolved, resolvePrompt, rowsForAsked } from './resolve';
 import { parseFredCsv } from './parse/fred';
 import { parseNoaaCo2 } from './parse/noaa';
@@ -701,6 +702,39 @@ describe('resolvePrompt', () => {
     expect(slim.length).toBeLessThanOrEqual(60);
     expect(new Set(gaps.slice(0, -1)).size).toBe(1);
     expect([1, 2, 5, 10, 20, 25, 50]).toContain(gaps[0]);
+  });
+
+  it('parses month ranges, a single year, and since a year', () => {
+    expect(yearSpanFromAsked('30-year mortgage rate from January 2020 to December 2023')).toEqual({
+      since: 2020,
+      sinceMonth: 1,
+      until: 2023,
+      untilMonth: 12,
+    });
+    expect(yearSpanFromAsked('Bitcoin price in 2024', Date.UTC(2026, 10, 20))).toEqual({
+      since: 2024,
+      until: 2024,
+    });
+    expect(yearSpanFromAsked('US unemployment since 2000')).toEqual({ since: 2000 });
+  });
+
+  it('keeps the high and low months when a long monthly series is thinned', () => {
+    const rows = Array.from({ length: 322 }, (_, index) => {
+      const month = (index % 12) + 1;
+      const year = 2000 + Math.floor(index / 12);
+      return { x: `${year}-${String(month).padStart(2, '0')}`, y: 4 };
+    });
+    const peak = rows.find((row) => row.x === '2020-04');
+    const trough = rows.find((row) => row.x === '2000-02');
+    expect(peak && trough).toBeTruthy();
+    if (peak && trough) {
+      peak.y = 14.8;
+      trough.y = 3.5;
+    }
+    const sampled = rowsForAsked(rows, 'US unemployment since 2000', Date.UTC(2026, 10, 20));
+    expect(Math.max(...sampled.map((row) => row.y))).toBeGreaterThanOrEqual(14.7);
+    expect(Math.min(...sampled.map((row) => row.y))).toBeLessThanOrEqual(3.5);
+    expect(sampled.length).toBeLessThanOrEqual(252);
   });
 
   it('does not jump Antarctic years from 2001 to 2004 when thinning 1979-2026', () => {
