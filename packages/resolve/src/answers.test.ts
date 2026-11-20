@@ -17,6 +17,76 @@ function fred(id: string, rows: Array<[string, number]>): string {
   return [`observation_date,${id}`, ...rows.map(([date, value]) => `${date},${value}`)].join('\n');
 }
 
+function eurostatRen(): string {
+  const geos = [
+    { code: 'DE', name: 'Germany' },
+    { code: 'ES', name: 'Spain' },
+    { code: 'FR', name: 'France' },
+  ];
+  const years = ['2005', '2023'];
+  const values = [7.2, 21.5, 8.5, 25, 9.1, 22];
+  const value: Record<string, number> = {};
+  values.forEach((item, index) => {
+    value[String(index)] = item;
+  });
+  return JSON.stringify({
+    id: ['freq', 'nrg_bal', 'unit', 'geo', 'time'],
+    size: [1, 2, 1, geos.length, years.length],
+    value,
+    dimension: {
+      freq: { category: { index: { A: 0 }, label: { A: 'Annual' } } },
+      nrg_bal: {
+        category: {
+          index: { REN: 0, REN_ELC: 1 },
+          label: { REN: 'Renewable energy - overall', REN_ELC: 'Renewable energy - electricity' },
+        },
+      },
+      unit: { category: { index: { PC: 0 }, label: { PC: 'Percentage' } } },
+      geo: {
+        category: {
+          index: Object.fromEntries(geos.map((geo, index) => [geo.code, index])),
+          label: Object.fromEntries(geos.map((geo) => [geo.code, geo.name])),
+        },
+      },
+      time: {
+        category: {
+          index: Object.fromEntries(years.map((year, index) => [year, index])),
+          label: Object.fromEntries(years.map((year) => [year, year])),
+        },
+      },
+    },
+  });
+}
+
+function eiaGeneration(): string {
+  const header = 'MSN,YYYYMM,Value,Column_Order,Description,Unit';
+  const full: Record<string, number> = {
+    ELETPUS: 1000,
+    NGETPUS: 400,
+    CLETPUS: 160,
+    NUETPUS: 180,
+    WYETPUS: 100,
+    HVETPUS: 60,
+    SOETPUS: 50,
+    PAETPUS: 20,
+    WDETPUS: 15,
+    WSETPUS: 10,
+    GEETPUS: 5,
+    OJETPUS: 5,
+    HPETPUS: -5,
+  };
+  const lines = [header];
+  for (const year of ['2024', '2025', '2026']) {
+    const gas = year === '2026' ? 10 : full.NGETPUS;
+    const wind = year === '2026' ? 1 : full.WYETPUS;
+    for (const [msn, value] of Object.entries(full)) {
+      const shown = msn === 'NGETPUS' ? gas : msn === 'WYETPUS' ? wind : value;
+      lines.push(`${msn},${year}13,${shown},1,${msn},Million Kilowatthours`);
+    }
+  }
+  return lines.join('\n');
+}
+
 describe('country groups', () => {
   it('names the G7, G20, EU, and OECD', () => {
     expect(COUNTRY_GROUPS.G7).toEqual(G7);
@@ -116,21 +186,64 @@ describe('answers the prompt', () => {
   });
 
   it('plots renewable share for Germany, France, and Spain', async () => {
-    expect(matchPrompt('Renewables share in Germany, France, Spain')?.seriesId).toBe('EG.ELC.RNEW.ZS');
+    expect(matchPrompt('Renewables share in Germany, France, Spain')?.seriesId).toBe('nrg_ind_ren');
+    expect(matchPrompt('renewables share Germany France Spain since 2005')?.seriesId).toBe('nrg_ind_ren');
     expect(matchPrompt('renewable share of energy consumption in Germany, France, and Spain')?.seriesId).toBe(
       'EG.FEC.RNEW.ZS'
     );
+    expect(matchPrompt('renewables share in Nigeria and Kenya')?.seriesId).toBe('EG.FEC.RNEW.ZS');
     const series = await resolvePrompt('Renewables share in Germany, France, Spain', {
-      get: async () =>
-        bank([
-          { country: 'Germany', date: '2022', value: 43 },
-          { country: 'France', date: '2022', value: 25 },
-          { country: 'Spain', date: '2022', value: 48 },
-          { country: 'Norway', date: '2022', value: 98 },
-        ]),
+      get: async (url) => {
+        expect(url).toContain('ec.europa.eu/eurostat');
+        expect(url).not.toContain('pispace');
+        return eurostatRen();
+      },
       now: Date.UTC(2026, 10, 20),
     });
+    expect(series?.seriesId).toBe('nrg_ind_ren');
+    expect(series?.sourceLabel.toLowerCase()).toContain('eurostat');
     expect(series?.rows.map((row) => row.x).sort()).toEqual(['France', 'Germany', 'Spain']);
+    const panel = await resolvePrompt('renewables share Germany France Spain since 2005', {
+      get: async () => eurostatRen(),
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(panel?.seriesId).toBe('nrg_ind_ren');
+    expect(panel?.rows.some((row) => row.series === 'Germany' && row.x === '2005')).toBe(true);
+    expect(panel?.rows.some((row) => row.series === 'Spain' && row.x === '2023')).toBe(true);
+    expect(panel?.rows.some((row) => /total|overall/i.test(String(row.series ?? row.x)))).toBe(false);
+  });
+
+  it('reads US electricity generation by source from the EIA', async () => {
+    const asked = 'US electricity generation by source';
+    expect(matchPrompt(asked)?.seriesId).toBe('us_net_generation_by_source');
+    expect(matchPrompt(asked)?.family).toBe('eia');
+    const series = await resolvePrompt(asked, {
+      get: async (url) => {
+        expect(url).toContain('eia.gov');
+        expect(url).toContain('T07.02A');
+        return eiaGeneration();
+      },
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(series?.family).toBe('eia');
+    expect(series?.sourceLabel).toMatch(/EIA/);
+    expect(series?.sourceLabel).toMatch(/2025/);
+    expect(series?.sourceUrl).toContain('eia.gov');
+    const names = series?.rows.map((row) => String(row.x)) ?? [];
+    expect(names).toEqual([
+      'Natural gas',
+      'Nuclear',
+      'Coal',
+      'Wind',
+      'Hydro',
+      'Petroleum and other',
+      'Solar',
+    ]);
+    expect(names.join(' ').toLowerCase()).not.toMatch(/\btotal\b|\boverall\b|\brenewables\b/);
+    const sum = series?.rows.reduce((total, row) => total + row.y, 0) ?? 0;
+    expect(sum).toBeGreaterThanOrEqual(98);
+    expect(sum).toBeLessThanOrEqual(102);
+    expect(series?.rows[0]?.y).toBeGreaterThanOrEqual(series?.rows[1]?.y ?? 0);
   });
 
   it('defaults a bare inflation prompt to US CPI, not a country ranking', async () => {

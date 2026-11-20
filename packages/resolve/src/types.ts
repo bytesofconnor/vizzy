@@ -1,4 +1,4 @@
-export type Family = 'fred' | 'noaa' | 'owid' | 'usgs' | 'wiki' | 'worldbank';
+export type Family = 'eia' | 'eurostat' | 'fred' | 'noaa' | 'owid' | 'usgs' | 'wiki' | 'worldbank';
 
 export type DatasetTopic =
   | 'biology'
@@ -34,6 +34,7 @@ export type Dataset = {
   /** Keep this series only when the prompt names at least two places. */
   places?: boolean;
   place?: string;
+  onlyPlaces?: readonly string[];
   coverage?: string;
   recentYears?: number;
   monthlyClose?: boolean;
