@@ -44,6 +44,14 @@ async function convexCall<T>(kind: 'query' | 'mutation', path: string, args: Rec
   }
 }
 
+function rememberSnapshot(series: ResolvedSeries): ResolvedSeries {
+  const year = series.snapshotYear;
+  if (!year || series.sourceLabel.includes(year)) {
+    return series;
+  }
+  return { ...series, sourceLabel: `${series.sourceLabel}, ${year}` };
+}
+
 function windowCached(series: ResolvedSeries, asked: string, now: number): ResolvedSeries | null {
   const rows = rowsForAsked(series.rows, asked, now);
   if (rows.length < 2) {
@@ -97,7 +105,7 @@ export async function gatherOfficialSeries(
     now,
     maxAgeMs: DAY_MS,
   });
-  const fromCache = cached ? windowCached(presentSeries(cached, asked), asked, now) : null;
+  const fromCache = cached ? windowCached(presentSeries(rememberSnapshot(cached), asked), asked, now) : null;
   if (fromCache) {
     await record('hit', { family: recipe.family, seriesId: recipe.seriesId, fromCache: true });
     return { notes: notesFromResolved(fromCache), urls: [fromCache.sourceUrl], series: fromCache };
@@ -109,18 +117,21 @@ export async function gatherOfficialSeries(
       await record('error', { family: recipe.family, seriesId: recipe.seriesId, fromCache: false });
       return null;
     }
+    const labeled = rememberSnapshot(full);
     await convexCall('mutation', 'resolve:putCached', {
       cacheKey,
-      family: full.family,
-      seriesId: full.seriesId,
-      sourceLabel: full.sourceLabel,
-      sourceUrl: full.sourceUrl,
-      retrieved: full.retrieved,
-      xLabel: full.xLabel,
-      yLabel: full.yLabel,
-      rows: full.rows,
+      family: labeled.family,
+      seriesId: labeled.seriesId,
+      sourceLabel: labeled.sourceLabel,
+      sourceUrl: labeled.sourceUrl,
+      retrieved: labeled.retrieved,
+      xLabel: labeled.xLabel,
+      yLabel: labeled.yLabel,
+      rows: labeled.rows,
+      ...(labeled.snapshotYear ? { snapshotYear: labeled.snapshotYear } : {}),
+      ...(labeled.truncatedTo !== undefined ? { truncatedTo: labeled.truncatedTo } : {}),
     });
-    const series = windowCached(presentSeries(full, asked), asked, now);
+    const series = windowCached(presentSeries(labeled, asked), asked, now);
     if (!series) {
       await record('error', { family: recipe.family, seriesId: recipe.seriesId, fromCache: false });
       return null;

@@ -73,6 +73,7 @@ function readAnnual(text: string): Map<string, Map<string, number>> {
     const row = cells(line);
     const msn = row[msnAt] ?? '';
     const stamp = row[dateAt] ?? '';
+    // Annual totals are YYYYMM with month 13. Months 01-12 are not the year.
     if (!msn || !/^\d{4}13$/.test(stamp)) {
       continue;
     }

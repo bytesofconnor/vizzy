@@ -1,10 +1,18 @@
 /**
  * @vitest-environment jsdom
  */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { renderToSVG } from '@vizzy/core';
 import { resolvePrompt } from '@vizzy/resolve';
 import { describe, expect, it } from 'vitest';
 import { mintFromOfficial } from './official-mint';
+
+const EIA_T07 = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '../../../packages/resolve/src/parse/fixtures/eia-t07.02a.csv'),
+  'utf8'
+);
 
 const G7 = ['Canada', 'France', 'Germany', 'Italy', 'Japan', 'United Kingdom', 'United States'];
 
@@ -221,6 +229,24 @@ describe('production chart defects', () => {
     }
     expect(minted.piece.title).not.toMatch(/\b2019\b/);
     expect(`${minted.piece.title} ${minted.piece.note}`).toMatch(/2019 is not in the EIA table/);
+    expect(minted.piece.note).toMatch(/2025\. 2019 is not in the EIA table/);
     expect(minted.piece.title).toMatch(/\b2025\b/);
+  });
+
+  it('does not claim 2023 is missing when T07.02A has that year', async () => {
+    const asked = 'US electricity generation by source in 2023';
+    const series = await resolvePrompt(asked, {
+      get: async () => EIA_T07,
+      now: Date.UTC(2026, 10, 20),
+    });
+    const minted = mintFromOfficial(asked, series!);
+    expect(minted.ok).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(series?.rows.find((row) => row.x === 'Natural gas')?.y).toBe(43.2);
+    expect(minted.piece.title).toMatch(/\b2023\b/);
+    expect(minted.piece.title).not.toMatch(/\b2025\b/);
+    expect(minted.piece.note).not.toMatch(/2023 is not in the EIA table/);
   });
 });

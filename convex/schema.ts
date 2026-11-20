@@ -150,6 +150,8 @@ export default defineSchema({
     xLabel: v.string(),
     yLabel: v.string(),
     rows: v.array(v.object({ x: v.string(), y: v.number(), series: v.optional(v.string()) })),
+    snapshotYear: v.optional(v.string()),
+    truncatedTo: v.optional(v.number()),
   })
     .index('by_series', ['family', 'seriesId'])
     .index('by_cache', ['cacheKey']),

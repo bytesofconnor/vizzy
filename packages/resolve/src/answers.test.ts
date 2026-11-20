@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { COUNTRY_GROUPS } from './groups';
 import { placesInAsked } from './places';
@@ -57,6 +60,11 @@ function eurostatRen(): string {
     },
   });
 }
+
+const EIA_T07 = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), 'parse/fixtures/eia-t07.02a.csv'),
+  'utf8'
+);
 
 function eiaGeneration(gasByYear: Array<[string, number]> = []): string {
   const header = 'MSN,YYYYMM,Value,Column_Order,Description,Unit';
@@ -262,6 +270,24 @@ describe('answers the prompt', () => {
     expect(series?.sourceLabel).toMatch(/\b2023\b/);
     expect(series?.sourceLabel).not.toMatch(/\b2025\b/);
     expect(series?.rows.find((row) => row.x === 'Natural gas')?.y).toBe(25);
+  });
+
+  it('reads 2023 annual rows from the published T07.02A table', async () => {
+    const asked = 'US electricity generation by source in 2023';
+    const series = await resolvePrompt(asked, {
+      get: async () => EIA_T07,
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(series?.snapshotYear).toBe('2023');
+    expect(series?.sourceLabel).toMatch(/\b2023\b/);
+    expect(series?.sourceLabel).not.toMatch(/\b2025\b/);
+    expect(series?.rows.find((row) => row.x === 'Natural gas')?.y).toBe(43.2);
+    const latest = await resolvePrompt('US electricity generation by source', {
+      get: async () => EIA_T07,
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(latest?.snapshotYear).toBe('2025');
+    expect(latest?.rows.find((row) => row.x === 'Natural gas')?.y).toBe(40.8);
   });
 
   it('does not label a missing EIA year as if that year were plotted', async () => {

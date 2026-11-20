@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { datasetsForTopic, matchPrompt, rankDatasets } from './catalog';
 import { yearSpanFromAsked } from './normalize';
-import { notesFromResolved, resolvePrompt, rowsForAsked } from './resolve';
+import { notesFromResolved, resolvePrompt, rowsForAsked, seriesCacheKey } from './resolve';
 import { parseFredCsv } from './parse/fred';
 import { parseNoaaCo2 } from './parse/noaa';
 import { parseUsgsGeojson } from './parse/usgs';
@@ -718,6 +718,32 @@ describe('resolvePrompt', () => {
     expect(slim.length).toBeLessThanOrEqual(60);
     expect(new Set(gaps.slice(0, -1)).size).toBe(1);
     expect([1, 2, 5, 10, 20, 25, 50]).toContain(gaps[0]);
+  });
+
+  it('gives EIA years and Eurostat spans different cache keys', () => {
+    const eia2023 = seriesCacheKey(
+      'eia',
+      'us_net_generation_by_source',
+      'US electricity generation by source in 2023'
+    );
+    const eia2024 = seriesCacheKey(
+      'eia',
+      'us_net_generation_by_source',
+      'US electricity generation by source in 2024'
+    );
+    expect(eia2023).not.toBe(eia2024);
+    expect(eia2023.startsWith('v3|eia|us_net_generation_by_source|')).toBe(true);
+    expect(eia2023).toContain('2023');
+    expect(eia2024).toContain('2024');
+    expect(eia2023.startsWith('v2|')).toBe(false);
+
+    const since2005 = seriesCacheKey('eurostat', 'nrg_ind_ren', 'renewables share Germany France Spain since 2005');
+    const since2010 = seriesCacheKey('eurostat', 'nrg_ind_ren', 'renewables share Germany France Spain since 2010');
+    expect(since2005).not.toBe(since2010);
+    expect(since2005.startsWith('v3|eurostat|nrg_ind_ren|')).toBe(true);
+    expect(since2005).toContain('2005');
+    expect(since2010).toContain('2010');
+    expect(since2005.startsWith('v2|')).toBe(false);
   });
 
   it('parses month ranges, a single year, and since a year', () => {

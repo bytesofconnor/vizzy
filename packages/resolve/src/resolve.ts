@@ -200,17 +200,22 @@ function wantsCountryPanel(asked: string): boolean {
 }
 
 export function seriesCacheKey(family: string, seriesId: string, asked: string): string {
-  const version = 'v2';
-  if (family !== 'worldbank') {
-    return `${version}|${family}|${seriesId}`;
-  }
   const panel = wantsCountryPanel(asked);
   const span = yearSpanFromAsked(asked);
   const places = [...placesInAsked(asked)].sort().join(',');
   const top = panel ? '' : String(topCountFromAsked(asked) ?? '');
-  const since = panel ? String(span.since ?? '') : '';
-  const until = panel ? String(span.until ?? '') : '';
-  return `${version}|${family}|${seriesId}|${panel ? 'panel' : 'snapshot'}|${since}|${until}|${places}|${top}`;
+  return [
+    'v3',
+    family,
+    seriesId,
+    panel ? 'panel' : 'snapshot',
+    span.since ?? '',
+    span.until ?? '',
+    span.sinceMonth ?? '',
+    span.untilMonth ?? '',
+    places,
+    top,
+  ].join('|');
 }
 
 function keepPanel(rows: SeriesRow[], asked: string): LoadedRecipe {
@@ -276,6 +281,7 @@ export async function fetchMatched(
     xLabel: loaded.panel ? 'Year' : recipe.xLabel,
     yLabel: recipe.yLabel,
     rows: loaded.rows,
+    ...(loaded.snapshotYear ? { snapshotYear: loaded.snapshotYear } : {}),
     ...(loaded.truncatedTo ? { truncatedTo: loaded.truncatedTo } : {}),
   };
 }
