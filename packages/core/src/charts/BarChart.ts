@@ -337,6 +337,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .merge(labels);
 
     const horizontal = chartConfig.orientation === 'horizontal';
+    const unitLabel = horizontal ? frame.axes.x.label : frame.axes.y.label;
     merged
       .attr('x', (d) => {
         if (!horizontal) {
@@ -350,21 +351,23 @@ export class BarChart<TData extends DataPoint = DataPoint> {
           const box = this._barBox(d);
           return box.y + box.height / 2;
         }
+        const top = this._scaleManager.getYValue(d[dataMapping.y]);
         const height = this._barHeight(d[dataMapping.y]);
         if (height < 12) {
-          return this._scaleManager.getYValue(d[dataMapping.y]) - 4;
+          const floor = this._plotFloor();
+          return top <= floor ? top - 12 : top + height + 12;
         }
-        return this._scaleManager.getYValue(d[dataMapping.y]) - 6;
+        return top - 6;
       })
       .attr('text-anchor', horizontal ? 'start' : 'middle')
       .attr('dominant-baseline', horizontal ? 'middle' : 'auto')
       .style('fill', colors.text)
-      .style('opacity', (d) => (horizontal || this._barHeight(d[dataMapping.y]) >= 12 ? 0.92 : 0))
+      .style('opacity', 0.92)
       .style('font-size', '11px')
       .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
       .style('pointer-events', 'none')
       .call((sel) => paintHalo(sel, colors.background))
-      .text((d) => formatDataValue(Number(d[dataMapping.y]), domain));
+      .text((d) => formatDataValue(Number(d[dataMapping.y]), domain, unitLabel));
   }
 
   private _drawBaseline(
@@ -477,7 +480,11 @@ export class BarChart<TData extends DataPoint = DataPoint> {
         title: String(item.row[dataMapping.x] ?? ''),
         value:
           item.speak.mark === 'solid'
-            ? formatTipNumber(item.row[dataMapping.y], domain)
+            ? formatTipNumber(
+              item.row[dataMapping.y],
+              domain,
+              this._horizontal() ? frame.axes.x.label : frame.axes.y.label
+            )
             : item.speak.tip,
         series: groupField ? seriesTipLabel(item.row[groupField]) : undefined,
       }));

@@ -611,7 +611,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       .attr('dominant-baseline', placement.dominantBaseline)
       .attr('fill', colors.text)
       .call((sel) => this._styleValueLabel(sel))
-      .text(formatDataValue(Number(beat[dataMapping.y]), domain));
+      .text(formatDataValue(Number(beat[dataMapping.y]), domain, this._config.axes.y.label));
   }
 
   private _styleValueLabel(
@@ -693,7 +693,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       .attr('dominant-baseline', placement.dominantBaseline)
       .attr('fill', this._config.colors.text)
       .call((sel) => this._styleValueLabel(sel))
-      .text(formatDataValue(Number(last[dataMapping.y]), domain));
+      .text(formatDataValue(Number(last[dataMapping.y]), domain, this._config.axes.y.label));
   }
 
   private _getCurveFunction(curveType: string): d3.CurveFactory {
@@ -751,7 +751,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       }
       const tip = () => ({
         title: String(d[dataMapping.x] ?? ''),
-        value: formatTipNumber(d[dataMapping.y], domain),
+        value: formatTipNumber(d[dataMapping.y], domain, this._config.axes.y.label),
         series: seriesField ? seriesTipLabel(d[seriesField]) : undefined,
       });
       bindChartTip(host, pointHitTarget(node), tip);

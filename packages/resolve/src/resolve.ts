@@ -321,28 +321,23 @@ function scatterJoin(xPart: ComparedPart, yPart: ComparedPart): SeriesRow[] {
     rows.push({ x: String(row.y), y, series: String(row.x) });
   }
   rows.sort((a, b) => Number(a.x) - Number(b.x) || String(a.series).localeCompare(String(b.series)));
-  return capPoints(rows, 80);
+  return rows;
 }
 
-function capPoints(rows: SeriesRow[], max: number): SeriesRow[] {
-  if (rows.length <= max) {
-    return rows;
+function isGdpPerPerson(label: string): boolean {
+  return /gdp per capita|gdp per person|usd per person/i.test(label);
+}
+
+function isLifeYears(label: string): boolean {
+  const text = label.trim();
+  return /^years$/i.test(text) || /life expectancy/i.test(text);
+}
+
+function scatterAxes(xPart: ComparedPart, yPart: ComparedPart): { x: ComparedPart; y: ComparedPart } {
+  if (isLifeYears(xPart.axisLabel) && isGdpPerPerson(yPart.axisLabel)) {
+    return { x: yPart, y: xPart };
   }
-  const last = max - 1;
-  const out: SeriesRow[] = [];
-  const seen = new Set<number>();
-  for (let index = 0; index <= last; index += 1) {
-    const at = Math.round((index * (rows.length - 1)) / last);
-    if (seen.has(at)) {
-      continue;
-    }
-    seen.add(at);
-    const row = rows[at];
-    if (row) {
-      out.push(row);
-    }
-  }
-  return out;
+  return { x: xPart, y: yPart };
 }
 
 function lineAxis(parts: readonly ComparedPart[], key: 'x' | 'y'): string {
@@ -432,7 +427,8 @@ async function resolveComparison(
   }
   const xRows = windowSpan(first.rows, span);
   const yRows = windowSpan(second.rows, span);
-  const rows = scatterJoin({ ...first, rows: xRows }, { ...second, rows: yRows });
+  const oriented = scatterAxes({ ...first, rows: xRows }, { ...second, rows: yRows });
+  const rows = scatterJoin(oriented.x, oriented.y);
   if (rows.length < 2) {
     const kept = rowsForAsked(first.rows, asked, now);
     if (kept.length < 2) {
@@ -458,8 +454,8 @@ async function resolveComparison(
     sourceUrl: first.recipe.sourceUrl,
     method: 'official',
     retrieved: now,
-    xLabel: first.axisLabel,
-    yLabel: second.axisLabel,
+    xLabel: oriented.x.axisLabel,
+    yLabel: oriented.y.axisLabel,
     rows,
     chartType: 'scatter',
   };

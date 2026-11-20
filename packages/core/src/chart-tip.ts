@@ -16,12 +16,12 @@ export function chartTipText(content: ChartTipContent): string {
   return `${content.title}: ${content.value}`;
 }
 
-export function formatTipNumber(value: unknown, domain: [number, number]): string {
+export function formatTipNumber(value: unknown, domain: [number, number], unitLabel?: string): string {
   const n = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(n)) {
     return String(value ?? '');
   }
-  return formatDataValue(n, domain);
+  return formatDataValue(n, domain, unitLabel);
 }
 
 export function seriesTipLabel(value: unknown): string | undefined {

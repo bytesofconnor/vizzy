@@ -2,6 +2,8 @@ import * as d3 from 'd3';
 // Bundlers drop d3's side-effect re-export, so selection.transition is missing until this import.
 import 'd3-transition';
 import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '../chart-tip';
+import { paintHalo } from '../halo';
+import { notableScatterNames } from '../scatter-labels';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
@@ -52,6 +54,7 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
       // Render chart components
       await this._renderEngine.renderGrid();
       await this._renderPoints(context);
+      this._renderPointLabels(context);
       
       // Render trend line if enabled
       const chartConfig = this._config.chart as any;
@@ -95,7 +98,7 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
 
     // Bind data to points
     const points = (pointsGroup as any).selectAll('.point')
-      .data(this._processedData.processed, (d: any) => `${d[config.dataMapping.x]}-${d[config.dataMapping.y]}`);
+      .data(this._plotRows(), (d: any) => `${d[config.dataMapping.x]}-${d[config.dataMapping.y]}`);
 
     // Remove old points
     points.exit()
@@ -149,6 +152,63 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
     if (config.accessibility.enabled) {
       this._addAccessibilityAttributes(pointsUpdate);
     }
+  }
+
+  private _renderPointLabels(context: RenderContext): void {
+    if (!context.svg || !this._processedData) {
+      return;
+    }
+    const { svg, config } = context;
+    const { margin } = config.dimensions;
+    const { dataMapping } = config;
+    const logX = this._logX();
+    const points = this._processedData.processed.flatMap((row) => {
+      const name = String(row.series ?? row.label ?? '').trim();
+      const x = Number(row[dataMapping.x]);
+      const y = Number(row[dataMapping.y]);
+      if (!name || !Number.isFinite(x) || !Number.isFinite(y) || (logX && x <= 0)) {
+        return [];
+      }
+      return [{ name, x, y }];
+    });
+    const names = new Set(notableScatterNames(points));
+    const labeled = points.filter((point) => names.has(point.name));
+    const group = svg.select('.point-labels').empty()
+      ? svg.append('g').attr('class', 'point-labels')
+      : svg.select('.point-labels');
+    group.attr('transform', `translate(${margin.left}, ${margin.top})`);
+    const xRange = (this._scaleManager.getScales()?.x.range() as [number, number] | undefined) ?? [0, 1];
+    const plotRight = Math.max(xRange[0], xRange[1]);
+    group.selectAll<SVGTextElement, { name: string; x: number; y: number }>('.point-label')
+      .data(labeled, (point) => point.name)
+      .join('text')
+      .attr('class', 'point-label')
+      .attr('x', (point) => {
+        const px = this._scaleManager.getXValue(point.x);
+        return px > plotRight * 0.72 ? px - 8 : px + 8;
+      })
+      .attr('y', (point) => this._scaleManager.getYValue(point.y) - 8)
+      .attr('text-anchor', (point) => (this._scaleManager.getXValue(point.x) > plotRight * 0.72 ? 'end' : 'start'))
+      .attr('fill', config.colors.text)
+      .style('font-size', '11px')
+      .style('font-family', 'var(--font-sans), Archivo, Helvetica, sans-serif')
+      .style('pointer-events', 'none')
+      .text((point) => point.name);
+    paintHalo(group.selectAll('.point-label'), config.colors.background);
+  }
+
+  private _logX(): boolean {
+    const scale = this._scaleManager?.getScales()?.x as { base?: () => number } | undefined;
+    return typeof scale?.base === 'function';
+  }
+
+  private _plotRows(): TData[] {
+    const rows = this._processedData?.processed ?? [];
+    if (!this._logX()) {
+      return rows;
+    }
+    const field = this._config.dataMapping.x;
+    return rows.filter((row) => Number(row[field]) > 0);
   }
 
   private async _renderTrendLine(context: RenderContext): Promise<void> {
@@ -299,7 +359,7 @@ export class ScatterPlot<TData extends DataPoint = DataPoint> {
       }
       const tip = () => ({
         title: String(d[dataMapping.x] ?? ''),
-        value: formatTipNumber(d[dataMapping.y], domain),
+        value: formatTipNumber(d[dataMapping.y], domain, this._config.axes.y.label),
         series: seriesField ? seriesTipLabel(d[seriesField]) : undefined,
       });
       bindChartTip(host, pointHitTarget(node), tip);

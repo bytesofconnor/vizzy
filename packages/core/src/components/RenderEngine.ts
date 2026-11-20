@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 // Bundlers drop d3's side-effect re-export, so selection.transition is missing until this import.
 import 'd3-transition';
-import { formatDataValue, plainScripts } from '../format';
+import { axisLabelWithoutScale, formatDataValue, plainScripts } from '../format';
 import {
   compactAxisLabel,
   evenDatedTickKeep,
@@ -13,6 +13,7 @@ import {
   ticksFit,
   wrapCategoryLines,
   xTickRotate,
+  yAxisGutter,
   type XTickRotate,
 } from '../layout';
 import { ChartConfig, RenderStrategy, VizzyError } from '../types';
@@ -128,7 +129,7 @@ export class RenderEngine {
       const xAxis = d3.axisBottom(scales.x as any).tickSize(0).tickPadding(xIsBand ? 14 : 8);
       if (!xIsBand) {
         const domain = (scales.x.domain() as [number, number]);
-        xAxis.tickFormat((value) => formatDataValue(Number(value), domain));
+        xAxis.tickFormat((value) => formatDataValue(Number(value), domain, config.axes.x.label));
       }
 
       if (config.axes.x.tickCount && xIsBand) {
@@ -172,7 +173,7 @@ export class RenderEngine {
           .style('font-size', '11px')
           .style('letter-spacing', '0.06em')
           .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
-          .text(paintAxisLabel(config.axes.x.label));
+          .text(paintAxisLabel(axisLabelWithoutScale(config.axes.x.label)));
       }
     }
 
@@ -184,7 +185,7 @@ export class RenderEngine {
         .tickPadding(8);
       if (!yIsBand) {
         yAxis.tickFormat((value: d3.NumberValue) =>
-          formatDataValue(Number(value), scales.y.domain() as [number, number])
+          formatDataValue(Number(value), scales.y.domain() as [number, number], config.axes.y.label)
         );
       }
       if (config.axes.y.tickCount && !yIsBand) {
@@ -225,17 +226,23 @@ export class RenderEngine {
           yLabel = yAxisGroup.append('text').attr('class', 'axis-label');
         }
 
+        const yScale = scales.y as d3.ScaleLinear<number, number>;
+        const yTicks = config.axes.y.tickCount ? yScale.ticks(config.axes.y.tickCount) : yScale.ticks();
+        const yLabels = yTicks.map((tick) =>
+          formatDataValue(Number(tick), yScale.domain() as [number, number], config.axes.y.label)
+        );
+        const gutter = yAxisGutter(yLabels, true);
         yLabel
           .attr('transform', 'rotate(-90)')
           .attr('x', -dimensions.innerHeight / 2)
-          .attr('y', -48)
+          .attr('y', gutter.titleY)
           .attr('text-anchor', 'middle')
           .style('fill', config.colors.text)
           .style('opacity', 0.62)
           .style('font-size', '11px')
           .style('letter-spacing', '0.06em')
           .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
-          .text(paintAxisLabel(config.axes.y.label));
+          .text(paintAxisLabel(axisLabelWithoutScale(config.axes.y.label)));
       }
     }
   }
@@ -341,12 +348,16 @@ export class RenderEngine {
 
       // Y Axis Label
       if (config.axes.y.label) {
+        const labels = ticks.map((value) =>
+          formatDataValue(value, linearScale.domain() as [number, number], config.axes.y.label)
+        );
+        const gutter = yAxisGutter(labels, true);
         context.save();
-        context.translate(x - 40, margin.top + dimensions.innerHeight / 2);
+        context.translate(x + gutter.titleY, margin.top + dimensions.innerHeight / 2);
         context.rotate(-Math.PI / 2);
         context.textAlign = 'center';
-        context.font = '14px sans-serif';
-        context.fillText(config.axes.y.label, 0, 0);
+        context.font = '11px "IBM Plex Mono", monospace';
+        context.fillText(axisLabelWithoutScale(config.axes.y.label), 0, 0);
         context.restore();
       }
     }

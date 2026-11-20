@@ -341,6 +341,71 @@ export function rotatedTickDepth(longest: number, rotate: XTickRotate): number {
   return 24 + longest * 7.4 * Math.sin(radians) + 18;
 }
 
+/** Archivo Regular advances at 12px, measured from the font file. */
+const ARCHIVO_12: Record<string, number> = {
+  '0': 6.88,
+  '1': 6.25,
+  '2': 6.8,
+  '3': 6.88,
+  '4': 6.66,
+  '5': 6.85,
+  '6': 6.88,
+  '7': 6.64,
+  '8': 6.89,
+  '9': 6.88,
+  ',': 3.32,
+  '.': 3.32,
+  '$': 6.12,
+  ' ': 2.51,
+  '-': 4,
+  M: 10.16,
+  B: 8.38,
+  T: 7.27,
+  k: 6.17,
+  '%': 11.4,
+  '+': 7.5,
+  '(': 4.26,
+  ')': 4.26,
+};
+
+const UNKNOWN_ARCHIVO = 7.4;
+
+export function archivoWidth(text: string, fontSize = 12): number {
+  const scale = fontSize / 12;
+  let width = 0;
+  for (const ch of text.replace(/\u00A0/g, ' ')) {
+    width += (ARCHIVO_12[ch] ?? UNKNOWN_ARCHIVO) * scale;
+  }
+  return width;
+}
+
+export function numericTickLabel(label: string): boolean {
+  const bare = label.replace(/[$,]/g, '').replace(/[kMBT]$/, '');
+  return bare.length > 0 && Number.isFinite(Number(bare));
+}
+
+/** IBM Plex Mono 11px hhea metrics. The rotated title is this thick. */
+export const Y_TITLE_ASCENT = 11.27;
+export const Y_TITLE_DESCENT = 3.02;
+const Y_TICK_PAD = 8;
+const Y_TITLE_GAP = 8;
+const Y_OUTER_PAD = 8;
+
+export function yAxisGutter(
+  tickLabels: string[],
+  hasTitle: boolean
+): { left: number; titleY: number } {
+  const labels = tickLabels.filter(numericTickLabel);
+  const widest = labels.reduce((max, label) => Math.max(max, archivoWidth(label, 12)), 0);
+  const tickLeft = -(Y_TICK_PAD + widest);
+  if (!hasTitle) {
+    return { left: Math.ceil(-tickLeft + Y_OUTER_PAD), titleY: 0 };
+  }
+  const titleY = tickLeft - Y_TITLE_GAP - Y_TITLE_DESCENT;
+  const titleLeft = titleY - Y_TITLE_ASCENT;
+  return { left: Math.ceil(-titleLeft + Y_OUTER_PAD), titleY };
+}
+
 export function xAxisRoom(
   names: string[],
   options: { hasTitle?: boolean; innerWidth?: number } = {}
