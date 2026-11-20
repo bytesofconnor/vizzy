@@ -47,6 +47,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm install
+      - name: Typecheck Convex functions
+        run: npx tsc -p convex --noEmit
       - run: npx turbo run build --filter=@vizzy/core --filter=@vizzy/resolve --filter=@vizzy/react
       - run: npm test --workspace=@vizzy/core --workspace=@vizzy/react --workspace=@vizzy/mcp --workspace=@vizzy/resolve --workspace=@vizzy/eval --workspace=@vizzy/share --if-present
       - name: Production build for the share app
