@@ -9,6 +9,8 @@ import { chartDrawnWords, spellTitleFromResolved } from './title-spelling';
 import { studioChart } from './theme';
 
 const FAMILY_KICKER: Record<ResolvedSeries['family'], string> = {
+  eia: 'EIA',
+  eurostat: 'Eurostat',
   noaa: 'NOAA',
   usgs: 'USGS',
   fred: 'FRED',

@@ -28,7 +28,24 @@ export function sourceHost(url?: string): string | undefined {
   }
 }
 
+const COMPILATION_HOST: ReadonlyArray<{ host: RegExp; label: string }> = [
+  { host: /(^|\.)cia\.gov$/i, label: 'CIA World Factbook (compilation)' },
+  { host: /(^|\.)data\.pispace\.eu$/i, label: 'PiSpace mirror' },
+];
+
+function compilationLabel(url: string | undefined): string | undefined {
+  const host = sourceHost(url);
+  if (!host) {
+    return undefined;
+  }
+  return COMPILATION_HOST.find((item) => item.host.test(host))?.label;
+}
+
 export function sourceLabelFor(url: string | undefined, drafted: string): string {
+  const compiled = compilationLabel(url);
+  if (compiled) {
+    return compiled;
+  }
   const cleaned = cleanSourceLabel(drafted);
   if (!url) {
     return cleaned;
@@ -54,7 +71,7 @@ export function sourceMethodFor(
   if (!url) {
     return method;
   }
-  if (url.includes('wikipedia.org') && method === 'official') {
+  if ((url.includes('wikipedia.org') || compilationLabel(url)) && method === 'official') {
     return 'scraped';
   }
   return method;
