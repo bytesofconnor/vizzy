@@ -18,7 +18,7 @@ import { parseWorldBank, worldBankUrl } from './parse/worldbank';
 import type { HttpGet, Recipe, ResolvedSeries, SeriesRow } from './types';
 import { downsample, isTimedRows, rowCap, windowSpan } from './window';
 
-type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string; truncatedTo?: number };
+type LoadedRecipe = { rows: SeriesRow[]; snapshotYear?: string; truncatedTo?: number; panel?: boolean };
 
 const RANK_CAP = 15;
 
@@ -38,7 +38,12 @@ function capRanking(rows: SeriesRow[], asked?: string): { rows: SeriesRow[]; tru
   return { rows: rows.slice(0, cap), truncatedTo: cap };
 }
 
-async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise<LoadedRecipe> {
+async function loadRecipe(
+  recipe: Recipe,
+  get: HttpGet,
+  asked?: string,
+  rank: 'asked' | 'all' = 'asked'
+): Promise<LoadedRecipe> {
   if (recipe.family === 'fred') {
     if (recipe.seriesId === 'state_unemployment') {
       const files = await Promise.all(stateUnemploymentUrls().map((url) => get(url)));
@@ -67,14 +72,26 @@ async function loadRecipe(recipe: Recipe, get: HttpGet, asked?: string): Promise
       return { rows: [] };
     }
     const parsed = parseOwidCsv(await get(owidCsvUrl(spec.slug)), spec);
-    return spec.rank ? capRanking(parsed, asked) : { rows: parsed };
+    return spec.rank && rank !== 'all' ? capRanking(parsed, asked) : { rows: parsed };
   }
   if (recipe.family === 'usgs') {
     return { rows: parseUsgsGeojson(await get(USGS_M8_URL)) };
   }
   if (recipe.family === 'worldbank') {
     const take = recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high';
-    const ranked = parseWorldBank(await get(worldBankUrl(recipe.seriesId)), take);
+    const panel = Boolean(asked && wantsCountryPanel(asked));
+    const span = asked ? yearSpanFromAsked(asked) : {};
+    const ranked = parseWorldBank(
+      await get(worldBankUrl(recipe.seriesId, panel ? span : undefined)),
+      take,
+      panel ? 'panel' : 'snapshot'
+    );
+    if (panel && asked) {
+      return keepPanel(ranked, asked);
+    }
+    if (rank === 'all') {
+      return { rows: ranked };
+    }
     return preferAskedCountries(ranked, asked);
   }
   const spec = WIKI_SPEC[recipe.seriesId];
@@ -145,6 +162,24 @@ function yearOverYear(rows: SeriesRow[]): SeriesRow[] {
   return out;
 }
 
+function wantsCountryPanel(asked: string): boolean {
+  if (placesInAsked(asked).length < 2) {
+    return false;
+  }
+  const span = yearSpanFromAsked(asked);
+  return span.since !== undefined || span.until !== undefined;
+}
+
+function keepPanel(rows: SeriesRow[], asked: string): LoadedRecipe {
+  const wanted = placesInAsked(asked);
+  const picked = rows.filter((row) => wanted.some((entity) => labelIsPlace(row.series ?? '', entity)));
+  const covered = wanted.filter((entity) => picked.some((row) => labelIsPlace(row.series ?? '', entity)));
+  if (covered.length !== wanted.length) {
+    return { rows: [] };
+  }
+  return { rows: picked, panel: true };
+}
+
 function preferAskedCountries(rows: SeriesRow[], asked?: string): { rows: SeriesRow[]; truncatedTo?: number } {
   const wanted = asked ? placesInAsked(asked) : [];
   if (wanted.length > 0) {
@@ -194,7 +229,7 @@ export async function fetchMatched(
     sourceUrl: recipe.sourceUrl,
     method: 'official',
     retrieved: options.now ?? Date.now(),
-    xLabel: recipe.xLabel,
+    xLabel: loaded.panel ? 'Year' : recipe.xLabel,
     yLabel: recipe.yLabel,
     rows: loaded.rows,
     ...(loaded.truncatedTo ? { truncatedTo: loaded.truncatedTo } : {}),
@@ -213,6 +248,100 @@ function comparedName(seriesId: string, asRate: boolean, yLabel: string): string
   return yLabel;
 }
 
+type ComparedPart = {
+  recipe: Recipe;
+  rows: SeriesRow[];
+  axisLabel: string;
+  seriesName: string;
+};
+
+function unitFamily(label: string): string {
+  const text = label.toLowerCase();
+  if (/%|percent|\brate\b|\bshare\b|inflation|yield/.test(text)) {
+    return 'percent';
+  }
+  if (/\$|usd|dollar|per person|per capita|million/.test(text)) {
+    return 'money';
+  }
+  if (/\byears?\b/.test(text)) {
+    return 'years';
+  }
+  if (/\bindex\b/.test(text)) {
+    return 'index';
+  }
+  return text;
+}
+
+function comparisonSource(parts: readonly ComparedPart[]): string {
+  const families = new Set(parts.map((part) => part.recipe.family));
+  const first = parts[0];
+  if (families.size === 1 && first?.recipe.family === 'fred') {
+    return `FRED — ${parts.map((part) => part.seriesName).join(' and ')}`;
+  }
+  return parts.map((part) => part.recipe.sourceLabel).join('; ');
+}
+
+function sharedLine(parts: readonly ComparedPart[]): SeriesRow[] {
+  const shared = new Set(
+    (parts[0]?.rows ?? [])
+      .map((row) => row.x)
+      .filter((x) => parts.every((part) => part.rows.some((row) => row.x === x)))
+  );
+  const rows = parts.flatMap((part) =>
+    part.rows
+      .filter((row) => shared.has(row.x))
+      .map((row) => ({ ...row, series: part.seriesName }))
+  );
+  rows.sort((a, b) => String(a.x).localeCompare(String(b.x)) || String(a.series).localeCompare(String(b.series)));
+  return rows;
+}
+
+function scatterJoin(xPart: ComparedPart, yPart: ComparedPart): SeriesRow[] {
+  const yByKey = new Map(yPart.rows.map((row) => [String(row.x), row.y]));
+  const rows: SeriesRow[] = [];
+  for (const row of xPart.rows) {
+    const y = yByKey.get(String(row.x));
+    if (y === undefined) {
+      continue;
+    }
+    rows.push({ x: String(row.y), y, series: String(row.x) });
+  }
+  rows.sort((a, b) => Number(a.x) - Number(b.x) || String(a.series).localeCompare(String(b.series)));
+  return capPoints(rows, 80);
+}
+
+function capPoints(rows: SeriesRow[], max: number): SeriesRow[] {
+  if (rows.length <= max) {
+    return rows;
+  }
+  const last = max - 1;
+  const out: SeriesRow[] = [];
+  const seen = new Set<number>();
+  for (let index = 0; index <= last; index += 1) {
+    const at = Math.round((index * (rows.length - 1)) / last);
+    if (seen.has(at)) {
+      continue;
+    }
+    seen.add(at);
+    const row = rows[at];
+    if (row) {
+      out.push(row);
+    }
+  }
+  return out;
+}
+
+function lineAxis(parts: readonly ComparedPart[], key: 'x' | 'y'): string {
+  if (key === 'x') {
+    return parts[0]?.recipe.xLabel ?? 'Time';
+  }
+  const labels = parts.map((part) => part.axisLabel);
+  if (labels.every((label) => unitFamily(label) === 'percent')) {
+    return 'Percent';
+  }
+  return labels[0] ?? 'Value';
+}
+
 async function resolveComparison(
   recipes: readonly Recipe[],
   asked: string,
@@ -220,46 +349,124 @@ async function resolveComparison(
 ): Promise<ResolvedSeries | null> {
   const now = options.now ?? Date.now();
   const get = options.get ?? defaultGet;
-  const parts: Array<{ recipe: Recipe; rows: SeriesRow[] }> = [];
+  const span = yearSpanFromAsked(asked, now);
+  const parts: ComparedPart[] = [];
+  const missed: string[] = [];
   for (const recipe of recipes) {
-    const loaded = await loadRecipe(recipe, get, asked);
-    if (loaded.rows.length < 2) {
-      return null;
-    }
+    const loaded = await loadRecipe(recipe, get, asked, 'all');
     const asRate = INDEX_TO_RATE.has(recipe.seriesId);
-    const base = asRate ? yearOverYear(loaded.rows) : loaded.rows;
-    const rows = rowsForAsked(base, asked, now).map((row) => ({
-      ...row,
-      series: comparedName(recipe.seriesId, asRate, recipe.yLabel),
-    }));
+    const rows = asRate ? yearOverYear(loaded.rows) : loaded.rows;
+    if (rows.length < 2) {
+      missed.push(recipe.yLabel);
+      continue;
+    }
+    parts.push({
+      recipe,
+      rows,
+      axisLabel: asRate ? 'Inflation %' : recipe.yLabel,
+      seriesName: comparedName(recipe.seriesId, asRate, recipe.yLabel),
+    });
+  }
+  const first = parts[0];
+  if (!first) {
+    return null;
+  }
+  if (parts.length === 1) {
+    const rows = rowsForAsked(first.rows, asked, now);
     if (rows.length < 2) {
       return null;
     }
-    parts.push({ recipe, rows });
+    return {
+      family: first.recipe.family,
+      seriesId: first.recipe.seriesId,
+      sourceLabel: first.recipe.sourceLabel,
+      sourceUrl: first.recipe.sourceUrl,
+      method: 'official',
+      retrieved: now,
+      xLabel: first.recipe.xLabel,
+      yLabel: first.axisLabel,
+      rows,
+      ...(missed.length > 0 ? { missingSeries: missed.join(', ') } : {}),
+    };
   }
-  const shared = new Set(
-    (parts[0]?.rows ?? [])
-      .map((row) => row.x)
-      .filter((x) => parts.every((part) => part.rows.some((row) => row.x === x)))
-  );
-  const rows = parts.flatMap((part) => part.rows.filter((row) => shared.has(row.x)));
-  rows.sort((a, b) => String(a.x).localeCompare(String(b.x)) || String(a.series).localeCompare(String(b.series)));
-  const first = parts[0];
-  if (!first || rows.length < 2) {
+  const second = parts[1];
+  if (!second) {
     return null;
   }
-  const names = parts.map((part) => part.rows[0]?.series).filter((name): name is string => Boolean(name));
+  const sameUnit = unitFamily(first.axisLabel) === unitFamily(second.axisLabel);
+  if (sameUnit) {
+    const aligned = parts.map((part) => ({
+      ...part,
+      rows: rowsForAsked(part.rows, asked, now),
+    }));
+    const rows = sharedLine(aligned);
+    if (rows.length < 2) {
+      return null;
+    }
+    return {
+      family: first.recipe.family,
+      seriesId: parts.map((part) => part.recipe.seriesId).join('+'),
+      sourceLabel: comparisonSource(parts),
+      sourceUrl: first.recipe.sourceUrl,
+      method: 'official',
+      retrieved: now,
+      xLabel: lineAxis(parts, 'x'),
+      yLabel: lineAxis(parts, 'y'),
+      rows,
+      chartType: 'line',
+    };
+  }
+  const xRows = windowSpan(first.rows, span);
+  const yRows = windowSpan(second.rows, span);
+  const rows = scatterJoin({ ...first, rows: xRows }, { ...second, rows: yRows });
+  if (rows.length < 2) {
+    const kept = rowsForAsked(first.rows, asked, now);
+    if (kept.length < 2) {
+      return null;
+    }
+    return {
+      family: first.recipe.family,
+      seriesId: first.recipe.seriesId,
+      sourceLabel: first.recipe.sourceLabel,
+      sourceUrl: first.recipe.sourceUrl,
+      method: 'official',
+      retrieved: now,
+      xLabel: first.recipe.xLabel,
+      yLabel: first.axisLabel,
+      rows: kept,
+      missingSeries: second.seriesName,
+    };
+  }
   return {
     family: first.recipe.family,
     seriesId: parts.map((part) => part.recipe.seriesId).join('+'),
-    sourceLabel: `FRED — ${names.join(' and ')}`,
+    sourceLabel: comparisonSource(parts),
     sourceUrl: first.recipe.sourceUrl,
     method: 'official',
     retrieved: now,
-    xLabel: 'Month',
-    yLabel: 'Percent',
+    xLabel: first.axisLabel,
+    yLabel: second.axisLabel,
     rows,
+    chartType: 'scatter',
   };
+}
+
+const INFLATION_ASK = /\binflat(?:ion|on)\b/i;
+
+export function presentSeries(series: ResolvedSeries, asked: string): ResolvedSeries {
+  if (!INFLATION_ASK.test(asked) || series.rows.some((row) => row.series)) {
+    return series;
+  }
+  const index = INDEX_TO_RATE.has(series.seriesId) || /\b(cpi|price index|index)\b/i.test(series.yLabel);
+  const alreadyRate = /%|percent|\brate\b/i.test(series.yLabel);
+  if (!index || alreadyRate) {
+    return series;
+  }
+  const rows = yearOverYear(series.rows);
+  if (rows.length < 2) {
+    return series;
+  }
+  return { ...series, rows, yLabel: 'YoY %' };
 }
 
 export async function resolvePrompt(
@@ -274,30 +481,12 @@ export async function resolvePrompt(
   if (!full) {
     return null;
   }
-  const rated = inflationFromIndex(asked, full);
-  const rows = rowsForAsked(rated.rows, asked, options.now ?? Date.now());
+  const shown = presentSeries(full, asked);
+  const rows = rowsForAsked(shown.rows, asked, options.now ?? Date.now());
   if (rows.length < 2) {
     return null;
   }
-  return { ...rated, rows };
-}
-
-const INFLATION_ASK = /\binflat(?:ion|on)\b/i;
-
-function inflationFromIndex(asked: string, series: ResolvedSeries): ResolvedSeries {
-  if (!INFLATION_ASK.test(asked) || series.rows.some((row) => row.series)) {
-    return series;
-  }
-  const index = INDEX_TO_RATE.has(series.seriesId) || /\b(cpi|price index|index)\b/i.test(series.yLabel);
-  const alreadyRate = /%|percent|\brate\b/i.test(series.yLabel);
-  if (!index || alreadyRate) {
-    return series;
-  }
-  const rates = yearOverYear(series.rows);
-  if (rates.length < 2) {
-    return series;
-  }
-  return { ...series, rows: rates, yLabel: 'YoY %' };
+  return { ...shown, rows };
 }
 
 export function notesFromResolved(series: {

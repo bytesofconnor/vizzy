@@ -78,6 +78,20 @@ function economyAsk(text: string): ClarifyAsk | undefined {
   );
 }
 
+function vagueInflation(text: string): boolean {
+  const stripped = text.replace(/[\p{P}\p{S}]+/gu, ' ').replace(/\s+/g, ' ').trim();
+  return /^(?:the\s+)?inflation(?:\s+rate)?$/i.test(stripped);
+}
+
+function inflationAsk(): ClarifyAsk {
+  return chips(
+    'Which inflation series should the chart use?',
+    { label: 'US CPI', prompt: 'US CPI inflation' },
+    { label: 'Since 2000', prompt: 'US CPI inflation since 2000' },
+    { label: 'Vs fed funds', prompt: 'CPI inflation vs fed funds rate' }
+  );
+}
+
 function vagueHousing(text: string): boolean {
   const stripped = text.replace(/[\p{P}\p{S}]+/gu, ' ').replace(/\s+/g, ' ').trim();
   return /^(?:the\s+)?housing(?:\s+market)?$/i.test(stripped);
@@ -138,6 +152,13 @@ export function decideCompose(input: DecideInput): ComposeDecision {
   }
 
   const seed = input.seed && keepsChartSubject(trimmed) ? input.seed : undefined;
+
+  if (vagueInflation(trimmed)) {
+    if (disposition === 'send') {
+      return mintOrder('US CPI inflation');
+    }
+    return clarifyOrMint(trimmed, undefined, inflationAsk());
+  }
 
   if (vagueHousing(trimmed)) {
     if (disposition === 'send') {

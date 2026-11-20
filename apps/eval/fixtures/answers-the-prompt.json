@@ -1,0 +1,34 @@
+{
+  "id": "answers-the-prompt",
+  "clock": "2026-11-20",
+  "prompts": [
+    {
+      "id": "g7-gdp-since-1990",
+      "text": "G7 GDP per capita since 1990"
+    },
+    {
+      "id": "us-electricity-by-source",
+      "text": "US electricity generation by source"
+    },
+    {
+      "id": "home-price-to-income",
+      "text": "Home price-to-income ratio by metro"
+    },
+    {
+      "id": "life-expectancy-vs-gdp",
+      "text": "Life expectancy vs GDP per capita"
+    },
+    {
+      "id": "inflation",
+      "text": "inflation"
+    },
+    {
+      "id": "debt-and-yield",
+      "text": "Federal debt and 10-year yield"
+    },
+    {
+      "id": "renewables-three-countries",
+      "text": "Renewables share in Germany, France, Spain"
+    }
+  ]
+}

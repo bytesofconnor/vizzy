@@ -54,6 +54,8 @@ export type ResolvedSeries = {
   yLabel: string;
   rows: SeriesRow[];
   truncatedTo?: number;
+  chartType?: 'bar' | 'line' | 'scatter';
+  missingSeries?: string;
 };
 
 export type HttpGet = (url: string) => Promise<string>;

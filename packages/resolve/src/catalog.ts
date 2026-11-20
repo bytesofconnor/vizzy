@@ -163,6 +163,8 @@ export const DATASETS: readonly Dataset[] = [
       'share of renewable electricity',
       'renewable share of electricity',
       'renewable electricity',
+      'renewables share',
+      'renewable share',
     ],
     avoid: ['water', 'freshwater'],
   },
@@ -332,7 +334,9 @@ export const DATASETS: readonly Dataset[] = [
       'inflaton',
       'inflaton rate',
       'cpi inflation',
+      'inflation',
     ],
+    avoid: ['by country', 'countries', 'projected', 'forecast', 'adjusted for', 'film', 'venezuela', 'global', 'world'],
     recentYears: 5,
   },
   {
@@ -409,6 +413,32 @@ export const DATASETS: readonly Dataset[] = [
     yLabel: 'Median sales price ($)',
     topics: ['economy'],
     aliases: ['median home price', 'median house price', 'median sales price of houses'],
+    avoid: ['ratio', 'income', 'to income', 'by metro'],
+  },
+  {
+    family: 'fred',
+    seriesId: 'GFDEBTN',
+    sourceLabel: 'FRED — federal debt',
+    sourceUrl: 'https://fred.stlouisfed.org/series/GFDEBTN',
+    xLabel: 'Quarter',
+    yLabel: 'Federal debt ($ millions)',
+    topics: ['economy'],
+    aliases: ['federal debt', 'public debt', 'national debt'],
+    avoid: ['yield', 'interest', 'mortgage'],
+    place: 'United States',
+  },
+  {
+    family: 'fred',
+    seriesId: 'DGS10',
+    sourceLabel: 'FRED — 10-year treasury yield',
+    sourceUrl: 'https://fred.stlouisfed.org/series/DGS10',
+    xLabel: 'Month',
+    yLabel: '10-year yield %',
+    topics: ['economy'],
+    aliases: ['10-year yield', '10 year yield', 'treasury yield', '10-year treasury'],
+    avoid: ['mortgage', 'fed funds', 'debt'],
+    place: 'United States',
+    monthlyClose: true,
   },
   {
     family: 'fred',
@@ -851,11 +881,11 @@ export function matchPrompt(asked: string): Recipe | null {
   return top.dataset;
 }
 
-const VERSUS = /\s+(?:vs\.?|versus|against)\s+/i;
+const COMPARED = /\s+(?:vs\.?|versus|against|and)\s+/i;
 
 export function matchAsked(asked: string): Dataset[] {
   const parts = asked
-    .split(VERSUS)
+    .split(COMPARED)
     .map((part) => part.trim())
     .filter((part) => part.length >= 8);
   if (parts.length === 2) {
