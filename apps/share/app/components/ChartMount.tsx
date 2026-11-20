@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { VizzyChart } from '@vizzy/react';
 import { validateChartConfig, xAxisRoom, type ChartConfig, type DataPoint } from '@vizzy/core';
+import { rankedBarsShowValues } from '../../lib/theme';
 
 const LAYOUT_INNER_WIDTH = 560;
 
@@ -38,7 +39,7 @@ export function ChartMount({
     const legendTop = config.legend?.show && config.legend.position === 'top';
     const baseMargin = config.dimensions?.margin ?? {};
     const next = validateChartConfig({
-      ...config,
+      ...rankedBarsShowValues(config),
       colors: {
         ...config.colors,
         grid: config.colors?.grid ?? '#c5c2b9',

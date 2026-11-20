@@ -9,6 +9,7 @@ import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '.
 import { forecastStartIndex } from '../forecast';
 import { contiguousRuns } from '../line-runs';
 import { forecastLabelPlacement, formatDataValue, linePointLabelPlacement } from '../format';
+import { paintHalo } from '../halo';
 
 type LineSeriesOptions = Partial<
   Pick<
@@ -218,7 +219,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     this._drawLinePath(group, `.${forecastMark}`, `line line-forecast ${forecastMark}`, line, forecast, lineColor, chartConfig, true);
     this._labelForecast(group, forecast, lineData.key, line, lineData.values);
 
-    if (chartConfig.showPoints) {
+    const drawPoints = Boolean(chartConfig.showPoints) && lineData.values.length <= 15;
+    if (drawPoints) {
       await this._renderPoints(group, lineData, lineColor, chartConfig, cut);
     }
 
@@ -226,8 +228,9 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     if (inflection) {
       this._renderInflection(group, inflection, lineColor, published);
     }
+    const last = published[published.length - 1];
     const showEndLabel =
-      !inflection &&
+      inflection !== last &&
       cut < 0 &&
       (seriesCount === 1 || !this._config.legend.show);
     this._renderEndCap(
@@ -236,6 +239,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       lineColor,
       chartConfig,
       showEndLabel,
+      chartConfig.showPoints !== false && !drawPoints,
       seriesIndex,
       seriesCount
     );
@@ -614,13 +618,10 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     selection: d3.Selection<d3.BaseType, unknown, d3.BaseType, unknown>
   ): void {
     selection
-      .style('font-size', '10px')
+      .style('font-size', '11px')
       .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
-      .style('opacity', '0.72')
-      .style('paint-order', 'stroke fill')
-      .style('stroke', this._config.colors.background)
-      .style('stroke-width', '3px')
-      .style('stroke-linejoin', 'round');
+      .style('opacity', '0.92')
+      .call((sel) => paintHalo(sel, this._config.colors.background));
   }
 
   private _plotYBounds(): { plotTop: number; plotBottom: number } {
@@ -638,6 +639,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     color: string,
     chartConfig: { pointRadius?: number },
     withLabel: boolean,
+    withDot: boolean,
     seriesIndex: number,
     seriesCount: number
   ): void {
@@ -657,7 +659,9 @@ export class LineChart<TData extends DataPoint = DataPoint> {
 
     const endCap = seriesMark('end-cap', lineData.key);
     const endLabel = seriesMark('end-label', lineData.key);
-    group.selectAll(`.${endCap}`).data([last]).join('circle')
+    const caps = group.selectAll(`.${endCap}`).data(withDot ? [last] : []);
+    caps.exit().remove();
+    caps.join('circle')
       .attr('class', `end-cap ${endCap}`)
       .attr('cx', x)
       .attr('cy', y)
@@ -693,18 +697,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
   }
 
   private _getCurveFunction(curveType: string): d3.CurveFactory {
-    switch (curveType) {
-      case 'linear':
-        return d3.curveLinear;
-      case 'monotone':
-      case 'cardinal':
-      case 'basis':
-        return d3.curveMonotoneX;
-      case 'step':
-        return d3.curveStep;
-      default:
-        return d3.curveMonotoneX;
-    }
+    return curveType === 'step' ? d3.curveStep : d3.curveLinear;
   }
 
   private _addLineInteractions(

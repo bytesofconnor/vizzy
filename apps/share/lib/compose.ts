@@ -24,8 +24,6 @@ type CardSpec = {
   sourceSize: number;
   kickerY: number;
   titleY: number;
-  noteY: number;
-  sourceY: number;
   chart: {
     x: number;
     y: number;
@@ -46,8 +44,6 @@ export const CARDS: Record<CardSize, CardSpec> = {
     sourceSize: 11,
     kickerY: 26,
     titleY: 50,
-    noteY: 404,
-    sourceY: 428,
     chart: {
       x: 16,
       y: 64,
@@ -66,8 +62,6 @@ export const CARDS: Record<CardSize, CardSpec> = {
     sourceSize: 11,
     kickerY: 34,
     titleY: 62,
-    noteY: 528,
-    sourceY: 552,
     chart: {
       x: 20,
       y: 80,
@@ -86,8 +80,6 @@ export const CARDS: Record<CardSize, CardSpec> = {
     sourceSize: 12,
     kickerY: 40,
     titleY: 74,
-    noteY: 656,
-    sourceY: 686,
     chart: {
       x: 52,
       y: 96,
@@ -115,6 +107,67 @@ function escapeXml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/ /g, '\u00A0');
+}
+
+const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+function titleMarkup(value: string, titleSize: number): string {
+  const subSize = Math.max(10, Math.round(titleSize * 0.62));
+  const drop = Math.max(3, Math.round(titleSize * 0.28));
+  const chars = Array.from(value);
+  let html = '';
+  let index = 0;
+  let reset = false;
+  const flush = (text: string) => {
+    if (!text) {
+      return;
+    }
+    if (reset) {
+      html += `<tspan font-size="${titleSize}" dy="-${drop}">${escapeXml(text)}</tspan>`;
+      reset = false;
+      return;
+    }
+    html += escapeXml(text);
+  };
+  while (index < chars.length) {
+    const sub = SUBSCRIPT_DIGITS.indexOf(chars[index] ?? '');
+    const sup = SUPERSCRIPT_DIGITS.indexOf(chars[index] ?? '');
+    if (sub < 0 && sup < 0) {
+      let run = '';
+      while (
+        index < chars.length &&
+        SUBSCRIPT_DIGITS.indexOf(chars[index] ?? '') < 0 &&
+        SUPERSCRIPT_DIGITS.indexOf(chars[index] ?? '') < 0
+      ) {
+        run += chars[index];
+        index += 1;
+      }
+      flush(run);
+      continue;
+    }
+    const table = sub >= 0 ? SUBSCRIPT_DIGITS : SUPERSCRIPT_DIGITS;
+    const shift = sub >= 0 ? drop : -drop;
+    let digits = '';
+    while (index < chars.length && table.indexOf(chars[index] ?? '') >= 0) {
+      digits += String(table.indexOf(chars[index] ?? ''));
+      index += 1;
+    }
+    html += `<tspan font-size="${subSize}" dy="${shift}">${escapeXml(digits)}</tspan>`;
+    reset = true;
+  }
+  return html;
+}
+
+function chartSvgBox(chartSvg: string): { width: number; height: number } {
+  const open = chartSvg.match(/^<svg\b[^>]*>/i)?.[0] ?? '';
+  const width = Number(open.match(/\bwidth="([\d.]+)"/)?.[1] ?? NaN);
+  const height = Number(open.match(/\bheight="([\d.]+)"/)?.[1] ?? NaN);
+  const view = open.match(/\bviewBox="\s*0(?:\.0+)?\s+0(?:\.0+)?\s+([\d.]+)\s+([\d.]+)\s*"/);
+  return {
+    width: Number.isFinite(width) && width > 0 ? width : Number(view?.[1] ?? 1),
+    height: Number.isFinite(height) && height > 0 ? height : Number(view?.[2] ?? 1),
+  };
 }
 
 function innerSvg(chartSvg: string): string {
@@ -167,17 +220,20 @@ export function composePieceSvg(
   options?: { insight?: string }
 ): string {
   const spec = CARDS[size];
-  const frame = chartFrame(size);
+  const box = chartSvgBox(chartSvg);
   const chart = innerSvg(chartSvg);
+  const chartX = spec.chart.x;
+  const chartY = spec.chart.y;
+  const chartWidth = spec.chart.width;
+  const chartHeight = Math.max(120, Math.round((chartWidth * box.height) / Math.max(box.width, 1)));
+  const noteY = chartY + chartHeight + 18;
   const maxChars = size === 'lg' ? 98 : size === 'sm' ? 74 : 90;
   const insightLines = options?.insight ? wrapInsightLines(options.insight, maxChars) : [];
   const insightLineHeight = spec.noteSize + 5;
-  const insightBlockHeight = insightLines.length
-    ? insightLines.length * insightLineHeight + 14
-    : 0;
-  const totalHeight = spec.height + insightBlockHeight;
-  const sourceY = spec.sourceY + insightBlockHeight;
-  const insightStartY = spec.noteY + 18;
+  const insightStartY = noteY + spec.noteSize + 8;
+  const insightBlock = insightLines.length ? insightLines.length * insightLineHeight : 0;
+  const sourceY = insightLines.length ? insightStartY + insightBlock + 10 : noteY + 22;
+  const totalHeight = sourceY + spec.sourceSize + 28;
   const insightMarkup = insightLines
     .map(
       (line, index) =>
@@ -189,11 +245,11 @@ export function composePieceSvg(
 <svg xmlns="http://www.w3.org/2000/svg" width="${spec.width}" height="${totalHeight}" viewBox="0 0 ${spec.width} ${totalHeight}">
   <rect width="100%" height="100%" fill="${STUDIO.paper}"/>
   <text x="${spec.pad}" y="${spec.kickerY}" fill="${STUDIO.mute}" font-size="${spec.kickerSize}" letter-spacing="1.2" font-family="IBM Plex Mono, monospace">${escapeXml(piece.kicker.toUpperCase())}</text>
-  <text x="${spec.pad}" y="${spec.titleY}" fill="${STUDIO.ink}" font-size="${spec.titleSize}" font-family="Archivo, Helvetica, sans-serif">${escapeXml(displayChartTitle(piece.title, piece.note))}</text>
-  <svg x="${spec.chart.x}" y="${spec.chart.y}" width="${spec.chart.width}" height="${spec.chart.height}" viewBox="0 0 ${frame.width} ${frame.height}" preserveAspectRatio="xMidYMid meet">
+  <text x="${spec.pad}" y="${spec.titleY}" fill="${STUDIO.ink}" font-size="${spec.titleSize}" font-family="Archivo, Helvetica, sans-serif">${titleMarkup(displayChartTitle(piece.title, piece.note), spec.titleSize)}</text>
+  <svg x="${chartX}" y="${chartY}" width="${chartWidth}" height="${chartHeight}" viewBox="0 0 ${box.width} ${box.height}" preserveAspectRatio="xMidYMid meet">
     ${chart}
   </svg>
-  <text x="${spec.pad}" y="${spec.noteY}" fill="${STUDIO.mute}" font-size="${spec.noteSize}" font-family="IBM Plex Mono, monospace">${escapeXml(piece.note)}</text>
+  <text x="${spec.pad}" y="${noteY}" fill="${STUDIO.mute}" font-size="${spec.noteSize}" font-family="IBM Plex Mono, monospace">${escapeXml(piece.note)}</text>
   ${insightMarkup}
   ${piece.config.source ? `<text x="${spec.pad}" y="${sourceY}" fill="${STUDIO.mute}" font-size="${spec.sourceSize}" font-family="IBM Plex Mono, monospace">${escapeXml(`SOURCE  ${sourceCardLine(piece.config.source)}`)}</text>` : ''}
   ${exportAttributionMarkup(size, spec.width, totalHeight, spec.pad)}

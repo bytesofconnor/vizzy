@@ -5,7 +5,7 @@ import { Resvg } from '@resvg/resvg-js';
 import { renderToSVG, validateChartConfig } from '@vizzy/core';
 import { CARDS, composePieceSvg, chartFrame, type CardSize } from './compose';
 import type { Piece } from './pieces';
-import { STUDIO } from './theme';
+import { rankedBarsShowValues, STUDIO } from './theme';
 
 function fontPath(file: string): string {
   const candidates = [
@@ -65,7 +65,7 @@ export async function renderPiecePng(
 ): Promise<Buffer> {
   const frame = chartFrame(size);
   const config = validateChartConfig({
-    ...piece.config,
+    ...rankedBarsShowValues(piece.config),
     dimensions: {
       ...piece.config.dimensions,
       width: frame.width,
@@ -90,7 +90,7 @@ export async function renderPiecePng(
 /** Plot only, for the social card. The card adds the title and the source. */
 export async function renderChartPng(piece: Piece, width = 1080, height = 400): Promise<Buffer> {
   const config = validateChartConfig({
-    ...piece.config,
+    ...rankedBarsShowValues(piece.config),
     dimensions: {
       ...piece.config.dimensions,
       width,

@@ -1,4 +1,4 @@
-import { ChartConfig, validateChartConfig } from '@vizzy/core';
+import { seriesIsSketch, validateChartConfig, type ChartConfig, type Source } from '@vizzy/core';
 
 export const STUDIO = {
   paper: '#ebe9e3',
@@ -58,6 +58,16 @@ export function printColorScheme() {
   };
 }
 
+export function rankedBarsShowValues(config: ChartConfig): ChartConfig {
+  if (config.chart.type !== 'bar' || seriesIsSketch(config.source) || config.chart.showValues) {
+    return config;
+  }
+  return {
+    ...config,
+    chart: { ...config.chart, showValues: true },
+  };
+}
+
 export function studioChart(
   chart: { type: ChartConfig['chart']['type'] } & Record<string, unknown>,
   mapping: ChartConfig['dataMapping'],
@@ -77,6 +87,7 @@ export function studioChart(
   const xLabel = typeof extraAxes?.x?.label === 'string' ? extraAxes.x.label : undefined;
   const yLabel = typeof extraAxes?.y?.label === 'string' ? extraAxes.y.label : undefined;
   const seriesColor = Boolean(mapping.color && mapping.color !== 'tone');
+  const source = extra.source as Source | undefined;
   const resolvedChart =
     chart.type === 'bar'
       ? {
@@ -85,9 +96,14 @@ export function studioChart(
             typeof (chart as { barPadding?: number }).barPadding === 'number'
               ? (chart as { barPadding?: number }).barPadding
               : 0.32,
-          showValues: (chart as { showValues?: boolean }).showValues ?? true,
+          showValues: seriesIsSketch(source) ? false : true,
         }
-      : chart;
+      : chart.type === 'line'
+        ? {
+            ...chart,
+            curve: (chart as { curve?: string }).curve === 'step' ? 'step' : 'linear',
+          }
+        : chart;
 
   return validateChartConfig({
     schemaVersion: 1,

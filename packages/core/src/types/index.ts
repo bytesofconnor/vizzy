@@ -78,13 +78,13 @@ export const BarChartConfigSchema = z.object({
   barPadding: z.number().min(0).max(1).default(0.1),
   groupPadding: z.number().min(0).max(1).default(0.05),
   cornerRadius: z.number().min(0).default(0),
-  showValues: z.boolean().default(false),
+  showValues: z.boolean().default(true),
 });
 export type BarChartConfig = z.infer<typeof BarChartConfigSchema>;
 
 export const LineChartConfigSchema = z.object({
   type: z.literal('line'),
-  curve: z.enum(['linear', 'monotone', 'cardinal', 'basis', 'step']).default('monotone'),
+  curve: z.enum(['linear', 'monotone', 'cardinal', 'basis', 'step']).default('linear'),
   strokeWidth: z.number().min(0.5).max(10).default(2),
   showPoints: z.boolean().default(true),
   pointRadius: z.number().min(1).max(10).default(4),
