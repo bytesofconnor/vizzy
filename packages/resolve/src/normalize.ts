@@ -36,8 +36,50 @@ export function topCountFromAsked(asked: string): number | undefined {
   return named;
 }
 
-export function yearSpanFromAsked(asked: string, now = Date.now()): { since?: number; until?: number } {
+const MONTH_WORD =
+  'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+
+const MONTH_NUMBER: Record<string, number> = {
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12,
+};
+
+function monthNumber(name: string): number | undefined {
+  return MONTH_NUMBER[name.slice(0, 3).toLowerCase()];
+}
+
+export function yearSpanFromAsked(
+  asked: string,
+  now = Date.now()
+): { since?: number; until?: number; sinceMonth?: number; untilMonth?: number } {
   const folded = foldAsked(asked);
+  const monthRange = folded.match(
+    new RegExp(
+      `\\b(${MONTH_WORD})\\s+((?:1[89]|20)\\d{2})\\s*(?:-|–|—|to|through)\\s*(${MONTH_WORD})\\s+((?:1[89]|20)\\d{2})\\b`
+    )
+  );
+  if (monthRange?.[1] && monthRange[2] && monthRange[3] && monthRange[4]) {
+    const startMonth = monthNumber(monthRange[1]);
+    const endMonth = monthNumber(monthRange[3]);
+    const startYear = Number(monthRange[2]);
+    const endYear = Number(monthRange[4]);
+    if (startMonth && endMonth && startYear >= 1800 && endYear <= 2100) {
+      const forward = startYear < endYear || (startYear === endYear && startMonth <= endMonth);
+      return forward
+        ? { since: startYear, sinceMonth: startMonth, until: endYear, untilMonth: endMonth }
+        : { since: endYear, sinceMonth: endMonth, until: startYear, untilMonth: startMonth };
+    }
+  }
   const range = folded.match(
     /\b((?:1[89]|20)\d{2})\s*(?:-|–|—|to|through)\s*((?:1[89]|20)\d{2})\b/
   );
@@ -53,6 +95,13 @@ export function yearSpanFromAsked(asked: string, now = Date.now()): { since?: nu
   const since = sinceYearFromAsked(asked);
   if (since !== undefined) {
     return { since };
+  }
+  const single = folded.match(/\b(?:in|during|for)\s+((?:1[89]|20)\d{2})\b/);
+  if (single?.[1]) {
+    const year = Number(single[1]);
+    if (year >= 1800 && year <= 2100) {
+      return { since: year, until: year };
+    }
   }
   const relative = folded.match(/\b(?:last|past)\s+(\d{1,2})\s+years?\b/);
   if (relative) {

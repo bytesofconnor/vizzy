@@ -5,6 +5,7 @@ import {
   type Source,
   type ValidationIssue,
 } from '@vizzy/core';
+import { CHART_ROW_CAP } from '@vizzy/resolve';
 import { decodePortableDraft, encodePortableDraft, type PortableDraft } from './portable';
 import type { Piece } from './pieces';
 import { cleanSourceLabel } from './source';
@@ -12,11 +13,12 @@ import { applyPrintGrayscale } from './print-grayscale';
 import { DUST, studioChart } from './theme';
 import { withDrawnSpan } from './year-span';
 
-const MAX_ROWS = 80;
+const MAX_ROWS = CHART_ROW_CAP;
 
 export interface MintInput {
   kicker?: string;
   title?: string;
+  subtitle?: string;
   note?: string;
   config?: unknown;
   data?: unknown;
@@ -96,9 +98,11 @@ export function mintPiece(input: MintInput): MintResult {
     ({ config: studio, data: rows } = applyPrintGrayscale(studio, rows));
   }
 
+  const subtitle = cleanText(input.subtitle, 200);
   const draft: PortableDraft = {
     kicker: cleanText(input.kicker, 80) || 'Chart',
     title: cleanText(title, 160),
+    ...(subtitle ? { subtitle } : {}),
     note: cleanText(note, 280),
     chart: studio.chart,
     mapping: studio.dataMapping,
@@ -144,6 +148,7 @@ function pieceFromDraft(draft: PortableDraft, slug: string): Piece {
     slug,
     kicker: draft.kicker,
     title: draft.title,
+    ...(draft.subtitle ? { subtitle: draft.subtitle } : {}),
     note: draft.note,
     printGrayscale: draft.printGrayscale,
     config,

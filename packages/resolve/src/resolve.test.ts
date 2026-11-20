@@ -902,21 +902,18 @@ describe('dense series for the asked window', () => {
     }
   });
 
-  it('thins a CPI history longer than the chart can hold', async () => {
+  it('keeps both ends of a long CPI inflation history as a rate', async () => {
     const series = await resolvePrompt('inflation rate usa since 1990', {
       get: async () => monthlyFred('CPIAUCSL', '1990-01', '2026-10'),
       now: AS_OF,
     });
     expect(series?.seriesId).toBe('CPIAUCSL');
+    expect(series?.yLabel).toBe('YoY %');
     const rows = series?.rows ?? [];
-    expect(rows).toHaveLength(24);
-    expect(rows[0]?.x.startsWith('1990')).toBe(true);
-    expect(rows.at(-1)?.x.startsWith('2026')).toBe(true);
-    const first = rows[0];
-    const second = rows[1];
-    expect(first && second).toBeTruthy();
-    if (first && second) {
-      expect(monthIndex(second.x) - monthIndex(first.x)).toBeGreaterThan(1);
-    }
+    expect(rows.length).toBeGreaterThan(24);
+    expect(rows.length).toBeLessThanOrEqual(252);
+    expect(String(rows[0]?.x)).toMatch(/^1991/);
+    expect(String(rows.at(-1)?.x)).toMatch(/^2026/);
+    expect(rows.every((row) => Math.abs(row.y) < 30)).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ export interface Piece {
   slug: string;
   kicker: string;
   title: string;
+  subtitle?: string;
   note: string;
   insight?: string;
   printGrayscale?: boolean;

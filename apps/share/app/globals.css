@@ -2940,6 +2940,13 @@ a.compose-hero-submit.is-amber:focus-visible {
   color: var(--ink);
 }
 
+.chart-subtitle {
+  margin: -8px 0 12px;
+  color: var(--mute);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
 .chart-title-link {
   color: inherit;
   text-decoration: none;

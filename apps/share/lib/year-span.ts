@@ -31,6 +31,18 @@ export function spanLabel(span: YearSpan): string {
   return span.first === span.last ? String(span.first) : `${span.first}-${span.last}`;
 }
 
+function namesRange(text: string, span: YearSpan): boolean {
+  if (/\b(?:since|from)\s+(?:1[89]|20)\d{2}\b/i.test(text)) {
+    return true;
+  }
+  const years = [...text.matchAll(/\b((?:1[89]|20)\d{2})\b/g)].map((match) => Number(match[1]));
+  const named = new Set(years);
+  if (span.first === span.last) {
+    return named.has(span.first);
+  }
+  return named.has(span.first) && named.has(span.last);
+}
+
 export function withDrawnSpan(text: string, rows: Array<{ x: string | number }>): string {
   const span = drawnYearSpan(rows);
   if (!span) {
@@ -56,7 +68,7 @@ export function withDrawnSpan(text: string, rows: Array<{ x: string | number }>)
     }
     return full;
   });
-  if (next.includes(label)) {
+  if (next.includes(label) || namesRange(next, span)) {
     return next;
   }
   const trimmed = next.trim();
