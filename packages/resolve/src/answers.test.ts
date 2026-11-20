@@ -58,7 +58,7 @@ function eurostatRen(): string {
   });
 }
 
-function eiaGeneration(): string {
+function eiaGeneration(gasByYear: Array<[string, number]> = []): string {
   const header = 'MSN,YYYYMM,Value,Column_Order,Description,Unit';
   const full: Record<string, number> = {
     ELETPUS: 1000,
@@ -75,12 +75,14 @@ function eiaGeneration(): string {
     OJETPUS: 5,
     HPETPUS: -5,
   };
+  const gas = new Map<string, number>([['2026', 10], ...gasByYear]);
+  const years = [...new Set(['2024', '2025', '2026', ...gasByYear.map(([year]) => year)])].sort();
   const lines = [header];
-  for (const year of ['2024', '2025', '2026']) {
-    const gas = year === '2026' ? 10 : full.NGETPUS;
+  for (const year of years) {
+    const gasValue = gas.get(year) ?? full.NGETPUS;
     const wind = year === '2026' ? 1 : full.WYETPUS;
     for (const [msn, value] of Object.entries(full)) {
-      const shown = msn === 'NGETPUS' ? gas : msn === 'WYETPUS' ? wind : value;
+      const shown = msn === 'NGETPUS' ? gasValue : msn === 'WYETPUS' ? wind : value;
       lines.push(`${msn},${year}13,${shown},1,${msn},Million Kilowatthours`);
     }
   }
@@ -203,6 +205,7 @@ describe('answers the prompt', () => {
     expect(series?.seriesId).toBe('nrg_ind_ren');
     expect(series?.sourceLabel.toLowerCase()).toContain('eurostat');
     expect(series?.rows.map((row) => row.x).sort()).toEqual(['France', 'Germany', 'Spain']);
+    expect(series?.sourceLabel).toMatch(/\b2023\b/);
     const panel = await resolvePrompt('renewables share Germany France Spain since 2005', {
       get: async () => eurostatRen(),
       now: Date.UTC(2026, 10, 20),
@@ -244,6 +247,30 @@ describe('answers the prompt', () => {
     expect(sum).toBeGreaterThanOrEqual(98);
     expect(sum).toBeLessThanOrEqual(102);
     expect(series?.rows[0]?.y).toBeGreaterThanOrEqual(series?.rows[1]?.y ?? 0);
+  });
+
+  it('returns 2023 rows when the prompt asks for 2023', async () => {
+    const asked = 'US electricity generation by source in 2023';
+    const series = await resolvePrompt(asked, {
+      get: async () => eiaGeneration([
+        ['2023', 250],
+        ['2024', 400],
+        ['2025', 400],
+      ]),
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(series?.sourceLabel).toMatch(/\b2023\b/);
+    expect(series?.sourceLabel).not.toMatch(/\b2025\b/);
+    expect(series?.rows.find((row) => row.x === 'Natural gas')?.y).toBe(25);
+  });
+
+  it('does not label a missing EIA year as if that year were plotted', async () => {
+    const series = await resolvePrompt('US electricity generation by source in 2019', {
+      get: async () => eiaGeneration(),
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(series?.sourceLabel).toMatch(/\b2025\b/);
+    expect(series?.sourceLabel).not.toMatch(/\b2019\b/);
   });
 
   it('defaults a bare inflation prompt to US CPI, not a country ranking', async () => {

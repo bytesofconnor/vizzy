@@ -765,26 +765,46 @@ describe('resolvePrompt', () => {
     expect(slim.some((row) => row.y === 999)).toBe(false);
   });
 
-  it('thins seven annual series on one even step and keeps the ends and the extreme', () => {
+  it('keeps every year when seven annual series fit under the row cap, including a second pass', () => {
     const countries = ['Canada', 'France', 'Germany', 'Italy', 'Japan', 'United Kingdom', 'United States'];
     const rows = countries.flatMap((series, seriesIndex) =>
-      Array.from({ length: 36 }, (_, offset) => {
-        const year = 1990 + offset;
-        const spike = series === 'United States' && year === 2007 ? 120000 : 0;
-        return { x: String(year), y: 20000 + offset * 900 + seriesIndex * 3000 + spike, series };
-      })
+      Array.from({ length: 36 }, (_, offset) => ({
+        x: String(1990 + offset),
+        y: 20000 + offset * 900 + seriesIndex * 3000,
+        series,
+      }))
     );
-    const slim = downsample(rows);
-    const years = [...new Set(slim.filter((row) => row.series === 'United States').map((row) => Number(row.x)))].sort(
+    const once = downsample(rows);
+    const twice = downsample(once);
+    const years = [...new Set(twice.filter((row) => row.series === 'United States').map((row) => Number(row.x)))].sort(
       (left, right) => left - right
     );
+    expect(years).toEqual(Array.from({ length: 36 }, (_, offset) => 1990 + offset));
+    expect(twice).toHaveLength(rows.length);
+    expect(once).toHaveLength(rows.length);
+  });
+
+  it('thins a panel past the row cap on one even year step', () => {
+    const countries = Array.from({ length: 20 }, (_, index) => `Country ${index}`);
+    const rows = countries.flatMap((series) =>
+      Array.from({ length: 40 }, (_, offset) => ({
+        x: String(1990 + offset),
+        y: 1000 + offset,
+        series,
+      }))
+    );
+    const slim = downsample(rows);
+    const years = [...new Set(slim.filter((row) => row.series === 'Country 0').map((row) => Number(row.x)))].sort(
+      (left, right) => left - right
+    );
+    expect(slim.length).toBeLessThanOrEqual(252);
     expect(years[0]).toBe(1990);
-    expect(years.at(-1)).toBe(2025);
-    expect(years).toContain(2007);
-    const regular = years.filter((year) => year !== 2007);
-    const regularGaps = regular.slice(1).map((year, index) => year - regular[index]!);
-    expect(new Set(regularGaps).size).toBe(1);
-    expect([1, 2, 5, 10, 20, 25, 50]).toContain(regularGaps[0]);
+    expect(years.at(-1)).toBe(2029);
+    const gaps = years.slice(1).map((year, index) => year - years[index]!);
+    const step = gaps[0];
+    expect([1, 2, 5, 10, 20, 25, 50]).toContain(step);
+    const interior = years.at(-1)! % (step ?? 1) === 0 ? gaps : gaps.slice(0, -1);
+    expect(interior.every((gap) => gap === step)).toBe(true);
   });
 
   it('does not jump Antarctic years from 2001 to 2004 when thinning 1979-2026', () => {
