@@ -9,18 +9,40 @@ type BankRow = {
   value?: number | null;
 };
 
-export function parseWorldBank(text: string, take: 'high' | 'low' = 'high'): SeriesRow[] {
-  let body: unknown;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    return [];
+export function parseWorldBank(
+  text: string,
+  take: 'high' | 'low' = 'high',
+  shape: 'snapshot' | 'panel' = 'snapshot'
+): SeriesRow[] {
+  if (shape === 'panel') {
+    return parsePanel(text);
   }
-  if (!Array.isArray(body) || body.length < 2 || !Array.isArray(body[1])) {
-    return [];
+  return parseSnapshot(text, take);
+}
+
+function parsePanel(text: string): SeriesRow[] {
+  const entries = bankEntries(text);
+  const rows: SeriesRow[] = [];
+  for (const entry of entries) {
+    const name = entry.country?.value?.trim();
+    const y = entry.value;
+    const year = (entry.date ?? '').slice(0, 4);
+    if (!name || !/^(?:19|20)\d{2}$/.test(year) || typeof y !== 'number' || !Number.isFinite(y)) {
+      continue;
+    }
+    if (SKIP_NAME.test(name) || name.length > 40) {
+      continue;
+    }
+    const rounded = y >= 1000 ? Math.round(y) : Math.round(y * 1000) / 1000;
+    rows.push({ x: year, y: rounded, series: name });
   }
+  rows.sort((a, b) => String(a.x).localeCompare(String(b.x)) || String(a.series).localeCompare(String(b.series)));
+  return rows;
+}
+
+function parseSnapshot(text: string, take: 'high' | 'low'): SeriesRow[] {
   const latest = new Map<string, { y: number; date: string }>();
-  for (const entry of body[1] as BankRow[]) {
+  for (const entry of bankEntries(text)) {
     const name = entry.country?.value?.trim();
     const y = entry.value;
     if (!name || typeof y !== 'number' || !Number.isFinite(y) || SKIP_NAME.test(name)) {
@@ -41,6 +63,21 @@ export function parseWorldBank(text: string, take: 'high' | 'low' = 'high'): Ser
   return rows;
 }
 
-export function worldBankUrl(indicator: string): string {
-  return `https://api.worldbank.org/v2/country/all/indicator/${encodeURIComponent(indicator)}?date=2015:2025&format=json&per_page=20000`;
+function bankEntries(text: string): BankRow[] {
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(body) || body.length < 2 || !Array.isArray(body[1])) {
+    return [];
+  }
+  return body[1] as BankRow[];
+}
+
+export function worldBankUrl(indicator: string, span?: { since?: number; until?: number }): string {
+  const since = span?.since ?? 2015;
+  const until = span?.until ?? new Date().getUTCFullYear();
+  return `https://api.worldbank.org/v2/country/all/indicator/${encodeURIComponent(indicator)}?date=${since}:${until}&format=json&per_page=20000`;
 }

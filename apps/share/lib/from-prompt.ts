@@ -1,7 +1,8 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex, seriesIsSketch } from '@vizzy/core';
-import { datasetForSourceUrl, labelIsPlace, matchAsked, placesInAsked, topCountFromAsked } from '@vizzy/resolve';
+import { checkAnswer, datasetForSourceUrl, labelIsPlace, matchAsked, placesInAsked, titleClaimsMissing, topCountFromAsked } from '@vizzy/resolve';
+import { compositionRows, numericAside, wantsComposition } from './composition';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
 import { honestSeriesTitle, mintFromOfficial, textClashesWithSeries } from './official-mint';
@@ -411,7 +412,13 @@ export function mintDraft(
     output.yLabel.trim() || 'Value',
     asked
   );
-  const askedRows = keepNamedPlaceRows(tidied.rows, asked, gathered.notes);
+  const composed = compositionRows(
+    asked,
+    gathered.notes,
+    tidied.rows.flatMap((row) => (typeof row.y === 'number' ? [{ x: String(row.x), y: row.y }] : []))
+  );
+  const tidiedRows = composed.length >= tidied.rows.length ? composed : tidied.rows;
+  const askedRows = keepNamedPlaceRows(tidiedRows, asked, gathered.notes);
   if (!askedRows) {
     return { ok: false, error: PUBLISHED_MISS, issues: [] };
   }
@@ -520,6 +527,25 @@ export function mintDraft(
   }
   title = alignAttribution(title, source);
   note = alignPlottedClaims(alignAttribution(note, source), rows);
+
+  const answered = checkAnswer(asked, {
+    title,
+    chartType,
+    xLabel,
+    yLabel,
+    sourceLabel: source.label,
+    rows,
+  });
+  if (!answered.ok && (answered.code === 'metric' || answered.code === 'composition' || answered.code === 'units')) {
+    return { ok: false, error: answered.detail, issues: [] };
+  }
+  if (
+    !answered.ok &&
+    (answered.code === 'entity' || answered.code === 'series') &&
+    titleClaimsMissing(title, answered.detail)
+  ) {
+    title = answered.honestTitle;
+  }
 
   const spelled = spellTitleFromResolved(
     honestTitle({
@@ -787,7 +813,7 @@ const NAMED_CAP = 15;
 const FULL_SET_CAP = 60;
 
 export function categoryRowCap(asked: string): number {
-  return topCountFromAsked(asked) ?? (wantsEveryCategory(asked) ? FULL_SET_CAP : NAMED_CAP);
+  return topCountFromAsked(asked) ?? (wantsEveryCategory(asked) || wantsComposition(asked) ? FULL_SET_CAP : NAMED_CAP);
 }
 
 function wantsEveryCategory(asked: string): boolean {
@@ -923,11 +949,12 @@ export function tidyComparison(
     };
   });
   const metrics = [...new Set(parsed.map((row) => row.metric).filter(Boolean))];
-  const chosen = pickMetric(metrics, parsed);
+  const asides = metrics.length > 0 && metrics.every(numericAside);
+  const chosen = asides ? '' : pickMetric(metrics, parsed);
   const focused = chosen
     ? parsed.filter((row) => row.metric === chosen)
     : parsed;
-  const stripName = Boolean(chosen) || metrics.length === 1;
+  const stripName = Boolean(chosen) || metrics.length === 1 || asides;
   const stripped = focused.map((row) => ({
     x: typeof row.x === 'number' ? row.x : stripName ? row.name : String(row.x),
     y: row.y,

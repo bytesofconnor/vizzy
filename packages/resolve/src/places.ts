@@ -1,3 +1,4 @@
+import { groupMembers, groupsInAsked } from './groups';
 import { foldAsked } from './normalize';
 
 const QUALIFIER =
@@ -113,6 +114,17 @@ const PLACES: readonly Place[] = [
   place('New Zealand'),
   place('Iceland'),
   place('Luxembourg'),
+  place('Bulgaria'),
+  place('Croatia'),
+  place('Cyprus'),
+  place('Estonia'),
+  place('Hungary'),
+  place('Latvia'),
+  place('Lithuania'),
+  place('Malta'),
+  place('Romania'),
+  place('Slovenia'),
+  place('Costa Rica', ['costa rica']),
   place('Monaco'),
   place('Liechtenstein'),
   place('Bermuda'),
@@ -163,6 +175,10 @@ export function placesInAsked(asked: string): string[] {
   hits.sort((a, b) => a.at - b.at);
   const seen = new Set<string>();
   const out: string[] = [];
+  for (const entity of groupMembers(groupsInAsked(asked))) {
+    seen.add(entity);
+    out.push(entity);
+  }
   for (const hit of hits) {
     if (seen.has(hit.entity)) {
       continue;

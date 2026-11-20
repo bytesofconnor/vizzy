@@ -1,4 +1,4 @@
-import { fetchMatched, matchAsked, notesFromResolved, resolvePrompt, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
+import { fetchMatched, matchAsked, notesFromResolved, presentSeries, resolvePrompt, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
 
 type ConvexResult<T> = { status: 'success'; value: T } | { status: 'error'; errorMessage?: string };
 
@@ -87,7 +87,7 @@ export async function gatherOfficialSeries(
     now,
     maxAgeMs: DAY_MS,
   });
-  const fromCache = cached ? windowCached(cached, asked, now) : null;
+  const fromCache = cached ? windowCached(presentSeries(cached, asked), asked, now) : null;
   if (fromCache) {
     await record('hit', { family: recipe.family, seriesId: recipe.seriesId, fromCache: true });
     return { notes: notesFromResolved(fromCache), urls: [fromCache.sourceUrl], series: fromCache };
@@ -109,7 +109,7 @@ export async function gatherOfficialSeries(
       yLabel: full.yLabel,
       rows: full.rows,
     });
-    const series = windowCached(full, asked, now);
+    const series = windowCached(presentSeries(full, asked), asked, now);
     if (!series) {
       await record('error', { family: recipe.family, seriesId: recipe.seriesId, fromCache: false });
       return null;

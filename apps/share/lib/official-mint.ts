@@ -1,4 +1,4 @@
-import { DATASETS, phraseIn, rowsForAsked, yearSpanFromAsked, type ResolvedSeries } from '@vizzy/resolve';
+import { checkAnswer, DATASETS, phraseIn, rowsForAsked, titleClaimsMissing, yearSpanFromAsked, type ResolvedSeries } from '@vizzy/resolve';
 import { drawnYearSpan, spanLabel, withDrawnSpan } from './year-span';
 import { fitChartType } from './compose-guards';
 import { honestTitle, withTopCount } from './honor-prompt';
@@ -176,12 +176,12 @@ export function titleFromAsked(asked: string, series: ResolvedSeries): string {
 }
 
 export function mintFromOfficial(asked: string, series: ResolvedSeries): MintResult {
-  const spanned = rowsForAsked(series.rows, asked, series.retrieved);
-  const cut = applyYearlyCut(asked, spanned);
+  const spanned = series.chartType === 'scatter' ? series.rows : rowsForAsked(series.rows, asked, series.retrieved);
+  const cut = series.chartType === 'scatter' ? null : applyYearlyCut(asked, spanned);
   const rows = cut ?? spanned;
   const multi = new Set(rows.map((row) => row.series).filter(Boolean)).size >= 2;
   const yearly = yearlyOfficialRows(rows);
-  const chartType = multi ? 'line' : fitChartType(yearly ? 'line' : 'bar', rows, asked);
+  const chartType = series.chartType ?? (multi ? 'line' : fitChartType(yearly ? 'line' : 'bar', rows, asked));
   const xLabel = cut ? 'Year' : series.xLabel;
   const yLabel = capitalizeUnits(
     cut && wantsYearlyChange(asked) && !/^change in /i.test(series.yLabel)
@@ -190,12 +190,33 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   );
   const titled = { ...series, rows, xLabel, yLabel };
   const dataset = DATASETS.find((item) => item.family === series.family && item.seriesId === series.seriesId);
+  const answered = checkAnswer(asked, {
+    title: titleFromAsked(asked, titled),
+    chartType,
+    xLabel,
+    yLabel,
+    sourceLabel: series.sourceLabel,
+    seriesId: series.seriesId,
+    rows,
+  });
+  if (!answered.ok && (answered.code === 'metric' || answered.code === 'composition' || answered.code === 'units')) {
+    return { ok: false, error: answered.detail, issues: [] };
+  }
+  const gapTitle = series.missingSeries ? `${yLabel}. Not shown: ${series.missingSeries}.` : undefined;
+  const askedTitle = titleFromAsked(asked, titled);
+  const faceTitle =
+    gapTitle ??
+    (!answered.ok &&
+    (answered.code === 'entity' || answered.code === 'series') &&
+    titleClaimsMissing(askedTitle, answered.detail)
+      ? answered.honestTitle
+      : askedTitle);
   const spelled = withTopCount(
     spellTitleFromResolved(
       titleWithSnapshotYear(
         honestTitle({
           asked,
-          title: titleFromAsked(asked, titled),
+          title: faceTitle,
           xLabel,
           yLabel,
           rows,
@@ -221,8 +242,12 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     shortfall
   );
   const config = studioChart(
-    chartType === 'line' ? { type: 'line' } : { type: 'bar', barPadding: 0.32 },
-    { x: 'x', y: 'y', ...(multi ? { color: 'series' as const } : {}) },
+    chartType === 'line'
+      ? { type: 'line' }
+      : chartType === 'scatter'
+        ? { type: 'scatter' }
+        : { type: 'bar', barPadding: 0.32 },
+    { x: 'x', y: 'y', ...(chartType === 'line' && multi ? { color: 'series' as const } : {}) },
     {
       axes: {
         x: { label: xLabel },
