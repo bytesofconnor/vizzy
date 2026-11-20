@@ -1,13 +1,26 @@
 import type { SeriesRow } from '../types';
 
 const SKIP_NAME =
-  /\b(world|income|ida |ibrd|oecd|euro area|european union|north america|south asia|sub-saharan|latin america|arab world|small states|fragile|dividend|classification|excluding|baltics|central europe|high income|low income|middle income|ida only|oecd members|other economies|rest of the world)\b/i;
+  /\b(world|income|ida |ibrd|oecd|euro area|european union|north america|south asia|sub-saharan|latin america|arab world|small states|fragile|dividend|classification|excluding|baltics|central europe|high income|low income|middle income|ida only|oecd members|other economies|rest of the world|africa eastern|africa western|east asia|europe & central|middle east|not classified|heavily indebted)\b/i;
 
 type BankRow = {
   country?: { value?: string; id?: string };
+  countryiso3code?: string;
   date?: string;
   value?: number | null;
 };
+
+function skipEntity(entry: BankRow): boolean {
+  const iso = entry.countryiso3code;
+  if (typeof iso === 'string' && iso.trim().length !== 3) {
+    return true;
+  }
+  const name = entry.country?.value?.trim() ?? '';
+  if (!name || name.length > 48) {
+    return true;
+  }
+  return SKIP_NAME.test(name);
+}
 
 export function parseWorldBank(
   text: string,
@@ -30,7 +43,7 @@ function parsePanel(text: string): SeriesRow[] {
     if (!name || !/^(?:19|20)\d{2}$/.test(year) || typeof y !== 'number' || !Number.isFinite(y)) {
       continue;
     }
-    if (SKIP_NAME.test(name) || name.length > 40) {
+    if (skipEntity(entry)) {
       continue;
     }
     const rounded = y >= 1000 ? Math.round(y) : Math.round(y * 1000) / 1000;
@@ -45,10 +58,7 @@ function parseSnapshot(text: string, take: 'high' | 'low'): SeriesRow[] {
   for (const entry of bankEntries(text)) {
     const name = entry.country?.value?.trim();
     const y = entry.value;
-    if (!name || typeof y !== 'number' || !Number.isFinite(y) || SKIP_NAME.test(name)) {
-      continue;
-    }
-    if (name.length > 40) {
+    if (!name || typeof y !== 'number' || !Number.isFinite(y) || skipEntity(entry)) {
       continue;
     }
     const date = entry.date ?? '';

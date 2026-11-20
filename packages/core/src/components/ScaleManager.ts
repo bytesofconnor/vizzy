@@ -1,9 +1,10 @@
 import * as d3 from 'd3';
+import { gdpLifeScatter } from '../scatter-labels';
 import { ChartConfig, VizzyError } from '../types';
 import { DataDomains } from './DataProcessor';
 
 export interface ScaleSystem {
-  x: d3.ScaleLinear<number, number> | d3.ScaleBand<string> | d3.ScalePoint<string> | d3.ScaleTime<number, number>;
+  x: d3.ScaleLinear<number, number> | d3.ScaleLogarithmic<number, number> | d3.ScaleBand<string> | d3.ScalePoint<string> | d3.ScaleTime<number, number>;
   y: d3.ScaleLinear<number, number> | d3.ScaleBand<string>;
   color?: d3.ScaleOrdinal<string, string>;
   size?: d3.ScaleLinear<number, number>;
@@ -74,7 +75,7 @@ export class ScaleManager {
 
   private _createXScale(
     domain: [number, number] | string[]
-  ): d3.ScaleLinear<number, number> | d3.ScaleBand<string> | d3.ScalePoint<string> | d3.ScaleTime<number, number> {
+  ): d3.ScaleLinear<number, number> | d3.ScaleLogarithmic<number, number> | d3.ScaleBand<string> | d3.ScalePoint<string> | d3.ScaleTime<number, number> {
     const { innerWidth } = this._dimensions;
     const { chart } = this._config;
 
@@ -103,6 +104,14 @@ export class ScaleManager {
       if (this._isTimeDomain(min, max)) {
         return d3.scaleTime()
           .domain([new Date(min), new Date(max)])
+          .range([0, innerWidth])
+          .nice();
+      } else if (gdpLifeScatter(this._config.axes.x.label, this._config.axes.y.label) && Math.max(min, max) > 0) {
+        const hi = Math.max(min, max);
+        const lo = Math.min(min, max);
+        const floor = lo > 0 ? lo : hi / 100;
+        return d3.scaleLog()
+          .domain([floor, Math.max(hi, floor * 10)])
           .range([0, innerWidth])
           .nice();
       } else {
