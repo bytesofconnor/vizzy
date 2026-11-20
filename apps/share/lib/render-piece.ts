@@ -64,13 +64,17 @@ export async function renderPiecePng(
   options?: { insight?: string }
 ): Promise<Buffer> {
   const frame = chartFrame(size);
+  const askedRight = piece.config.dimensions?.margin?.right ?? frame.margin.right;
   const config = validateChartConfig({
     ...rankedBarsShowValues(piece.config),
     dimensions: {
       ...piece.config.dimensions,
       width: frame.width,
       height: frame.height,
-      margin: frame.margin,
+      margin: {
+        ...frame.margin,
+        right: Math.max(frame.margin.right, askedRight),
+      },
     },
   });
   const chartSvg = await withDom(() => renderToSVG(config, piece.data));

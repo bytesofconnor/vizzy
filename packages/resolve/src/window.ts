@@ -121,11 +121,9 @@ function mostlyMonthly(rows: SeriesRow[]): boolean {
   return monthly >= Math.ceil(rows.length * MONTHLY_SHARE);
 }
 
-const MULTI_CAP = 80;
-
 export function downsample(rows: SeriesRow[], max = MAX_ROWS): SeriesRow[] {
   if (rows.some((row) => row.series)) {
-    return thinEachSeries(rows);
+    return thinEachSeries(rows, Math.max(max, CHART_ROW_CAP));
   }
   if (mostlyMonthly(rows) && rows.length > max) {
     return thinMonthly(rows, max);
@@ -300,8 +298,8 @@ function thinYears(rows: SeriesRow[], cap: number): SeriesRow[] {
   return pickEvenly(source, Math.min(cap, MAX_ROWS));
 }
 
-function thinEachSeries(rows: SeriesRow[]): SeriesRow[] {
-  if (rows.length <= MULTI_CAP) {
+function thinEachSeries(rows: SeriesRow[], cap: number): SeriesRow[] {
+  if (rows.length <= cap) {
     return rows;
   }
   const groups = new Map<string, SeriesRow[]>();
@@ -313,8 +311,8 @@ function thinEachSeries(rows: SeriesRow[]): SeriesRow[] {
   }
   const lists = [...groups.values()];
   const longest = lists.reduce((best, list) => (list.length > best.length ? list : best), lists[0] ?? []);
-  const per = Math.max(2, Math.floor(MULTI_CAP / Math.max(groups.size, 1)));
-  const years = evenYearKeep(lists, per);
+  const per = Math.max(2, Math.floor(cap / Math.max(groups.size, 1)));
+  const years = evenYearStep(lists, per);
   if (years) {
     return lists.flatMap((group) =>
       group.filter((row) => {
@@ -327,7 +325,7 @@ function thinEachSeries(rows: SeriesRow[]): SeriesRow[] {
   return lists.flatMap((group) => group.filter((row) => picked.has(String(row.x))));
 }
 
-function evenYearKeep(lists: SeriesRow[][], cap: number): Set<number> | null {
+function evenYearStep(lists: SeriesRow[][], per: number): Set<number> | null {
   const longest = lists.reduce((best, list) => (list.length > best.length ? list : best), lists[0] ?? []);
   if (!isYearly(longest)) {
     return null;
@@ -337,30 +335,19 @@ function evenYearKeep(lists: SeriesRow[][], cap: number): Set<number> | null {
   ].sort((left, right) => left - right);
   const first = years[0];
   const last = years[years.length - 1];
-  if (first === undefined || last === undefined) {
-    return null;
-  }
-  const extra = new Set<number>([first, last]);
-  for (const list of lists) {
-    for (const index of extremeIndexes(list)) {
-      const year = yearOfX(list[index]?.x ?? '');
-      if (year !== undefined) {
-        extra.add(year);
-      }
-    }
+  if (first === undefined || last === undefined || years.length <= per) {
+    return first === undefined ? null : new Set(years);
   }
   for (const step of NICE_YEAR_STEPS) {
-    const base = years.filter((year) => year === first || year === last || year % step === 0);
-    if (base.length < 2 || base.length > cap) {
+    const kept = years.filter((year) => year === first || year === last || year % step === 0);
+    if (kept.length < 2 || kept.length > per) {
       continue;
     }
-    const kept = new Set(base);
-    for (const year of extra) {
-      if (years.includes(year)) {
-        kept.add(year);
-      }
+    const gaps = kept.slice(1).map((year, index) => year - (kept[index] ?? year));
+    const interior = last % step === 0 ? gaps : gaps.slice(0, -1);
+    if (interior.length > 0 && interior.every((gap) => gap === step)) {
+      return new Set(kept);
     }
-    return kept;
   }
   return null;
 }

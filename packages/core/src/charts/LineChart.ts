@@ -8,7 +8,7 @@ import { DataProcessor, ProcessedData } from '../components/DataProcessor';
 import { bindChartTip, formatTipNumber, pointHitTarget, seriesTipLabel } from '../chart-tip';
 import { forecastStartIndex } from '../forecast';
 import { contiguousRuns } from '../line-runs';
-import { forecastLabelPlacement, formatDataValue, linePointLabelPlacement } from '../format';
+import { forecastLabelPlacement, formatDataValue, linePointLabelPlacement, separateLabelYs } from '../format';
 import { paintHalo } from '../halo';
 
 type LineSeriesOptions = Partial<
@@ -140,6 +140,20 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       return cut < 0 && this._findInflection(published) !== null;
     });
 
+    const nameAnchors = groupedData.map((group) => {
+      const cut = forecastStartIndex(
+        group.values,
+        config.dataMapping.x,
+        chartConfig.forecastFrom as string | number | undefined
+      );
+      const published = cut < 0 ? group.values : group.values.slice(0, Math.max(cut, 1));
+      const last = published[published.length - 1];
+      return last ? this._scaleManager.getYValue(last[config.dataMapping.y]) : 0;
+    });
+    const { plotTop, plotBottom } = this._plotYBounds();
+    const nameYs =
+      groupedData.length > 1 ? separateLabelYs(nameAnchors, 15, plotTop, plotBottom) : nameAnchors;
+
     for (let i = 0; i < groupedData.length; i += 1) {
       const group = groupedData[i];
       if (group) {
@@ -149,7 +163,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
           chartConfig,
           i,
           groupedData.length,
-          labelPeaks
+          labelPeaks,
+          nameYs[i] ?? nameAnchors[i] ?? 0
         );
       }
     }
@@ -178,7 +193,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     chartConfig: LineSeriesOptions,
     seriesIndex: number,
     seriesCount: number,
-    labelPeaks: boolean
+    labelPeaks: boolean,
+    nameY: number
   ): Promise<void> {
     const { dataMapping, colors, animation } = this._config;
     
@@ -251,7 +267,7 @@ export class LineChart<TData extends DataPoint = DataPoint> {
       this._renderInflection(group, inflection, lineColor, published);
     }
     if (seriesCount > 1 && lineData.key !== 'default') {
-      this._renderSeriesName(group, lineData.key, published, lineColor);
+      this._renderSeriesName(group, lineData.key, published, lineColor, nameY);
     }
     const last = published[published.length - 1];
     const showEndLabel =
@@ -663,7 +679,8 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     group: d3.Selection<SVGGElement, unknown, null, undefined>,
     key: string,
     values: TData[],
-    color: string
+    color: string,
+    y: number
   ): void {
     const last = values[values.length - 1];
     if (!last) {
@@ -671,7 +688,6 @@ export class LineChart<TData extends DataPoint = DataPoint> {
     }
     const { dataMapping } = this._config;
     const x = this._scaleManager.getXValue(last[dataMapping.x]);
-    const y = this._scaleManager.getYValue(last[dataMapping.y]);
     const mark = seriesMark('series-end-label', key);
     const labels = group.selectAll(`.${mark}`).data([last]);
     labels.exit().remove();

@@ -552,8 +552,12 @@ describe('VizzyChartEngine', () => {
       expect(ticks[i]!.querySelector('text')?.getAttribute('transform')).toBeFalsy();
     }
 
+    const bottoms = bars.map(
+      (bar) => Number(bar.getAttribute('y')) + Number(bar.getAttribute('height'))
+    );
+    expect(Math.max(...bottoms) - Math.min(...bottoms)).toBeLessThan(1);
     const heights = bars.map((bar) => Number(bar.getAttribute('height')));
-    expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(20);
+    expect(Math.min(...heights) / Math.max(...heights)).toBeGreaterThan(1830 / 1867 - 0.02);
   });
 
   it('wraps long names under the bar and paints the value', async () => {

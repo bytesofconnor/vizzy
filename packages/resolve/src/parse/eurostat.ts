@@ -108,7 +108,7 @@ export function parseEurostatRen(text: string): SeriesRow[] {
   return rows;
 }
 
-export function eurostatSnapshot(rows: SeriesRow[]): SeriesRow[] {
+export function eurostatSnapshot(rows: SeriesRow[]): { rows: SeriesRow[]; year?: string } {
   const latest = new Map<string, { year: string; y: number }>();
   for (const row of rows) {
     const name = row.series;
@@ -121,9 +121,16 @@ export function eurostatSnapshot(rows: SeriesRow[]): SeriesRow[] {
       latest.set(name, { year, y: row.y });
     }
   }
-  return [...latest.entries()]
-    .map(([x, item]) => ({ x, y: item.y }))
+  const items = [...latest.entries()];
+  const years = new Set(items.map(([, item]) => item.year));
+  const year = years.size === 1 ? [...years][0] : undefined;
+  const snapshot = items
+    .map(([name, item]) => ({
+      x: year === undefined ? `${name}, ${item.year}` : name,
+      y: item.y,
+    }))
     .sort((a, b) => b.y - a.y || a.x.localeCompare(b.x));
+  return year === undefined ? { rows: snapshot } : { rows: snapshot, year };
 }
 
 function invert(index: Record<string, number> | undefined): string[] {

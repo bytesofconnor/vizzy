@@ -43,7 +43,7 @@ describe('chart reading', () => {
     containers.length = 0;
   });
 
-  it('draws a thinned seven-country annual line as one piece per country', async () => {
+  it('draws a seven-country annual line as one piece per country', async () => {
     const rows = COUNTRIES.flatMap((series, seriesIndex) =>
       Array.from({ length: 36 }, (_, offset) => {
         const year = 1990 + offset;

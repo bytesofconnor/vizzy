@@ -360,18 +360,14 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
       yDomain = axes.y.domain as [number, number];
     } else if (this._config.chart.type === 'bar' && !stats.yStats) {
       yDomain = [0, 1];
+    } else if (stats.yStats && this._config.chart.type === 'bar') {
+      const padding = Math.max((stats.yStats.max - stats.yStats.min) * 0.08, 1);
+      const min = Math.min(0, stats.yStats.min);
+      const max = Math.max(0, stats.yStats.max);
+      yDomain = [min === 0 ? 0 : min - padding, max === 0 ? padding : max + padding];
     } else if (stats.yStats) {
       const padding = Math.max((stats.yStats.max - stats.yStats.min) * 0.08, 1);
-      const barFromZero =
-        this._config.chart.type === 'bar' &&
-        stats.yStats.min >= 0 &&
-        !axes.y.domain &&
-        !looksLikeCalendarYear(stats.yStats.min, stats.yStats.max) &&
-        !yValuesClustered(stats.yStats.min, stats.yStats.max);
-      yDomain = [
-        barFromZero ? 0 : stats.yStats.min - padding,
-        stats.yStats.max + padding,
-      ];
+      yDomain = [stats.yStats.min - padding, stats.yStats.max + padding];
     } else {
       // Categorical domain
       yDomain = [...new Set(data.map(d => String(d[dataMapping.y])))];
@@ -417,13 +413,3 @@ export class DataProcessor<TData extends DataPoint = DataPoint> {
   }
 }
 
-function looksLikeCalendarYear(min: number, max: number): boolean {
-  return min >= 1000 && max <= 2100 && max - min < 800;
-}
-
-function yValuesClustered(min: number, max: number): boolean {
-  if (min <= 0 || max <= min) {
-    return false;
-  }
-  return (max - min) / max <= 0.25;
-}
