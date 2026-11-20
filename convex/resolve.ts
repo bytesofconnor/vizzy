@@ -20,6 +20,8 @@ const cachedSeries = v.object({
   xLabel: v.string(),
   yLabel: v.string(),
   rows: v.array(seriesRow),
+  snapshotYear: v.optional(v.string()),
+  truncatedTo: v.optional(v.number()),
 });
 
 export const getCached = query({
@@ -52,6 +54,8 @@ export const getCached = query({
       xLabel: row.xLabel,
       yLabel: row.yLabel,
       rows: row.rows,
+      ...(row.snapshotYear ? { snapshotYear: row.snapshotYear } : {}),
+      ...(row.truncatedTo !== undefined ? { truncatedTo: row.truncatedTo } : {}),
     };
   },
 });
@@ -68,6 +72,8 @@ export const putCached = mutation({
     xLabel: v.string(),
     yLabel: v.string(),
     rows: v.array(seriesRow),
+    snapshotYear: v.optional(v.string()),
+    truncatedTo: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -87,6 +93,8 @@ export const putCached = mutation({
       xLabel: args.xLabel,
       yLabel: args.yLabel,
       rows: args.rows,
+      ...(args.snapshotYear ? { snapshotYear: args.snapshotYear } : {}),
+      ...(args.truncatedTo !== undefined ? { truncatedTo: args.truncatedTo } : {}),
     };
     if (existing) {
       await ctx.db.patch(existing._id, body);

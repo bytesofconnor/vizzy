@@ -54,6 +54,8 @@ export type ResolvedSeries = {
   xLabel: string;
   yLabel: string;
   rows: SeriesRow[];
+  /** Year of a one-year snapshot. Category rows do not carry it. */
+  snapshotYear?: string;
   truncatedTo?: number;
   chartType?: 'bar' | 'line' | 'scatter';
   missingSeries?: string;

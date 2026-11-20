@@ -153,11 +153,13 @@ function disclose(text: string, asked: string, coverage: string | undefined): st
 function eiaAskedYear(
   asked: string,
   sourceLabel: string,
-  title: string
+  title: string,
+  snapshotYear?: string
 ): { title: string; note: string | null } {
   const span = yearSpanFromAsked(asked);
   const askedYear = span.since !== undefined && span.until === span.since ? String(span.since) : undefined;
-  const plotted = sourceLabel.match(/\b((?:19|20)\d{2})\b/)?.[1];
+  const pinned = snapshotYear && /^(?:19|20)\d{2}$/.test(snapshotYear) ? snapshotYear : undefined;
+  const plotted = pinned ?? sourceLabel.match(/\b((?:19|20)\d{2})\b/)?.[1];
   if (!askedYear || !plotted || askedYear === plotted) {
     return { title, note: null };
   }
@@ -167,9 +169,12 @@ function eiaAskedYear(
   };
 }
 
-function titleWithSnapshotYear(title: string, sourceLabel: string): string {
+function titleWithSnapshotYear(title: string, sourceLabel: string, snapshotYear?: string): string {
   if (/\b(?:19|20)\d{2}\b/.test(title)) {
     return title;
+  }
+  if (snapshotYear && /^(?:19|20)\d{2}$/.test(snapshotYear)) {
+    return `${title}, ${snapshotYear}`;
   }
   const years = [...new Set([...sourceLabel.matchAll(/\b(?:19|20)\d{2}\b/g)].map((match) => match[0]))];
   if (years.length !== 1) {
@@ -246,7 +251,8 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
           note: series.sourceLabel,
           sourceLabel: series.sourceLabel,
         }),
-        series.sourceLabel
+        series.sourceLabel,
+        series.snapshotYear
       ),
       {
         drawn: chartDrawnWords([xLabel, yLabel], rows),
@@ -255,7 +261,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     ),
     series.truncatedTo
   );
-  const eiaYear = series.family === 'eia' ? eiaAskedYear(asked, series.sourceLabel, spelled) : null;
+  const eiaYear = series.family === 'eia' ? eiaAskedYear(asked, series.sourceLabel, spelled, series.snapshotYear) : null;
   const title = withDrawnSpan(disclose(eiaYear?.title ?? spelled, asked, dataset?.coverage), rows);
   const shortfall = spanDisclosure(asked, rows, series.retrieved);
   const extra = [shortfall, aside, eiaYear?.note].filter(Boolean).join(' ');
@@ -323,6 +329,15 @@ function seriesSubtitle(
   return lead ? `${lead}. ${shortfall}` : shortfall;
 }
 
+function joinSentence(left: string, right: string): string {
+  const body = left.trim().replace(/[.\s]+$/u, '');
+  const sentence = right.trim();
+  if (!body) {
+    return sentence;
+  }
+  return `${body}. ${sentence}`;
+}
+
 function seriesNote(
   base: string,
   yLabel: string,
@@ -332,7 +347,7 @@ function seriesNote(
   const lead = seriesSubtitle(yLabel, rows, null);
   let note = lead ? `${lead}. ${base}` : base;
   if (shortfall && !note.includes(shortfall)) {
-    note = `${note} ${shortfall}`;
+    note = joinSentence(note, shortfall);
   }
   if (note.trim() === base.trim()) {
     return `${base}.`;
