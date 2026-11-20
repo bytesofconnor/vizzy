@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freeChartsLeft } from '../../../convex/free-charts';
+import { freeChartsLeft } from '../../../convex/freeCharts';
 import { DEVICE_COOKIE, deviceIdFromCookie, readDeviceStamp, withDeviceCookie } from './device-allowance';
 
 describe('free chart allowance', () => {

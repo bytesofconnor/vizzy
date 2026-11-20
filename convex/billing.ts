@@ -1,7 +1,7 @@
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import type { Doc, Id } from './_generated/dataModel';
 import { v } from 'convex/values';
-import { freeChartsLeft } from './free-charts';
+import { freeChartsLeft } from './freeCharts';
 
 export const FREE_PER_DAY = 3;
 export const PACK_CREDITS = 25;
