@@ -11,7 +11,7 @@ import { mintDraft } from './from-prompt';
 import { heuristicInsight } from './insight-heuristic';
 import { mintFromOfficial } from './official-mint';
 import { seedFromPiece } from './seed';
-import { sourceCardLine, sourceGrade, sourceLine } from './source';
+import { sourceCardLine, sourceGrade, sourceLabelFor, sourceLine, sourceMethodFor } from './source';
 
 const TIGER_HTML = `
 <table class="wikitable">
@@ -28,6 +28,19 @@ function tigerGet(): () => Promise<string> {
 }
 
 describe('source labels stay honest', () => {
+  it('labels a CIA Factbook or PiSpace page as a compilation', () => {
+    const factbook = 'https://www.cia.gov/the-world-factbook/field/carbon-dioxide-emissions/';
+    expect(sourceMethodFor(factbook, 'official')).toBe('scraped');
+    expect(sourceLabelFor(factbook, 'CIA World Factbook, the official CO2 publisher')).toBe(
+      'CIA World Factbook (compilation)'
+    );
+    const mirror = 'https://data.pispace.eu/eurostat/nrg_ind_ren';
+    expect(sourceMethodFor(mirror, 'official')).toBe('scraped');
+    const label = sourceLabelFor(mirror, 'Eurostat official');
+    expect(label).toBe('PiSpace mirror');
+    expect(label.toLowerCase()).not.toContain('eurostat');
+  });
+
   it('drops citation brackets from a drafted source name', () => {
     const minted = mintDraft(
       'bitcoin price last 5 years',

@@ -12,6 +12,8 @@ import {
 } from './parse/fred';
 import { parseNoaaCo2, NOAA_CO2_URL, NOAA_CH4_URL } from './parse/noaa';
 import { OWID_SPEC, OWID_OZONE_URL, owidCsvUrl, parseOwidCsv, parseOwidOzone } from './parse/owid';
+import { EIA_GENERATION_URL, parseEiaGeneration } from './parse/eia';
+import { eurostatRenUrl, eurostatSnapshot, parseEurostatRen } from './parse/eurostat';
 import { parseUsgsGeojson, USGS_M8_URL } from './parse/usgs';
 import { parseWikiUnVotes, readWiki, wikiParseUrl, WIKI_SPEC } from './parse/wiki';
 import { parseWorldBank, worldBankUrl } from './parse/worldbank';
@@ -42,7 +44,8 @@ async function loadRecipe(
   recipe: Recipe,
   get: HttpGet,
   asked?: string,
-  rank: 'asked' | 'all' = 'asked'
+  rank: 'asked' | 'all' = 'asked',
+  now = Date.now()
 ): Promise<LoadedRecipe> {
   if (recipe.family === 'fred') {
     if (recipe.seriesId === 'state_unemployment') {
@@ -76,6 +79,25 @@ async function loadRecipe(
   }
   if (recipe.family === 'usgs') {
     return { rows: parseUsgsGeojson(await get(USGS_M8_URL)) };
+  }
+  if (recipe.family === 'eia') {
+    const parsed = parseEiaGeneration(await get(EIA_GENERATION_URL), now);
+    return {
+      rows: parsed.rows,
+      ...(parsed.snapshotYear ? { snapshotYear: parsed.snapshotYear } : {}),
+    };
+  }
+  if (recipe.family === 'eurostat') {
+    const places = asked ? placesInAsked(asked) : [];
+    const url = eurostatRenUrl(places);
+    if (!url) {
+      return { rows: [] };
+    }
+    const parsed = parseEurostatRen(await get(url));
+    if (asked && wantsCountryPanel(asked)) {
+      return keepPanel(parsed, asked);
+    }
+    return preferAskedCountries(eurostatSnapshot(parsed), asked);
   }
   if (recipe.family === 'worldbank') {
     const take = recipe.seriesId === 'EG.ELC.ACCS.ZS' ? 'low' : 'high';
@@ -228,7 +250,8 @@ export async function fetchMatched(
   if (!recipe) {
     return null;
   }
-  const loaded = await loadRecipe(recipe, options.get ?? defaultGet, asked);
+  const now = options.now ?? Date.now();
+  const loaded = await loadRecipe(recipe, options.get ?? defaultGet, asked, 'asked', now);
   if (loaded.rows.length < 2) {
     return null;
   }
@@ -242,7 +265,7 @@ export async function fetchMatched(
     sourceLabel,
     sourceUrl: recipe.sourceUrl,
     method: 'official',
-    retrieved: options.now ?? Date.now(),
+    retrieved: now,
     xLabel: loaded.panel ? 'Year' : recipe.xLabel,
     yLabel: recipe.yLabel,
     rows: loaded.rows,
@@ -362,7 +385,7 @@ async function resolveComparison(
   const parts: ComparedPart[] = [];
   const missed: string[] = [];
   for (const recipe of recipes) {
-    const loaded = await loadRecipe(recipe, get, asked, 'all');
+    const loaded = await loadRecipe(recipe, get, asked, 'all', now);
     const asRate = INDEX_TO_RATE.has(recipe.seriesId);
     const rows = asRate ? yearOverYear(loaded.rows) : loaded.rows;
     if (rows.length < 2) {

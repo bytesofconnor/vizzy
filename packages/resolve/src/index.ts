@@ -3,6 +3,8 @@ export { labelIsPlace, phraseIn, placesInAsked } from './places';
 export { topCountFromAsked, yearSpanFromAsked } from './normalize';
 export { CHART_ROW_CAP, alignGrainLabel } from './window';
 export { checkAnswer, titleClaimsMissing } from './answer';
+export { guardShareBreakdown } from './share-guard';
+export type { ShareGuardResult, ShareGuardRow } from './share-guard';
 export type { AnswerCheck, ChartFace } from './answer';
 export { COUNTRY_GROUPS } from './groups';
 export { fetchMatched, fetchRecipe, notesFromResolved, presentSeries, resolvePrompt, rowsForAsked, seriesCacheKey } from './resolve';

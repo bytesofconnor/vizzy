@@ -32,6 +32,49 @@ function prompt(id: string): string {
   return found.text;
 }
 
+function eurostatRen(): string {
+  return JSON.stringify({
+    id: ['freq', 'nrg_bal', 'unit', 'geo', 'time'],
+    size: [1, 1, 1, 3, 2],
+    value: { 0: 7.2, 1: 21.5, 2: 8.5, 3: 25, 4: 9.1, 5: 22 },
+    dimension: {
+      freq: { category: { index: { A: 0 }, label: { A: 'Annual' } } },
+      nrg_bal: { category: { index: { REN: 0 }, label: { REN: 'Renewable energy - overall' } } },
+      unit: { category: { index: { PC: 0 }, label: { PC: 'Percentage' } } },
+      geo: {
+        category: {
+          index: { DE: 0, ES: 1, FR: 2 },
+          label: { DE: 'Germany', ES: 'Spain', FR: 'France' },
+        },
+      },
+      time: {
+        category: {
+          index: { 2005: 0, 2023: 1 },
+          label: { 2005: '2005', 2023: '2023' },
+        },
+      },
+    },
+  });
+}
+
+function eiaGeneration(): string {
+  const header = 'MSN,YYYYMM,Value';
+  const full: Record<string, number> = {
+    ELETPUS: 1000,
+    NGETPUS: 400,
+    CLETPUS: 160,
+    NUETPUS: 180,
+    WYETPUS: 100,
+    HVETPUS: 60,
+    SOETPUS: 50,
+  };
+  const lines = [header];
+  for (const [msn, value] of Object.entries(full)) {
+    lines.push(`${msn},202513,${value}`);
+  }
+  return lines.join('\n');
+}
+
 function bank(rows: Array<{ country: string; date: string; value: number }>): string {
   return JSON.stringify([
     {},
@@ -116,6 +159,56 @@ describe('answers the prompt', () => {
     const total = minted.piece.data.reduce((sum, row) => sum + Number(row.y), 0);
     expect(total).toBeGreaterThan(90);
     expect(total).toBeLessThan(110);
+  });
+
+  it('puts the latest EIA year in the title', async () => {
+    const asked = prompt('us-electricity-by-source');
+    const series = await resolvePrompt(asked, {
+      get: async () => eiaGeneration(),
+      now: Date.UTC(2026, 10, 20),
+    });
+    expect(series?.seriesId).toBe('us_net_generation_by_source');
+    const minted = mintFromOfficial(asked, series!);
+    expect(minted.ok, minted.ok ? '' : minted.error).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    expect(minted.piece.title).toMatch(/2025/);
+    expect(minted.piece.data.map((row) => String(row.x))).toContain('Wind');
+    const sum = minted.piece.data.reduce((total, row) => total + Number(row.y), 0);
+    expect(sum).toBeGreaterThanOrEqual(98);
+    expect(sum).toBeLessThanOrEqual(102);
+  });
+
+  it('refuses a drafted mix that still adds up past the parts', () => {
+    const minted = mintDraft(
+      prompt('us-electricity-by-source'),
+      { notes: 'Lookup notes without a share table.', urls: ['https://www.eia.gov/energyexplained/electricity/electricity-in-the-us.php'] },
+      {
+        title: 'US electricity generation by source',
+        kicker: 'EIA',
+        note: 'Drafted shares.',
+        chartType: 'bar',
+        area: false,
+        xLabel: 'Source',
+        yLabel: 'Share %',
+        sourceLabel: 'EIA',
+        sourceMethod: 'scraped',
+        evidence: 'Drafted generation shares that double-count the parts.',
+        rows: [
+          { x: 'Natural gas', y: 43 },
+          { x: 'Coal', y: 16 },
+          { x: 'Nuclear', y: 18 },
+          { x: 'Solar', y: 20 },
+          { x: 'Petroleum', y: 14 },
+        ],
+      }
+    );
+    expect(minted.ok).toBe(false);
+    if (minted.ok) {
+      return;
+    }
+    expect(minted.error).toMatch(/111%/);
   });
 
   it('does not publish the national median price under a ratio title', () => {
@@ -225,16 +318,14 @@ describe('answers the prompt', () => {
     }
   });
 
-  it('plots renewable electricity share for Germany, France, and Spain', async () => {
+  it('plots renewable share for Germany, France, and Spain', async () => {
     const asked = prompt('renewables-three-countries');
     const series = await resolvePrompt(asked, {
-      get: async () =>
-        bank([
-          { country: 'Germany', date: '2022', value: 43.2 },
-          { country: 'France', date: '2022', value: 24.1 },
-          { country: 'Spain', date: '2022', value: 47.5 },
-          { country: 'Norway', date: '2022', value: 98.4 },
-        ]),
+      get: async (url) => {
+        expect(url).toContain('ec.europa.eu/eurostat');
+        expect(url).not.toContain('pispace');
+        return eurostatRen();
+      },
       now: Date.UTC(2026, 10, 20),
     });
     expect(series).not.toBeNull();
@@ -246,6 +337,8 @@ describe('answers the prompt', () => {
     if (!minted.ok) {
       return;
     }
+    expect(minted.piece.config.source?.label.toLowerCase()).toContain('eurostat');
+    expect(minted.piece.config.source?.url ?? '').not.toContain('pispace');
     expect(minted.piece.data.map((row) => String(row.x)).sort()).toEqual(['France', 'Germany', 'Spain']);
   });
 

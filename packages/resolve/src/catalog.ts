@@ -1,3 +1,4 @@
+import { COUNTRY_GROUPS } from './groups';
 import { foldAsked } from './normalize';
 import { phraseIn, placesInAsked } from './places';
 import type { Dataset, DatasetTopic, Recipe } from './types';
@@ -163,8 +164,7 @@ export const DATASETS: readonly Dataset[] = [
       'share of renewable electricity',
       'renewable share of electricity',
       'renewable electricity',
-      'renewables share',
-      'renewable share',
+      'renewables share of electricity',
     ],
     avoid: ['water', 'freshwater', 'energy consumption'],
   },
@@ -180,8 +180,41 @@ export const DATASETS: readonly Dataset[] = [
       'renewable share of energy consumption',
       'renewable energy consumption',
       'share of renewable energy',
+      'renewables share',
+      'share of renewables',
+      'renewable energy share',
+      '% renewables',
     ],
     avoid: ['electricity'],
+  },
+  {
+    family: 'eurostat',
+    seriesId: 'nrg_ind_ren',
+    sourceLabel: 'Eurostat — renewable energy share',
+    sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/view/nrg_ind_ren/default/table?lang=en',
+    xLabel: 'Country',
+    yLabel: 'Renewable energy share %',
+    topics: ['energy', 'climate'],
+    aliases: ['renewables share', 'share of renewables', 'renewable energy share', '% renewables'],
+    avoid: ['electricity'],
+    onlyPlaces: COUNTRY_GROUPS.EU,
+  },
+  {
+    family: 'eia',
+    seriesId: 'us_net_generation_by_source',
+    sourceLabel: 'EIA — US electricity net generation by source',
+    sourceUrl: 'https://www.eia.gov/totalenergy/data/browser/index.php?tbl=T07.02A',
+    xLabel: 'Source',
+    yLabel: 'Share of generation %',
+    topics: ['energy'],
+    aliases: [
+      'electricity generation by source',
+      'generation by source',
+      'electricity mix',
+      'power generation by source',
+    ],
+    avoid: ['solar', 'renewable', 'access'],
+    place: 'United States',
   },
   {
     family: 'worldbank',
@@ -914,11 +947,15 @@ export function matchPrompt(asked: string): Recipe | null {
   if (!top || top.score < 3) {
     return null;
   }
-  const second = ranked[1];
-  if (second && top.score === second.score) {
-    return null;
+  const tied = ranked.filter((row) => row.score === top.score);
+  if (tied.length === 1) {
+    return top.dataset;
   }
-  return top.dataset;
+  const specific = tied.filter((row) => (row.dataset.onlyPlaces?.length ?? 0) > 0);
+  if (specific.length === 1) {
+    return specific[0]?.dataset ?? null;
+  }
+  return null;
 }
 
 const COMPARED = /\s+(?:vs\.?|versus|against|and)\s+/i;
@@ -975,6 +1012,13 @@ export function placeRefusal(asked: string): string | null {
 function scoreDataset(asked: string, dataset: Dataset): number {
   if (dataset.place && placesInAsked(asked).some((entity) => entity !== dataset.place)) {
     return 0;
+  }
+  if (dataset.onlyPlaces && dataset.onlyPlaces.length > 0) {
+    const named = placesInAsked(asked);
+    const allowed = new Set<string>(dataset.onlyPlaces);
+    if (named.length === 0 || named.some((entity) => !allowed.has(entity))) {
+      return 0;
+    }
   }
   return aliasScore(asked, dataset);
 }

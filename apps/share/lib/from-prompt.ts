@@ -1,7 +1,7 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { forecastStartIndex, seriesIsSketch } from '@vizzy/core';
-import { checkAnswer, datasetForSourceUrl, labelIsPlace, matchAsked, placeRefusal, placesInAsked, titleClaimsMissing, topCountFromAsked } from '@vizzy/resolve';
+import { checkAnswer, datasetForSourceUrl, guardShareBreakdown, labelIsPlace, matchAsked, placeRefusal, placesInAsked, titleClaimsMissing, topCountFromAsked } from '@vizzy/resolve';
 import { compositionRows, numericAside, wantsComposition } from './composition';
 import { countedSeriesRows, gatherFacts, pastedATable, type Gathered } from './lookup';
 import { mintPiece, type MintResult } from './mint';
@@ -508,6 +508,11 @@ export function mintDraft(
     return finished;
   }
   rows = finished.rows;
+  const guarded = guardShareBreakdown(rows, { asked, yLabel });
+  if (!guarded.ok) {
+    return { ok: false, error: guarded.error, issues: [] };
+  }
+  rows = guarded.rows;
   const source = finished.source;
   const sketch = seriesIsSketch(source);
 
