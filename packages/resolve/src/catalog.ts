@@ -166,7 +166,22 @@ export const DATASETS: readonly Dataset[] = [
       'renewables share',
       'renewable share',
     ],
-    avoid: ['water', 'freshwater'],
+    avoid: ['water', 'freshwater', 'energy consumption'],
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'EG.FEC.RNEW.ZS',
+    sourceLabel: 'World Bank — renewable energy consumption',
+    sourceUrl: 'https://data.worldbank.org/indicator/EG.FEC.RNEW.ZS',
+    xLabel: 'Country',
+    yLabel: 'Renewable share of energy %',
+    topics: ['energy', 'climate'],
+    aliases: [
+      'renewable share of energy consumption',
+      'renewable energy consumption',
+      'share of renewable energy',
+    ],
+    avoid: ['electricity'],
   },
   {
     family: 'worldbank',
@@ -187,6 +202,30 @@ export const DATASETS: readonly Dataset[] = [
     yLabel: 'Share aged 65+ %',
     topics: ['demography'],
     aliases: ['aged 65', '65+', 'population aged', 'got old'],
+  },
+  {
+    family: 'worldbank',
+    seriesId: 'SP.POP.TOTL',
+    sourceLabel: 'World Bank — population',
+    sourceUrl: 'https://data.worldbank.org/indicator/SP.POP.TOTL',
+    xLabel: 'Country',
+    yLabel: 'People',
+    topics: ['demography'],
+    aliases: ['population'],
+    avoid: [
+      'density',
+      'world population',
+      'global population',
+      'human population',
+      'urban',
+      'aged',
+      '65',
+      'tiger',
+      'refugee',
+      'refugees',
+      'poverty',
+      'native',
+    ],
   },
   {
     family: 'worldbank',
@@ -337,6 +376,7 @@ export const DATASETS: readonly Dataset[] = [
       'inflation',
     ],
     avoid: ['by country', 'countries', 'projected', 'forecast', 'adjusted for', 'film', 'venezuela', 'global', 'world'],
+    place: 'United States',
     recentYears: 5,
   },
   {
@@ -899,14 +939,51 @@ export function matchAsked(asked: string): Dataset[] {
   return one ? [one] : [];
 }
 
+export function placeRefusal(asked: string): string | null {
+  const text = asked.trim();
+  if (text.length < 8 || matchPrompt(text)) {
+    return null;
+  }
+  const places = placesInAsked(text);
+  if (places.length === 0) {
+    return null;
+  }
+  let blocked: { dataset: Dataset; score: number } | null = null;
+  for (const dataset of DATASETS) {
+    if (!dataset.place || !places.some((entity) => entity !== dataset.place)) {
+      continue;
+    }
+    const score = aliasScore(text, dataset);
+    if (score < 3) {
+      continue;
+    }
+    if (!blocked || score > blocked.score) {
+      blocked = { dataset, score };
+    }
+  }
+  if (!blocked) {
+    return null;
+  }
+  const foreign = places.filter((entity) => entity !== blocked.dataset.place);
+  const place = foreign.join(', ');
+  if (!place) {
+    return null;
+  }
+  return `No published ${place} series for that. ${blocked.dataset.sourceLabel} covers ${blocked.dataset.place} only.`;
+}
+
 function scoreDataset(asked: string, dataset: Dataset): number {
+  if (dataset.place && placesInAsked(asked).some((entity) => entity !== dataset.place)) {
+    return 0;
+  }
+  return aliasScore(asked, dataset);
+}
+
+function aliasScore(asked: string, dataset: Dataset): number {
   if (dataset.avoid?.some((needle) => phraseIn(asked, needle))) {
     return 0;
   }
   if (dataset.places && placesInAsked(asked).length < 2) {
-    return 0;
-  }
-  if (dataset.place && placesInAsked(asked).some((entity) => entity !== dataset.place)) {
     return 0;
   }
   let best = 0;

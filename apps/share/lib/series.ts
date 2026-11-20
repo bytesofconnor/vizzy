@@ -1,4 +1,14 @@
-import { fetchMatched, matchAsked, notesFromResolved, presentSeries, resolvePrompt, rowsForAsked, type ResolvedSeries } from '@vizzy/resolve';
+import {
+  alignGrainLabel,
+  fetchMatched,
+  matchAsked,
+  notesFromResolved,
+  presentSeries,
+  resolvePrompt,
+  rowsForAsked,
+  seriesCacheKey,
+  type ResolvedSeries,
+} from '@vizzy/resolve';
 
 type ConvexResult<T> = { status: 'success'; value: T } | { status: 'error'; errorMessage?: string };
 
@@ -39,7 +49,7 @@ function windowCached(series: ResolvedSeries, asked: string, now: number): Resol
   if (rows.length < 2) {
     return null;
   }
-  return { ...series, rows };
+  return { ...series, rows, xLabel: alignGrainLabel(series.xLabel, rows) };
 }
 
 async function record(
@@ -81,9 +91,9 @@ export async function gatherOfficialSeries(
     return null;
   }
 
+  const cacheKey = seriesCacheKey(recipe.family, recipe.seriesId, asked);
   const cached = await convexCall<ResolvedSeries | null>('query', 'resolve:getCached', {
-    family: recipe.family,
-    seriesId: recipe.seriesId,
+    cacheKey,
     now,
     maxAgeMs: DAY_MS,
   });
@@ -100,6 +110,7 @@ export async function gatherOfficialSeries(
       return null;
     }
     await convexCall('mutation', 'resolve:putCached', {
+      cacheKey,
       family: full.family,
       seriesId: full.seriesId,
       sourceLabel: full.sourceLabel,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolvePrompt, type ResolvedSeries } from '@vizzy/resolve';
+import { mintDraft } from './from-prompt';
 import { mintFromOfficial } from './official-mint';
 
 const NOW = Date.UTC(2026, 10, 20);
@@ -40,6 +41,19 @@ function repeatsRange(title: string): boolean {
   return spans.length > 1 || (since && spans.length > 0) || ((months?.length ?? 0) >= 2 && spans.length > 0);
 }
 
+function stampGrain(value: string): 'month' | 'quarter' | 'year' | 'other' {
+  if (/^(?:19|20)\d{2}-\d{2}$/.test(value)) {
+    return 'month';
+  }
+  if (/^(?:19|20)\d{2}-Q[1-4]$/i.test(value) || /^Q[1-4]\s+(?:19|20)\d{2}$/i.test(value)) {
+    return 'quarter';
+  }
+  if (/^(?:19|20)\d{2}$/.test(value)) {
+    return 'year';
+  }
+  return 'other';
+}
+
 function subtitleOf(piece: { title: string; note: string }): string {
   const extra = piece as { subtitle?: string };
   return extra.subtitle ?? '';
@@ -70,6 +84,11 @@ describe('pipeline audit 2026-11-20', () => {
     const values = piece.data.map((row) => Number(row.y));
     expect(Math.max(...values)).toBeGreaterThanOrEqual(14.7);
     expect(piece.config.chart.type).toBe('line');
+    expect(piece.config.axes.x.label).toBe('Quarter');
+    const grains = new Set(piece.data.map((row) => stampGrain(String(row.x))));
+    expect(grains.size).toBe(1);
+    expect(grains.has('month')).toBe(false);
+    expect(`${piece.title} ${subtitleOf(piece)} ${piece.note}`).not.toMatch(/Starts in/);
     expect(repeatsRange(piece.title)).toBe(false);
     expect(piece.note.trim()).not.toBe('FRED — U.S. unemployment rate');
     expect(`${subtitleOf(piece)} ${piece.note}`).toMatch(/2000/);
@@ -170,6 +189,34 @@ describe('pipeline audit 2026-11-20', () => {
     expect(repeatsRange(minted.piece.title)).toBe(false);
     expect(subtitleOf(minted.piece)).toMatch(/People/);
     expect(subtitleOf(minted.piece)).toMatch(/1960-1983/);
+  });
+
+  it('discloses an LLM population series that stops in 1983', () => {
+    const rows = Array.from({ length: 24 }, (_, index) => ({ x: String(1960 + index), y: 90_000_000 + index * 1_000_000 }));
+    const minted = mintDraft(
+      'Japan population since 1960',
+      { notes: 'A short table of Japan population.', urls: ['https://kitegraph.com/japan-population'] },
+      {
+        title: 'Japan population since 1960',
+        kicker: 'Population',
+        note: 'Japan population.',
+        chartType: 'line',
+        area: false,
+        xLabel: 'Year',
+        yLabel: 'People',
+        sourceLabel: 'kitegraph.com',
+        sourceMethod: 'scraped',
+        evidence: 'Lookup table ending in 1983.',
+        rows,
+      }
+    );
+    expect(minted.ok, minted.ok ? '' : minted.error).toBe(true);
+    if (!minted.ok) {
+      return;
+    }
+    const chrome = `${minted.piece.title}\n${subtitleOf(minted.piece)}\n${minted.piece.note}`;
+    expect(chrome).toMatch(/1983/);
+    expect(chrome).toMatch(/short of 2026/);
   });
 
   it('capitalizes USD on an official price series', () => {

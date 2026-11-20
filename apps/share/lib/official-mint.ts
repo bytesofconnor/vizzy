@@ -1,5 +1,5 @@
-import { checkAnswer, DATASETS, phraseIn, rowsForAsked, titleClaimsMissing, yearSpanFromAsked, type ResolvedSeries } from '@vizzy/resolve';
-import { drawnYearSpan, spanLabel, withDrawnSpan } from './year-span';
+import { alignGrainLabel, checkAnswer, DATASETS, phraseIn, rowsForAsked, titleClaimsMissing, type ResolvedSeries } from '@vizzy/resolve';
+import { drawnYearSpan, spanDisclosure, spanLabel, withDrawnSpan } from './year-span';
 import { fitChartType } from './compose-guards';
 import { honestTitle, withTopCount } from './honor-prompt';
 import { mintPiece, type MintResult } from './mint';
@@ -182,7 +182,7 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   const multi = new Set(rows.map((row) => row.series).filter(Boolean)).size >= 2;
   const yearly = yearlyOfficialRows(rows);
   const chartType = series.chartType ?? (multi ? 'line' : fitChartType(yearly ? 'line' : 'bar', rows, asked));
-  const xLabel = cut ? 'Year' : series.xLabel;
+  const xLabel = cut ? 'Year' : alignGrainLabel(series.xLabel, rows);
   const yLabel = capitalizeUnits(
     cut && wantsYearlyChange(asked) && !/^change in /i.test(series.yLabel)
       ? `Change in ${series.yLabel}`
@@ -202,15 +202,19 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   if (!answered.ok && (answered.code === 'metric' || answered.code === 'composition' || answered.code === 'units')) {
     return { ok: false, error: answered.detail, issues: [] };
   }
-  const gapTitle = series.missingSeries ? `${yLabel}. Not shown: ${series.missingSeries}.` : undefined;
   const askedTitle = titleFromAsked(asked, titled);
   const faceTitle =
-    gapTitle ??
-    (!answered.ok &&
+    !answered.ok &&
     (answered.code === 'entity' || answered.code === 'series') &&
     titleClaimsMissing(askedTitle, answered.detail)
       ? answered.honestTitle
-      : askedTitle);
+      : askedTitle;
+  const aside =
+    !answered.ok && (answered.code === 'entity' || answered.code === 'series')
+      ? answered.aside ?? null
+      : series.missingSeries
+        ? `Not shown: ${series.missingSeries}.`
+        : null;
   const spelled = withTopCount(
     spellTitleFromResolved(
       titleWithSnapshotYear(
@@ -233,13 +237,14 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
     series.truncatedTo
   );
   const title = withDrawnSpan(disclose(spelled, asked, dataset?.coverage), rows);
-  const shortfall = coverageShortfall(asked, rows, series.retrieved);
-  const subtitle = seriesSubtitle(yLabel, rows, shortfall);
+  const shortfall = spanDisclosure(asked, rows, series.retrieved);
+  const extra = [shortfall, aside].filter(Boolean).join(' ');
+  const subtitle = seriesSubtitle(yLabel, rows, extra || null);
   const note = seriesNote(
     disclose(textClashesWithSeries(asked, series) ? title : series.sourceLabel, asked, dataset?.coverage),
     yLabel,
     rows,
-    shortfall
+    extra || null
   );
   const config = studioChart(
     chartType === 'line'
@@ -281,93 +286,8 @@ export function mintFromOfficial(asked: string, series: ResolvedSeries): MintRes
   });
 }
 
-const FULL_MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
-
 export function capitalizeUnits(label: string): string {
   return label.replace(/\b(usd|eur|gbp|jpy|cny|aud|cad)\b/gi, (token) => token.toUpperCase());
-}
-
-type Dated = { year: number; month?: number };
-
-function datedRow(value: string | number): Dated | undefined {
-  const text = String(value).trim();
-  const iso = text.match(/^((?:1[89]|20)\d{2})-(\d{2})(?:$|[-/.])/);
-  if (iso?.[1] && iso[2]) {
-    const month = Number(iso[2]);
-    if (month >= 1 && month <= 12) {
-      return { year: Number(iso[1]), month };
-    }
-  }
-  const quarter = text.match(/^(?:q([1-4])\s+((?:1[89]|20)\d{2})|((?:1[89]|20)\d{2})-q([1-4]))$/i);
-  if (quarter) {
-    const q = Number(quarter[1] || quarter[4]);
-    const year = Number(quarter[2] || quarter[3]);
-    if (q >= 1 && q <= 4 && year) {
-      return { year, month: q * 3 };
-    }
-  }
-  const year = text.match(/^((?:1[89]|20)\d{2})$/);
-  return year?.[1] ? { year: Number(year[1]) } : undefined;
-}
-
-function datedKey(stamp: Dated, edge: 'start' | 'end'): number {
-  const month = stamp.month ?? (edge === 'start' ? 1 : 12);
-  return stamp.year * 12 + month;
-}
-
-function datedLabel(stamp: Dated): string {
-  return stamp.month ? `${FULL_MONTHS[stamp.month - 1]} ${stamp.year}` : String(stamp.year);
-}
-
-function coverageShortfall(
-  asked: string,
-  rows: Array<{ x: string | number }>,
-  now: number
-): string | null {
-  const span = yearSpanFromAsked(asked, now);
-  if (span.since === undefined && span.until === undefined) {
-    return null;
-  }
-  const stamps = rows
-    .map((row) => datedRow(row.x))
-    .filter((stamp): stamp is Dated => stamp !== undefined)
-    .sort((left, right) => datedKey(left, 'start') - datedKey(right, 'start'));
-  const start = stamps[0];
-  const end = stamps[stamps.length - 1];
-  if (!start || !end || stamps.length < Math.ceil(rows.length * 0.7)) {
-    return null;
-  }
-  const bits: string[] = [];
-  if (span.since !== undefined) {
-    const askedStart = span.since * 12 + (span.sinceMonth ?? 1);
-    if (datedKey(start, 'start') > askedStart) {
-      const wanted = span.sinceMonth ? `${FULL_MONTHS[span.sinceMonth - 1]} ${span.since}` : String(span.since);
-      bits.push(`Starts in ${datedLabel(start)}, not ${wanted}`);
-    }
-  }
-  if (span.until !== undefined) {
-    const askedEnd = span.until * 12 + (span.untilMonth ?? 12);
-    if (datedKey(end, 'end') < askedEnd) {
-      const wanted = span.untilMonth ? `${FULL_MONTHS[span.untilMonth - 1]} ${span.until}` : String(span.until);
-      bits.push(`Ends in ${datedLabel(end)}, short of ${wanted}`);
-    }
-  } else if (span.since !== undefined && end.year < new Date(now).getUTCFullYear() - 1) {
-    bits.push(`Ends in ${end.year}, short of ${new Date(now).getUTCFullYear()}`);
-  }
-  return bits.length > 0 ? `${bits.join('. ')}.` : null;
 }
 
 function seriesSubtitle(

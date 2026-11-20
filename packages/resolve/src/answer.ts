@@ -14,7 +14,7 @@ export type ChartFace = {
 
 export type AnswerCheck =
   | { ok: true }
-  | { ok: false; code: AnswerCode; detail: string; honestTitle: string };
+  | { ok: false; code: AnswerCode; detail: string; honestTitle: string; aside?: string };
 
 const STOP = new Set([
   'since',
@@ -70,7 +70,8 @@ export function checkAnswer(asked: string, face: ChartFace): AnswerCheck {
         ok: false,
         code: 'entity',
         detail: `Missing ${listNames(missing)}.`,
-        honestTitle: entityTitle(shown, missing),
+        honestTitle: titleWithout(face.title, missing, shown),
+        aside: `Not shown: ${listNames(missing)}.`,
       };
     }
   }
@@ -85,7 +86,8 @@ export function checkAnswer(asked: string, face: ChartFace): AnswerCheck {
         ok: false,
         code: 'series',
         detail: `Missing ${listNames(missing)}.`,
-        honestTitle: `${focus}. Not shown: ${listNames(missing)}.`,
+        honestTitle: titleWithout(face.title, missing, shown.length > 0 ? shown : [focus]),
+        aside: `Not shown: ${listNames(missing)}.`,
       };
     }
   }
@@ -222,11 +224,28 @@ function measureFamily(text: string): 'years' | 'money' | 'percent' | undefined 
   return undefined;
 }
 
-function entityTitle(shown: string[], missing: string[]): string {
-  if (shown.length === 0) {
-    return `Not shown: ${listNames(missing)}.`;
+function titleWithout(title: string, missing: string[], shown: string[]): string {
+  let text = ` ${title} `;
+  for (const name of [...missing].sort((a, b) => b.length - a.length)) {
+    const body = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    text = text.replace(new RegExp(`\\b${body}\\b`, 'gi'), ' ');
   }
-  return `Showing ${listNames(shown)}. Not shown: ${listNames(missing)}.`;
+  text = text
+    .replace(/\s+,/g, ',')
+    .replace(/,(?:\s*,)+/g, ',')
+    .replace(/\s+\band\b(?=\s*(?:,|$))/gi, '')
+    .replace(/^(?:,\s*)+|(?:,\s*)+$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  const folded = text.toLowerCase();
+  const stillNames = missing.some((name) => folded.includes(name.toLowerCase()));
+  if (text.length >= 8 && !stillNames) {
+    return text;
+  }
+  if (shown.length > 0) {
+    return listNames(shown);
+  }
+  return title;
 }
 
 function listNames(names: string[]): string {
