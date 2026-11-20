@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  barsReadHorizontally,
   compactAxisLabel,
   looksSequentialX,
   xAxisRoom,
@@ -111,6 +112,23 @@ describe('xAxisRoom', () => {
     const room = xAxisRoom(names, { hasTitle: true, innerWidth: 720 });
     expect(room.rotate).not.toBe(0);
     expect(room.tickDepth).toBeLessThan(110);
+  });
+
+  it('lays long category names out as horizontal bars when they would rotate', () => {
+    const names = [
+      'United States',
+      'United Arab Emirates',
+      'Trinidad and Tobago',
+      'Saudi Arabia',
+      'Kazakhstan',
+      'Australia',
+      'Canada',
+      'Bahrain',
+    ];
+    expect(xTickRotate(names, 280)).not.toBe(0);
+    expect(barsReadHorizontally(names, 280)).toBe(true);
+    expect(barsReadHorizontally(['Qatar', 'Oman', 'Chad'], 900)).toBe(false);
+    expect(barsReadHorizontally(['2018', '2019', '2020', '2021', '2022'], 320)).toBe(false);
   });
 
   it('wraps a short species set on a wide plot instead of reserving a rotate well', () => {

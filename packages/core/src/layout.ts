@@ -262,12 +262,10 @@ export function xTickRotate(names: string[], innerWidth: number): XTickRotate {
 }
 
 export function barsReadHorizontally(names: string[], innerWidth: number): boolean {
-  if (names.length < 8 || looksSequentialX(names)) {
+  if (names.length === 0 || looksSequentialX(names)) {
     return false;
   }
-  const labels = displayNames(names);
-  const slot = innerWidth / Math.max(labels.length, 1);
-  return labelFootprint(longestLabel(labels), -90) > slot;
+  return xTickRotate(names, innerWidth) !== 0;
 }
 
 function displayNames(names: string[]): string[] {

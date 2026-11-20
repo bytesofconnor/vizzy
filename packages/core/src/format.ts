@@ -1,6 +1,26 @@
 import * as d3 from 'd3';
 
-/** Compact numeric label for axis ticks and bar callouts. */
+const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+export function plainScripts(value: string): string {
+  let out = '';
+  for (const ch of value) {
+    const sub = SUBSCRIPT_DIGITS.indexOf(ch);
+    if (sub >= 0) {
+      out += String(sub);
+      continue;
+    }
+    const sup = SUPERSCRIPT_DIGITS.indexOf(ch);
+    if (sup >= 0) {
+      out += String(sup);
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
 export function formatDataValue(n: number, domain: [number, number]): string {
   if (!Number.isFinite(n)) {
     return '';

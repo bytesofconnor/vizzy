@@ -4,6 +4,7 @@ import 'd3-transition';
 import { barSpeak, seriesIsSketch, sketchFrame, type BarSpeak } from '../bar-reading';
 import { bindChartTip, formatTipNumber, seriesTipLabel } from '../chart-tip';
 import { formatDataValue } from '../format';
+import { paintHalo } from '../halo';
 import { ChartConfig, DataPoint, VizzyError } from '../types';
 import { ScaleManager } from '../components/ScaleManager';
 import { RenderEngine, RenderContext } from '../components/RenderEngine';
@@ -110,9 +111,20 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       speak: barSpeak(row[dataMapping.x], row[dataMapping.y], frame.source),
     }));
     const drawn = spoken.filter((item) => item.speak.mark !== 'none');
+    const colorKey = dataMapping.color;
+    const quiet = colors.palette[1] ?? colors.primary;
+    const focusTone =
+      colorKey === 'tone' && data.some((row) => String(row.tone ?? '') === colors.primary);
+    const focusRow = data.some((row) => row.highlight === true);
     const fillFor = (row: TData) => {
-      if (dataMapping.color && row[dataMapping.color]) {
-        return this._scaleManager.getColorValue(String(row[dataMapping.color]));
+      if (colorKey && colorKey !== 'tone' && row[colorKey] != null && row[colorKey] !== '') {
+        return this._scaleManager.getColorValue(String(row[colorKey]));
+      }
+      if (focusRow) {
+        return row.highlight === true ? colors.primary : quiet;
+      }
+      if (focusTone) {
+        return String(row.tone ?? '') === colors.primary ? colors.primary : quiet;
       }
       return colors.primary;
     };
@@ -302,7 +314,7 @@ export class BarChart<TData extends DataPoint = DataPoint> {
     frame: ChartConfig
   ): void {
     const chartConfig = frame.chart as { showValues?: boolean; orientation?: string };
-    if (!chartConfig.showValues || chartConfig.orientation === 'horizontal' || data.length > 14) {
+    if (!chartConfig.showValues) {
       group.selectAll('.bar-label').remove();
       return;
     }
@@ -324,26 +336,34 @@ export class BarChart<TData extends DataPoint = DataPoint> {
       .attr('class', 'bar-label')
       .merge(labels);
 
+    const horizontal = chartConfig.orientation === 'horizontal';
     merged
-      .attr('x', (d) => this._scaleManager.getXValue(d[dataMapping.x]))
+      .attr('x', (d) => {
+        if (!horizontal) {
+          return this._scaleManager.getXValue(d[dataMapping.x]);
+        }
+        const box = this._barBox(d);
+        return box.x + box.width + 6;
+      })
       .attr('y', (d) => {
+        if (horizontal) {
+          const box = this._barBox(d);
+          return box.y + box.height / 2;
+        }
         const height = this._barHeight(d[dataMapping.y]);
         if (height < 12) {
           return this._scaleManager.getYValue(d[dataMapping.y]) - 4;
         }
         return this._scaleManager.getYValue(d[dataMapping.y]) - 6;
       })
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'auto')
+      .attr('text-anchor', horizontal ? 'start' : 'middle')
+      .attr('dominant-baseline', horizontal ? 'middle' : 'auto')
       .style('fill', colors.text)
-      .style('opacity', (d) => (this._barHeight(d[dataMapping.y]) >= 12 ? 0.72 : 0))
-      .style('font-size', '10px')
+      .style('opacity', (d) => (horizontal || this._barHeight(d[dataMapping.y]) >= 12 ? 0.92 : 0))
+      .style('font-size', '11px')
       .style('font-family', 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace')
-      .style('paint-order', 'stroke fill')
-      .style('stroke', colors.background)
-      .style('stroke-width', '3px')
-      .style('stroke-linejoin', 'round')
       .style('pointer-events', 'none')
+      .call((sel) => paintHalo(sel, colors.background))
       .text((d) => formatDataValue(Number(d[dataMapping.y]), domain));
   }
 

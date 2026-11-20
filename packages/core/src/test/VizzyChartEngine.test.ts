@@ -360,7 +360,7 @@ describe('VizzyChartEngine', () => {
     expect(visible.some((tick) => (tick.textContent ?? '').includes('Claude'))).toBe(true);
   });
 
-  it('labels a long people series by last name', async () => {
+  it('lays a long people series out as horizontal bars', async () => {
     const scorers = [
       'Alan Shearer',
       'Harry Kane',
@@ -380,15 +380,14 @@ describe('VizzyChartEngine', () => {
     ].map((month, index) => ({ month, revenue: 260 - index * 8 }));
     const chart = engine(barConfig(), scorers);
     await chart.render();
-    const labels = [...chart.container.querySelectorAll('.x-axis .tick text')].filter(
-      (tick) => tick.parentElement?.getAttribute('opacity') !== '0'
-    );
+    const labels = visibleTickText(chart.container, '.y-axis');
     expect(labels).toHaveLength(scorers.length);
-    expect(labels.some((tick) => (tick.textContent ?? '').includes('Shearer'))).toBe(true);
-    expect(labels.some((tick) => (tick.textContent ?? '').includes('Alan'))).toBe(false);
+    expect(labels).toContain('Alan Shearer');
+    expect(labels).toContain('Robin van Persie');
+    expect(chart.container.querySelector('.x-axis .tick text[transform*="rotate"]')).toBeNull();
   });
 
-  it('keeps the x-axis title below rotated category names', async () => {
+  it('keeps long category names horizontal instead of rotating them', async () => {
     const tools = [
       'Claude Code',
       'GitHub Copilot',
@@ -405,13 +404,14 @@ describe('VizzyChartEngine', () => {
     config.axes.x.label = 'Coding Agent';
     const chart = engine(config, tools);
     await chart.render();
-    const title = chart.container.querySelector('.x-axis .axis-label');
-    const rotated = [...chart.container.querySelectorAll('.x-axis .tick text')].some((node) =>
+    const rotated = [...chart.container.querySelectorAll('.tick text')].some((node) =>
       (node.getAttribute('transform') ?? '').includes('rotate')
     );
-    expect(rotated).toBe(true);
-    expect(title?.textContent).toMatch(/Coding/);
-    expect(Number(title?.getAttribute('y'))).toBeGreaterThan(100);
+    expect(rotated).toBe(false);
+    const names = visibleTickText(chart.container, '.y-axis');
+    expect(names).toContain('Claude Code');
+    expect(names).toContain('Google Antigravity');
+    expect(chart.container.querySelector('.x-axis .axis-label')).toBeNull();
   });
 
   it('grows the svg so long x labels stay inside the viewBox', async () => {
@@ -532,7 +532,9 @@ describe('VizzyChartEngine', () => {
       { month: 'Brooklyn Park', revenue: 1858 },
       { month: 'Minneapolis', revenue: 1867 },
     ];
-    const chart = engine(barConfig(), cities);
+    const config = barConfig();
+    config.chart = { ...config.chart, showValues: false };
+    const chart = engine(config, cities);
     await chart.render();
     const svg = chart.container.querySelector('svg');
     expect(svg?.querySelector('.bar-label')).toBeNull();
@@ -554,7 +556,7 @@ describe('VizzyChartEngine', () => {
     expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(20);
   });
 
-  it('wraps long names under the bar and never paints a value callout', async () => {
+  it('wraps long names under the bar and paints the value', async () => {
     const breweries = [
       { month: 'August Schell Brewing Company', revenue: 108000 },
       { month: 'Summit Brewing Company', revenue: 76000 },
@@ -566,7 +568,8 @@ describe('VizzyChartEngine', () => {
     };
     const chart = engine(tight, breweries);
     await chart.render();
-    expect(chart.container.querySelector('.bar-label')).toBeNull();
+    const painted = [...chart.container.querySelectorAll('.bar-label')].map((node) => node.textContent ?? '');
+    expect(painted).toContain('108,000');
 
     const first = chart.container.querySelector('.x-axis .tick text');
     const lines = [...(first?.querySelectorAll('tspan') ?? [])].map((node) => node.textContent);
@@ -630,7 +633,7 @@ describe('VizzyChartEngine', () => {
     config.axes.x.label = 'Country';
     const chart = new VizzyChartEngine(el, config, rows);
     await chart.render();
-    const labels = visibleTickText(el, '.x-axis');
+    const labels = visibleTickText(el, '.y-axis');
     expect(labels).toEqual(expect.arrayContaining([
       'United States',
       'United Kingdom',

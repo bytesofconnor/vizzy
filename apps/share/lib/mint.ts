@@ -10,7 +10,7 @@ import { decodePortableDraft, encodePortableDraft, type PortableDraft } from './
 import type { Piece } from './pieces';
 import { cleanSourceLabel } from './source';
 import { applyPrintGrayscale } from './print-grayscale';
-import { DUST, studioChart } from './theme';
+import { studioChart } from './theme';
 import { withDrawnSpan } from './year-span';
 
 const MAX_ROWS = CHART_ROW_CAP;
@@ -93,7 +93,6 @@ export function mintPiece(input: MintInput): MintResult {
 
   let studio = studioChart(checked.config.chart, checked.config.dataMapping, extras);
   let rows = data as DataPoint[];
-  ({ config: studio, data: rows } = withDust(studio, rows));
   if (input.printGrayscale) {
     ({ config: studio, data: rows } = applyPrintGrayscale(studio, rows));
   }
@@ -153,29 +152,6 @@ function pieceFromDraft(draft: PortableDraft, slug: string): Piece {
     printGrayscale: draft.printGrayscale,
     config,
     data,
-  };
-}
-
-function withDust(
-  config: Piece['config'],
-  data: DataPoint[]
-): { config: Piece['config']; data: DataPoint[] } {
-  if (config.chart.type === 'line' || config.dataMapping.color) {
-    return { config, data };
-  }
-
-  const rows = data.map((row, index) => ({
-    ...row,
-    tone: DUST[index % DUST.length],
-  }));
-
-  return {
-    config: studioChart(config.chart, { ...config.dataMapping, color: 'tone' }, {
-      source: config.source,
-      axes: config.axes,
-      accessibility: config.accessibility,
-    }),
-    data: rows,
   };
 }
 

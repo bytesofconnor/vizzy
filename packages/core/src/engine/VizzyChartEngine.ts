@@ -27,6 +27,8 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
   private _performanceMonitor: PerformanceMonitor;
   private _eventEmitter: EventEmitter;
   private _marginHome: { left: number; bottom: number } | null = null;
+  private _axisHome: { x?: string; y?: string } | null = null;
+  private _barOrientation: 'vertical' | 'horizontal' | null = null;
 
   constructor(
     container: HTMLElement | string,
@@ -279,6 +281,12 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
     if (!this._marginHome) {
       this._marginHome = { left: margin.left, bottom: margin.bottom };
     }
+    if (!this._axisHome) {
+      this._axisHome = { x: this.config.axes.x.label, y: this.config.axes.y.label };
+    }
+    if (this.config.chart.type === 'bar' && this._barOrientation == null) {
+      this._barOrientation = this.config.chart.orientation;
+    }
     margin.left = this._marginHome.left;
     margin.bottom = this._marginHome.bottom;
     const chartWidth = Math.max(width, 120);
@@ -289,9 +297,18 @@ export class VizzyChartEngine<TData extends DataPoint = DataPoint>
       const innerGuess = Math.max(120, chartWidth - margin.left - margin.right);
       const singleBars =
         this.config.chart.type === 'bar' && this.config.chart.grouping !== 'grouped' && this.config.chart.grouping !== 'stacked';
-      const horizontal = singleBars && barsReadHorizontally(names, innerGuess);
+      const horizontal =
+        this.config.chart.type === 'bar' &&
+        (this._barOrientation === 'horizontal' || (singleBars && barsReadHorizontally(names, innerGuess)));
       if (this.config.chart.type === 'bar') {
         this.config.chart.orientation = horizontal ? 'horizontal' : 'vertical';
+      }
+      if (horizontal) {
+        this.config.axes.x.label = this._axisHome.y;
+        this.config.axes.y.label = undefined;
+      } else {
+        this.config.axes.x.label = this._axisHome.x;
+        this.config.axes.y.label = this._axisHome.y;
       }
       if (horizontal) {
         const longest = names.reduce((max, name) => Math.max(max, name.length), 1);

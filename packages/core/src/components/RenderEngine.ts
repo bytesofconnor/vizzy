@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 // Bundlers drop d3's side-effect re-export, so selection.transition is missing until this import.
 import 'd3-transition';
-import { formatDataValue } from '../format';
+import { formatDataValue, plainScripts } from '../format';
 import {
   compactAxisLabel,
   evenDatedTickKeep,
@@ -34,9 +34,8 @@ export interface RenderOptions {
   easing?: string;
 }
 
-/** Resvg drops regular spaces in SVG text. Keep labels readable on the PNG. */
 function paintAxisLabel(label: string): string {
-  return label.replace(/ /g, '\u00A0');
+  return plainScripts(label).replace(/ /g, '\u00A0');
 }
 
 export class RenderEngine {
@@ -214,7 +213,7 @@ export class RenderEngine {
       if (yIsBand) {
         yAxisGroup.selectAll<SVGTextElement, string>('.tick text')
           .attr('text-anchor', 'end')
-          .style('opacity', 0.78)
+          .style('opacity', 0.9)
           .style('font-size', '12px')
           .text((value) => paintAxisLabel(String(value)));
       }
@@ -617,6 +616,9 @@ export class RenderEngine {
 
     const names = items.map((item) => item.name);
     const sequential = looksSequentialX(names);
+    const numericAxis =
+      !('bandwidth' in scale) &&
+      names.every((name) => /^-?\d[\d,]*(?:\.\d+)?$/.test(name));
     const monthCycle = monthCycleShortLabels(names);
     if (
       monthCycle &&
@@ -637,7 +639,7 @@ export class RenderEngine {
       yearKeep.forEach((shown, index) => {
         keep[index] = shown;
       });
-    } else if (sequential && !monthCycle) {
+    } else if ((sequential || numericAxis) && !monthCycle) {
       keep.fill(false);
       keep[0] = true;
       keep[items.length - 1] = true;
@@ -659,7 +661,7 @@ export class RenderEngine {
     const innerWidth = Math.abs((range[1] ?? 0) - (range[0] ?? 0));
     const slot = 'bandwidth' in scale ? scale.bandwidth() + 10 : innerWidth / Math.max(items.length, 1);
     const visibleNames = items.filter((_, index) => keep[index]).map((item) => item.name);
-    const rotate: XTickRotate = sequential ? 0 : xTickRotate(visibleNames, innerWidth);
+    const rotate: XTickRotate = sequential || numericAxis ? 0 : xTickRotate(visibleNames, innerWidth);
 
     let tallest = 1;
     const longest = items.reduce((max, item) => Math.max(max, item.label.length), 0);
@@ -730,8 +732,8 @@ export class RenderEngine {
     group.selectAll('.tick line').attr('stroke', 'none');
     group.selectAll('.tick text')
       .style('fill', textColor)
-      .style('opacity', role === 'x' ? 0.78 : 0.38)
-      .style('font-size', role === 'x' ? '12px' : '10px')
+      .style('opacity', 0.9)
+      .style('font-size', '12px')
       .style('letter-spacing', role === 'x' ? '0.02em' : '0')
       .style('font-family', role === 'x'
         ? 'var(--font-mono), "IBM Plex Mono", ui-monospace, monospace'

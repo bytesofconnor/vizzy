@@ -1,6 +1,13 @@
 import { VizzyChartEngine } from './engine/VizzyChartEngine';
 import { ChartConfig, DataPoint, validateChartConfig, validateDataset } from './types';
 
+export function resolveExportFonts(svg: string): string {
+  return svg
+    .replace(/var\(--font-mono\)(?:,\s*&quot;IBM Plex Mono&quot;)?/g, '&quot;IBM Plex Mono&quot;')
+    .replace(/var\(--font-sans\)(?:,\s*Archivo)?/g, 'Archivo')
+    .replace(/var\(--[A-Za-z0-9-]+\)/g, 'Archivo');
+}
+
 function sizedContainer(width: number, height: number): HTMLDivElement {
   const el = document.createElement('div');
   Object.defineProperty(el, 'getBoundingClientRect', {
@@ -20,10 +27,7 @@ function sizedContainer(width: number, height: number): HTMLDivElement {
   return el;
 }
 
-/**
- * Render a validated chart to a standalone SVG string.
- * Requires a DOM (browser, jsdom, or happy-dom).
- */
+/** Requires a DOM (browser, jsdom, or happy-dom). */
 export async function renderToSVG(config: unknown, data: unknown[]): Promise<string> {
   const validated: ChartConfig = validateChartConfig(config);
   const rows = validateDataset(data);
@@ -34,7 +38,7 @@ export async function renderToSVG(config: unknown, data: unknown[]): Promise<str
   const engine = new VizzyChartEngine(el, validated, rows as DataPoint[]);
   try {
     await engine.render();
-    return engine.toSVG();
+    return resolveExportFonts(engine.toSVG());
   } finally {
     engine.destroy();
     el.remove();
